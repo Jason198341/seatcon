@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>컨퍼런스 채팅룸</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Sans:wght@300;400;500;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <meta name="theme-color" content="#6200EA">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 시작 화면 (역할 선택) -->
+        <div class="screen" id="role-screen">
+            <div class="welcome-container">
+                <div class="logo-container">
+                    <div class="logo-circle">
+                        <i class="fas fa-comments"></i>
+                    </div>
+                    <h1 class="app-title">컨퍼런스 채팅</h1>
+                </div>
+                <h2 class="welcome-text">컨퍼런스 채팅에 오신 것을 환영합니다</h2>
+                <p class="welcome-description">참여하기 전에 역할을 선택해주세요</p>
+                
+                <div class="role-selection">
+                    <div class="role-option" id="participant-role">
+                        <div class="role-icon">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="role-info">
+                            <h3>참가자</h3>
+                            <p>컨퍼런스에 참여하고 질문을 남기세요</p>
+                        </div>
+                    </div>
+                    
+                    <div class="role-option" id="moderator-role">
+                        <div class="role-icon">
+                            <i class="fas fa-user-tie"></i>
+                        </div>
+                        <div class="role-info">
+                            <h3>진행자</h3>
+                            <p>컨퍼런스를 진행하고 관리합니다</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 진행자 비밀번호 입력 (기본적으로 숨겨짐) -->
+                <div class="password-container" id="moderator-password">
+                    <div class="password-header">
+                        <h3>진행자 인증</h3>
+                        <i class="fas fa-times" id="close-password"></i>
+                    </div>
+                    <div class="password-input-container">
+                        <div class="password-digits">
+                            <input type="password" maxlength="1" class="password-digit" data-index="0">
+                            <input type="password" maxlength="1" class="password-digit" data-index="1">
+                            <input type="password" maxlength="1" class="password-digit" data-index="2">
+                            <input type="password" maxlength="1" class="password-digit" data-index="3">
+                        </div>
+                        <p class="password-error" id="password-error-message">비밀번호가 올바르지 않습니다</p>
+                        <button class="button primary-button" id="confirm-password">인증</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 프로필 설정 화면 -->
+        <div class="screen hidden" id="profile-screen">
+            <div class="profile-container">
+                <div class="screen-header">
+                    <h2>프로필 설정</h2>
+                    <div class="role-badge" id="profile-role-badge">
+                        <i class="fas fa-user"></i>
+                        <span>참가자</span>
+                    </div>
+                </div>
+                
+                <form id="profile-form">
+                    <div class="form-group">
+                        <label for="user-name">이름</label>
+                        <input type="text" id="user-name" placeholder="이름을 입력하세요" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="user-email">이메일</label>
+                        <input type="email" id="user-email" placeholder="이메일을 입력하세요" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="preferred-language">선호 언어</label>
+                        <select id="preferred-language" required>
+                            <option value="ko">한국어</option>
+                            <option value="en">English (영어)</option>
+                            <option value="ja">日本語 (일본어)</option>
+                            <option value="zh">中文 (중국어)</option>
+                            <option value="hi">हिन्दी (힌디어)</option>
+                            <option value="te">తెలుగు (텔루구어)</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="button primary-button">채팅 참여</button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- 채팅 화면 -->
+        <div class="screen hidden" id="chat-screen">
+            <div class="chat-container">
+                <div class="chat-header">
+                    <div class="header-info">
+                        <h2>컨퍼런스 채팅</h2>
+                        <div class="role-badge" id="chat-role-badge">
+                            <i class="fas fa-user"></i>
+                            <span>참가자</span>
+                        </div>
+                    </div>
+                    <div class="header-actions">
+                        <button class="icon-button" id="settings-button">
+                            <i class="fas fa-cog"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="chat-messages" id="message-container">
+                    <!-- 메시지들이 여기에 동적으로 추가됨 -->
+                </div>
+                
+                <div class="chat-input">
+                    <div class="input-container">
+                        <textarea id="message-input" placeholder="메시지를 입력하세요..."></textarea>
+                        <button class="send-button" id="send-button">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 설정 메뉴 (기본적으로 숨겨짐) -->
+            <div class="settings-panel hidden" id="settings-panel">
+                <div class="settings-header">
+                    <h3>설정</h3>
+                    <button class="icon-button" id="close-settings">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="settings-content">
+                    <div class="settings-section">
+                        <h4>언어 설정</h4>
+                        <div class="form-group">
+                            <label for="settings-language">선호 언어</label>
+                            <select id="settings-language">
+                                <option value="ko">한국어</option>
+                                <option value="en">English (영어)</option>
+                                <option value="ja">日本語 (일본어)</option>
+                                <option value="zh">中文 (중국어)</option>
+                                <option value="hi">हिन्दी (힌디어)</option>
+                                <option value="te">తెలుగు (텔루구어)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h4>테마</h4>
+                        <div class="theme-toggle">
+                            <span class="theme-label light-theme-label">라이트</span>
+                            <label class="switch">
+                                <input type="checkbox" id="theme-switch">
+                                <span class="slider round"></span>
+                            </label>
+                            <span class="theme-label dark-theme-label">다크</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 진행자 전용 설정 (역할에 따라 표시/숨김) -->
+                    <div class="settings-section moderator-only hidden" id="moderator-tools">
+                        <h4>진행자 도구</h4>
+                        <button class="button secondary-button" id="announcement-button">공지사항 작성</button>
+                        <button class="button warning-button" id="kick-user-button">참가자 강퇴</button>
+                    </div>
+                    
+                    <button class="button danger-button" id="logout-button">나가기</button>
+                </div>
+            </div>
+            
+            <!-- 강퇴 패널 (진행자 전용, 기본적으로 숨겨짐) -->
+            <div class="kick-panel hidden" id="kick-panel">
+                <div class="kick-header">
+                    <h3>참가자 강퇴</h3>
+                    <button class="icon-button" id="close-kick">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="kick-content">
+                    <div class="user-list" id="user-list">
+                        <!-- 사용자 목록이 여기에 동적으로 추가됨 -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 공지사항 패널 (진행자 전용, 기본적으로 숨겨짐) -->
+            <div class="announcement-panel hidden" id="announcement-panel">
+                <div class="announcement-header">
+                    <h3>공지사항 작성</h3>
+                    <button class="icon-button" id="close-announcement">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="announcement-content">
+                    <textarea id="announcement-text" placeholder="공지사항을 입력하세요..."></textarea>
+                    <button class="button primary-button" id="send-announcement">공지하기</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 로딩 화면 -->
+        <div class="overlay hidden" id="loading-overlay">
+            <div class="loading-spinner">
+                <div class="spinner"></div>
+                <p class="loading-text">로딩 중...</p>
+            </div>
+        </div>
+        
+        <!-- 알림 토스트 -->
+        <div class="toast hidden" id="notification-toast">
+            <i class="toast-icon fas fa-info-circle"></i>
+            <p class="toast-message">알림 메시지</p>
+        </div>
+    </div>
+
+    <!-- 라이브러리 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.21.0/dist/umd/supabase.min.js"></script>
+    
+    <!-- 애플리케이션 스크립트 -->
+    <script src="js/translation.js"></script>
+    <script src="js/database.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
