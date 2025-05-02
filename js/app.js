@@ -74,13 +74,36 @@ document.addEventListener('DOMContentLoaded', function() {
     let state = {
         isDarkTheme: false,
         onlineUsers: [],
-        messageQueue: []
+        messageQueue: [],
+        apiStatus: {
+            supabase: false,
+            translation: false
+        }
     };
     
     /**
      * 애플리케이션 초기화
      */
     function init() {
+        console.log('애플리케이션 초기화 시작...');
+        
+        // API 상태 테스트
+        testAPIs().then(status => {
+            state.apiStatus = status;
+            
+            if (!status.supabase && !status.translation) {
+                showDebugPanel('Supabase 데이터베이스와 번역 API 모두 작동하지 않습니다. 네트워크 연결을 확인하세요.');
+            } else if (!status.supabase) {
+                showDebugPanel('Supabase 데이터베이스 연결에 문제가 있습니다. 채팅 기능이 제한됩니다.');
+            } else if (!status.translation) {
+                showDebugPanel('번역 API 연결에 문제가 있습니다. 번역 기능이 제한됩니다.');
+            } else {
+                console.log('모든 API가 정상적으로 작동합니다.');
+                // 디버그 콘솔에도 상태 표시
+                console.log('API 상태:', status);
+            }
+        });
+        
         // 테마 설정
         initTheme();
         
@@ -89,6 +112,141 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 이전 로그인 확인
         checkPreviousLogin();
+        
+        console.log('애플리케이션 초기화 완료');
+    }
+    
+    /**
+     * API 상태 테스트
+     */
+    async function testAPIs() {
+        console.log('API 테스트 시작...');
+        showLoading();
+        
+        try {
+            // Supabase 테스트
+            const supabaseOk = await databaseService.testConnection();
+            console.log('Supabase 테스트 결과:', supabaseOk ? '성공' : '실패');
+            
+            // 번역 API 테스트
+            const translationOk = await translationService.testTranslation();
+            console.log('번역 API 테스트 결과:', translationOk ? '성공' : '실패');
+            
+            hideLoading();
+            return {
+                supabase: supabaseOk,
+                translation: translationOk
+            };
+        } catch (error) {
+            console.error('API 테스트 중 오류 발생:', error);
+            hideLoading();
+            return {
+                supabase: false,
+                translation: false
+            };
+        }
+    }
+    
+    /**
+     * 디버그 패널 표시
+     */
+    function showDebugPanel(message) {
+        // 디버그 패널 생성
+        const debugPanel = document.createElement('div');
+        debugPanel.className = 'debug-panel';
+        debugPanel.innerHTML = `
+            <div class="debug-header">
+                <h3>API 연결 오류</h3>
+                <button class="icon-button" id="close-debug">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="debug-content">
+                <p>${message}</p>
+                <div class="debug-status">
+                    <p>Supabase 상태: <span class="${state.apiStatus.supabase ? 'status-ok' : 'status-error'}">${state.apiStatus.supabase ? '정상' : '오류'}</span></p>
+                    <p>번역 API 상태: <span class="${state.apiStatus.translation ? 'status-ok' : 'status-error'}">${state.apiStatus.translation ? '정상' : '오류'}</span></p>
+                </div>
+                <button class="button primary-button" id="retry-connection">재연결 시도</button>
+            </div>
+        `;
+        
+        // 스타일 추가
+        const style = document.createElement('style');
+        style.textContent = `
+            .debug-panel {
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 90%;
+                max-width: 400px;
+                background-color: var(--background);
+                border-radius: 8px;
+                box-shadow: var(--shadow-lg);
+                z-index: 1000;
+                overflow: hidden;
+            }
+            
+            .debug-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 12px 16px;
+                background-color: var(--primary-color);
+                color: white;
+            }
+            
+            .debug-header h3 {
+                margin: 0;
+                font-size: 16px;
+            }
+            
+            .debug-content {
+                padding: 16px;
+            }
+            
+            .debug-status {
+                margin: 12px 0;
+                padding: 8px;
+                background-color: var(--message-bg);
+                border-radius: 4px;
+            }
+            
+            .status-ok {
+                color: var(--success-color);
+                font-weight: bold;
+            }
+            
+            .status-error {
+                color: var(--error-color);
+                font-weight: bold;
+            }
+        `;
+        
+        document.head.appendChild(style);
+        document.body.appendChild(debugPanel);
+        
+        // 이벤트 리스너 추가
+        document.getElementById('close-debug').addEventListener('click', () => {
+            document.body.removeChild(debugPanel);
+        });
+        
+        document.getElementById('retry-connection').addEventListener('click', async () => {
+            document.body.removeChild(debugPanel);
+            const newStatus = await testAPIs();
+            state.apiStatus = newStatus;
+            
+            if (!newStatus.supabase && !newStatus.translation) {
+                showDebugPanel('Supabase 데이터베이스와 번역 API 모두 작동하지 않습니다. 네트워크 연결을 확인하세요.');
+            } else if (!newStatus.supabase) {
+                showDebugPanel('Supabase 데이터베이스 연결에 문제가 있습니다. 채팅 기능이 제한됩니다.');
+            } else if (!newStatus.translation) {
+                showDebugPanel('번역 API 연결에 문제가 있습니다. 번역 기능이 제한됩니다.');
+            } else {
+                showNotification('모든 API가 정상적으로 연결되었습니다.', 'success');
+            }
+        });
     }
     
     /**
@@ -110,7 +268,9 @@ document.addEventListener('DOMContentLoaded', function() {
         applyTheme();
         
         // 테마 토글 스위치 상태 설정
-        elements.chat.themeSwitch.checked = state.isDarkTheme;
+        if (elements.chat.themeSwitch) {
+            elements.chat.themeSwitch.checked = state.isDarkTheme;
+        }
     }
     
     /**
@@ -129,42 +289,67 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function registerEventListeners() {
         // 역할 선택
-        elements.roleSelection.participant.addEventListener('click', () => selectRole('participant'));
-        elements.roleSelection.moderator.addEventListener('click', () => selectRole('moderator'));
+        if (elements.roleSelection.participant && elements.roleSelection.moderator) {
+            elements.roleSelection.participant.addEventListener('click', () => selectRole('participant'));
+            elements.roleSelection.moderator.addEventListener('click', () => selectRole('moderator'));
+        }
         
         // 진행자 비밀번호
-        elements.moderatorPassword.inputs.forEach(input => {
-            input.addEventListener('input', handlePasswordInput);
-            input.addEventListener('keydown', handlePasswordKeydown);
-        });
-        elements.moderatorPassword.confirmButton.addEventListener('click', verifyModeratorPassword);
-        elements.moderatorPassword.closeButton.addEventListener('click', hideModeratorPassword);
+        if (elements.moderatorPassword.inputs.length) {
+            elements.moderatorPassword.inputs.forEach(input => {
+                input.addEventListener('input', handlePasswordInput);
+                input.addEventListener('keydown', handlePasswordKeydown);
+            });
+            elements.moderatorPassword.confirmButton.addEventListener('click', verifyModeratorPassword);
+            elements.moderatorPassword.closeButton.addEventListener('click', hideModeratorPassword);
+        }
         
         // 프로필 폼
-        elements.profile.form.addEventListener('submit', handleProfileSubmit);
+        if (elements.profile.form) {
+            elements.profile.form.addEventListener('submit', handleProfileSubmit);
+        }
         
         // 채팅 기능
-        elements.chat.messageInput.addEventListener('input', adjustInputHeight);
-        elements.chat.messageInput.addEventListener('keydown', handleMessageKeydown);
-        elements.chat.sendButton.addEventListener('click', sendMessage);
+        if (elements.chat.messageInput && elements.chat.sendButton) {
+            elements.chat.messageInput.addEventListener('input', adjustInputHeight);
+            elements.chat.messageInput.addEventListener('keydown', handleMessageKeydown);
+            elements.chat.sendButton.addEventListener('click', sendMessage);
+        }
         
         // 설정 패널
-        elements.chat.settingsButton.addEventListener('click', showSettingsPanel);
-        elements.chat.closeSettings.addEventListener('click', hideSettingsPanel);
-        elements.chat.settingsLanguage.addEventListener('change', changeLanguage);
-        elements.chat.themeSwitch.addEventListener('change', toggleTheme);
-        elements.chat.logoutButton.addEventListener('click', logout);
+        if (elements.chat.settingsButton && elements.chat.closeSettings) {
+            elements.chat.settingsButton.addEventListener('click', showSettingsPanel);
+            elements.chat.closeSettings.addEventListener('click', hideSettingsPanel);
+            
+            if (elements.chat.settingsLanguage) {
+                elements.chat.settingsLanguage.addEventListener('change', changeLanguage);
+            }
+            
+            if (elements.chat.themeSwitch) {
+                elements.chat.themeSwitch.addEventListener('change', toggleTheme);
+            }
+            
+            if (elements.chat.logoutButton) {
+                elements.chat.logoutButton.addEventListener('click', logout);
+            }
+        }
         
         // 진행자 도구
-        elements.chat.announcementButton.addEventListener('click', showAnnouncementPanel);
-        elements.chat.kickUserButton.addEventListener('click', showKickPanel);
+        if (elements.chat.announcementButton && elements.chat.kickUserButton) {
+            elements.chat.announcementButton.addEventListener('click', showAnnouncementPanel);
+            elements.chat.kickUserButton.addEventListener('click', showKickPanel);
+        }
         
         // 강퇴 패널
-        elements.kickPanel.closeButton.addEventListener('click', hideKickPanel);
+        if (elements.kickPanel.closeButton) {
+            elements.kickPanel.closeButton.addEventListener('click', hideKickPanel);
+        }
         
         // 공지사항 패널
-        elements.announcementPanel.closeButton.addEventListener('click', hideAnnouncementPanel);
-        elements.announcementPanel.sendButton.addEventListener('click', sendAnnouncement);
+        if (elements.announcementPanel.closeButton && elements.announcementPanel.sendButton) {
+            elements.announcementPanel.closeButton.addEventListener('click', hideAnnouncementPanel);
+            elements.announcementPanel.sendButton.addEventListener('click', sendAnnouncement);
+        }
     }
     
     /**
@@ -176,8 +361,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (userInfo) {
             // 사용자 정보가 있으면 채팅 화면으로 이동
             authService.setRole(userInfo.isModerator ? 'moderator' : 'participant');
-            initChatScreen();
-            showScreen(SCREENS.CHAT);
+            initChatScreen().then(() => {
+                showScreen(SCREENS.CHAT);
+            }).catch(error => {
+                console.error('채팅 화면 초기화 실패:', error);
+                // 오류 발생 시 로그아웃 후 역할 선택 화면으로 이동
+                authService.logout();
+                showScreen(SCREENS.ROLE);
+                showNotification('세션이 만료되었습니다. 다시 로그인해주세요.', 'error');
+            });
         } else {
             // 사용자 정보가 없으면 역할 선택 화면 표시
             showScreen(SCREENS.ROLE);
@@ -325,6 +517,12 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // API 상태 확인
+        if (!state.apiStatus.supabase) {
+            showNotification('서버 연결에 문제가 있습니다. 나중에 다시 시도해주세요.', 'error');
+            return;
+        }
+        
         // 로딩 표시
         showLoading();
         
@@ -399,7 +597,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const userLanguage = databaseService.currentUser.language;
         const messagePromises = messages.map(async message => {
             // 번역 필요 여부 확인
-            if (message.language !== userLanguage) {
+            if (message.language !== userLanguage && state.apiStatus.translation) {
                 try {
                     const translatedContent = await translationService.translateText(
                         message.content,
@@ -429,6 +627,7 @@ document.addEventListener('DOMContentLoaded', function() {
      * 새 메시지 처리
      */
     function handleNewMessage(message) {
+        console.log('새 메시지 수신:', message);
         displayMessage(message);
         scrollToBottom();
         
@@ -543,6 +742,12 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // API 상태 확인
+        if (!state.apiStatus.supabase) {
+            showNotification('서버 연결 문제로 메시지를 보낼 수 없습니다.', 'error');
+            return;
+        }
+        
         // 메시지 전송 전 UI 업데이트
         elements.chat.messageInput.value = '';
         elements.chat.messageInput.style.height = 'auto';
@@ -592,6 +797,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // 권한 확인
         if (!authService.checkPermission('send_announcement')) {
             showNotification('공지사항을 작성할 권한이 없습니다.', 'error');
+            return;
+        }
+        
+        // API 상태 확인
+        if (!state.apiStatus.supabase) {
+            showNotification('서버 연결 문제로 공지사항을 보낼 수 없습니다.', 'error');
             return;
         }
         
@@ -681,6 +892,12 @@ document.addEventListener('DOMContentLoaded', function() {
     function kickUser(userId) {
         if (!authService.checkPermission('kick_user')) {
             showNotification('사용자를 강퇴할 권한이 없습니다.', 'error');
+            return;
+        }
+        
+        // API 상태 확인
+        if (!state.apiStatus.supabase) {
+            showNotification('서버 연결 문제로 사용자를 강퇴할 수 없습니다.', 'error');
             return;
         }
         

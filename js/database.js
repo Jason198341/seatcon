@@ -20,25 +20,184 @@ class DatabaseService {
      * Supabase 클라이언트를 초기화합니다.
      */
     init() {
-        if (!supabase) {
+        if (typeof supabase === 'undefined') {
             console.error('Supabase 라이브러리를 로드하지 못했습니다.');
+            alert('Supabase 라이브러리를 로드할 수 없습니다. 페이지를 새로고침하세요.');
             return;
         }
         
-        this.client = supabase.createClient(this.supabaseUrl, this.supabaseKey);
-        console.log('Supabase 클라이언트 초기화 완료');
-        
-        // 테이블 설정 확인 및 생성
-        this.setupTables().then(() => {
-            console.log('데이터베이스 테이블 설정 완료');
-        }).catch(error => {
-            console.error('데이터베이스 테이블 설정 실패:', error);
-        });
-        
-        // 저장된 사용자 확인
-        const savedUser = this.getSavedUserInfo();
-        if (savedUser) {
-            this.currentUser = savedUser;
+        try {
+            this.client = supabase.createClient(this.supabaseUrl, this.supabaseKey);
+            console.log('Supabase 클라이언트 초기화 완료');
+            
+            // 초기화 후 테이블 생성 시도
+            this.createTables().then(() => {
+                console.log('데이터베이스 테이블 설정 완료');
+            }).catch(error => {
+                console.error('데이터베이스 테이블 설정 실패:', error);
+            });
+            
+            // 저장된 사용자 확인
+            const savedUser = this.getSavedUserInfo();
+            if (savedUser) {
+                this.currentUser = savedUser;
+            }
+        } catch (error) {
+            console.error('Supabase 클라이언트 초기화 실패:', error);
+            alert('채팅 서비스 연결에 실패했습니다. 페이지를 새로고침하세요.');
+        }
+    }
+    
+    /**
+     * 데이터베이스 테이블을 생성합니다.
+     */
+    async createTables() {
+        // 먼저 테이블을 수동으로 생성해봅니다
+        try {
+            // 실행할 SQL 쿼리 (테이블 생성)
+            const createTablesSQL = `
+                -- uuid 확장 활성화
+                CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+                -- 메시지 테이블 생성
+                CREATE TABLE IF NOT EXISTS messages (
+                    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                    room_id TEXT NOT NULL,
+                    user_id TEXT NOT NULL,
+                    user_name TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    language TEXT NOT NULL,
+                    is_moderator BOOLEAN DEFAULT FALSE,
+                    is_announcement BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+
+                -- 강퇴된 사용자 테이블 생성
+                CREATE TABLE IF NOT EXISTS kicked_users (
+                    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                    room_id TEXT NOT NULL,
+                    user_id TEXT NOT NULL,
+                    kicked_by TEXT NOT NULL,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    UNIQUE (room_id, user_id)
+                );
+
+                -- 인덱스 생성
+                CREATE INDEX IF NOT EXISTS idx_messages_room_id ON messages(room_id);
+                CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
+            `;
+            
+            // SQL 직접 실행 시도
+            const { error } = await this.client.rpc('exec_sql', { sql: createTablesSQL });
+            
+            if (error) {
+                console.warn('SQL 직접 실행 실패(정상적인 상황일 수 있음):', error);
+                // 테이블이 이미 존재하는지 확인
+                return this.checkTables();
+            }
+            
+            console.log('테이블 생성 SQL 실행 성공');
+            return true;
+            
+        } catch (error) {
+            console.error('테이블 생성 시도 실패:', error);
+            // 테이블이 이미 존재하는지 확인
+            return this.checkTables();
+        }
+    }
+    
+    /**
+     * 테이블이 존재하는지 확인합니다.
+     */
+    async checkTables() {
+        try {
+            // messages 테이블 확인
+            const { data: messagesData, error: messagesError } = await this.client
+                .from('messages')
+                .select('id')
+                .limit(1);
+            
+            if (messagesError) {
+                console.error('메시지 테이블 확인 실패:', messagesError);
+                // 테이블이 없으면 직접 insert 시도 (Supabase가 자동으로 테이블 생성)
+                await this.tryCreateTableWithInsert();
+                return false;
+            }
+            
+            // kicked_users 테이블 확인
+            const { data: kickedData, error: kickedError } = await this.client
+                .from('kicked_users')
+                .select('id')
+                .limit(1);
+            
+            if (kickedError) {
+                console.error('강퇴 테이블 확인 실패:', kickedError);
+                // 테이블이 없으면 직접 insert 시도
+                await this.tryCreateKickedTableWithInsert();
+                return false;
+            }
+            
+            console.log('테이블이 모두 존재합니다');
+            return true;
+        } catch (error) {
+            console.error('테이블 확인 중 오류:', error);
+            return false;
+        }
+    }
+    
+    /**
+     * Insert 명령으로 테이블 생성을 시도합니다.
+     */
+    async tryCreateTableWithInsert() {
+        try {
+            const { error } = await this.client
+                .from('messages')
+                .insert({
+                    room_id: 'setup',
+                    user_id: 'system',
+                    user_name: 'System',
+                    content: '테이블 설정 메시지',
+                    language: 'ko',
+                    is_moderator: true,
+                    is_announcement: true
+                });
+            
+            if (error) {
+                console.error('Insert로 메시지 테이블 생성 실패:', error);
+                return false;
+            }
+            
+            console.log('Insert로 메시지 테이블 생성 성공');
+            return true;
+        } catch (error) {
+            console.error('Insert로 테이블 생성 시도 중 오류:', error);
+            return false;
+        }
+    }
+    
+    /**
+     * Insert 명령으로 강퇴 테이블 생성을 시도합니다.
+     */
+    async tryCreateKickedTableWithInsert() {
+        try {
+            const { error } = await this.client
+                .from('kicked_users')
+                .insert({
+                    room_id: 'setup',
+                    user_id: 'system',
+                    kicked_by: 'system'
+                });
+            
+            if (error) {
+                console.error('Insert로 강퇴 테이블 생성 실패:', error);
+                return false;
+            }
+            
+            console.log('Insert로 강퇴 테이블 생성 성공');
+            return true;
+        } catch (error) {
+            console.error('Insert로 강퇴 테이블 생성 시도 중 오류:', error);
+            return false;
         }
     }
     
@@ -90,11 +249,7 @@ class DatabaseService {
             // 언어 감지
             const detectedLanguage = await translationService.detectLanguage(content) || this.currentUser.language;
             
-            // 테이블이 없는 경우 생성 시도
-            await this.setupTables().catch(error => {
-                console.error('메시지 전송 전 테이블 설정 실패:', error);
-            });
-            
+            // 메시지 전송 시도
             const { data, error } = await this.client
                 .from('messages')
                 .insert([
@@ -111,15 +266,21 @@ class DatabaseService {
                 .select();
                 
             if (error) {
+                // 테이블이 없는 경우 생성 후 재시도
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    await this.createTables();
+                    return this.sendMessage(content, isAnnouncement);
+                }
+                
                 console.error('메시지 삽입 오류:', error);
                 throw error;
             }
+            
             console.log('메시지 전송 성공:', data[0]);
             return data[0];
         } catch (error) {
             console.error('메시지 전송 실패:', error);
-            // 오류 메시지를 사용자에게 표시할 수 있도록 전달
-            throw new Error(`메시지 전송 실패: ${error.message || '알 수 없는 오류'}`); 
+            throw new Error(`메시지 전송 실패: ${error.message || '알 수 없는 오류'}`);
         }
     }
     
@@ -137,7 +298,14 @@ class DatabaseService {
                 .order('created_at', { ascending: false })
                 .limit(limit);
                 
-            if (error) throw error;
+            if (error) {
+                // 테이블이 없는 경우 빈 배열 반환
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    await this.createTables();
+                    return [];
+                }
+                throw error;
+            }
             
             // 시간 순으로 정렬
             const messages = data.reverse();
@@ -158,40 +326,51 @@ class DatabaseService {
             this.messageSubscription.unsubscribe();
         }
         
-        this.messageSubscription = this.client
-            .channel('messages-channel')
-            .on('postgres_changes', 
-                { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${this.roomId}` },
-                async payload => {
-                    const message = payload.new;
-                    
-                    // 자신의 메시지는 이미 UI에 표시되었으므로 무시
-                    if (this.currentUser && message.user_id === this.currentUser.email) {
-                        return;
-                    }
-                    
-                    // 번역 처리
-                    if (this.currentUser && this.currentUser.language !== message.language) {
-                        try {
-                            const translatedContent = await translationService.translateText(
-                                message.content,
-                                message.language,
-                                this.currentUser.language
-                            );
-                            
-                            message.translatedContent = translatedContent;
-                            message.targetLanguage = this.currentUser.language;
-                        } catch (error) {
-                            console.error('메시지 번역 실패:', error);
+        console.log('메시지 구독 시작 시도...');
+        
+        try {
+            // 채널 이름을 'public:messages'로 변경 (Supabase의 기본 채널 형식)
+            this.messageSubscription = this.client
+                .channel('public:messages')
+                .on('postgres_changes', 
+                    { event: 'INSERT', schema: 'public', table: 'messages' }, // filter 제거
+                    async payload => {
+                        const message = payload.new;
+                        console.log('새 메시지 수신:', message);
+                        
+                        // 자신의 메시지는 이미 UI에 표시되었으므로 무시
+                        if (this.currentUser && message.user_id === this.currentUser.email) {
+                            return;
                         }
+                        
+                        // 번역 처리
+                        if (this.currentUser && this.currentUser.language !== message.language) {
+                            try {
+                                const translatedContent = await translationService.translateText(
+                                    message.content,
+                                    message.language,
+                                    this.currentUser.language
+                                );
+                                
+                                message.translatedContent = translatedContent;
+                                message.targetLanguage = this.currentUser.language;
+                            } catch (error) {
+                                console.error('메시지 번역 실패:', error);
+                            }
+                        }
+                        
+                        callback(message);
                     }
-                    
-                    callback(message);
-                }
-            )
-            .subscribe();
-            
-        console.log('메시지 구독 시작');
+                )
+                .subscribe((status) => {
+                    console.log('메시지 구독 상태:', status);
+                });
+                
+            console.log('메시지 구독 시작 완료');
+        } catch (error) {
+            console.error('메시지 구독 시작 실패:', error);
+            alert('실시간 메시지 수신에 문제가 발생했습니다. 페이지를 새로고침하세요.');
+        }
     }
     
     /**
@@ -203,50 +382,55 @@ class DatabaseService {
             this.presenceSubscription.unsubscribe();
         }
         
-        this.presenceSubscription = this.client
-            .channel('presence-channel')
-            .on('presence', { event: 'sync' }, () => {
-                const presence = this.presenceSubscription.presenceState();
-                const users = new Map();
-                
-                for (const [key, value] of Object.entries(presence)) {
-                    if (value && value.length > 0) {
-                        const user = value[0];
-                        users.set(user.user_id, user);
+        try {
+            this.presenceSubscription = this.client
+                .channel('presence-channel')
+                .on('presence', { event: 'sync' }, () => {
+                    const presence = this.presenceSubscription.presenceState();
+                    const users = new Map();
+                    
+                    for (const [key, value] of Object.entries(presence)) {
+                        if (value && value.length > 0) {
+                            const user = value[0];
+                            users.set(user.user_id, user);
+                        }
                     }
-                }
-                
-                this.onlineUsers = users;
-                if (callback) callback(Array.from(users.values()));
-            })
-            .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-                for (const presence of newPresences) {
-                    this.onlineUsers.set(presence.user_id, presence);
-                }
-                
-                if (callback) callback(Array.from(this.onlineUsers.values()));
-            })
-            .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-                for (const presence of leftPresences) {
-                    this.onlineUsers.delete(presence.user_id);
-                }
-                
-                if (callback) callback(Array.from(this.onlineUsers.values()));
-            })
-            .subscribe(async status => {
-                if (status !== 'SUBSCRIBED' || !this.currentUser) return;
-                
-                // 자신의 상태 공유
-                await this.presenceSubscription.track({
-                    user_id: this.currentUser.email,
-                    user_name: this.currentUser.name,
-                    is_moderator: this.currentUser.isModerator,
-                    language: this.currentUser.language,
-                    online_at: new Date().toISOString()
+                    
+                    this.onlineUsers = users;
+                    if (callback) callback(Array.from(users.values()));
+                })
+                .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+                    for (const presence of newPresences) {
+                        this.onlineUsers.set(presence.user_id, presence);
+                    }
+                    
+                    if (callback) callback(Array.from(this.onlineUsers.values()));
+                })
+                .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+                    for (const presence of leftPresences) {
+                        this.onlineUsers.delete(presence.user_id);
+                    }
+                    
+                    if (callback) callback(Array.from(this.onlineUsers.values()));
+                })
+                .subscribe(async status => {
+                    console.log('상태 구독 상태:', status);
+                    if (status !== 'SUBSCRIBED' || !this.currentUser) return;
+                    
+                    // 자신의 상태 공유
+                    await this.presenceSubscription.track({
+                        user_id: this.currentUser.email,
+                        user_name: this.currentUser.name,
+                        is_moderator: this.currentUser.isModerator,
+                        language: this.currentUser.language,
+                        online_at: new Date().toISOString()
+                    });
                 });
-            });
-            
-        console.log('상태 구독 시작');
+                
+            console.log('상태 구독 시작');
+        } catch (error) {
+            console.error('상태 구독 시작 실패:', error);
+        }
     }
     
     /**
@@ -264,74 +448,6 @@ class DatabaseService {
         }
         
         console.log('모든 구독 해제');
-    }
-    
-    /**
-     * 테이블이 존재하는지 확인하고, 없으면 생성합니다.
-     */
-    async setupTables() {
-        try {
-            // 메시지 테이블 존재 여부 확인
-            const { error: messagesError } = await this.client
-                .from('messages')
-                .select('id')
-                .limit(1);
-                
-            // 테이블이 없으면 직접 생성 시도
-            if (messagesError && (messagesError.code === '42P01' || messagesError.message.includes('does not exist'))) {
-                console.log('메시지 테이블이 존재하지 않습니다. 생성을 시도합니다.');
-                
-                // messages 테이블 생성
-                const { error: createMessagesError } = await this.client.rpc('create_messages_table', {}, {
-                    count: 'exact'
-                }).catch(async () => {
-                    // RPC 함수가 없는 경우 직접 SQL 실행
-                    return await this.client.from('messages').insert({
-                        room_id: 'setup',
-                        user_id: 'system',
-                        user_name: 'System',
-                        content: 'Table setup message',
-                        language: 'en',
-                        is_moderator: true,
-                        is_announcement: true
-                    });
-                });
-                
-                if (createMessagesError) {
-                    console.error('메시지 테이블 생성 실패:', createMessagesError);
-                } else {
-                    console.log('메시지 테이블 생성 완료');
-                }
-                
-                // kicked_users 테이블 확인 및 생성
-                const { error: kickedUsersError } = await this.client
-                    .from('kicked_users')
-                    .select('id')
-                    .limit(1);
-                    
-                if (kickedUsersError && (kickedUsersError.code === '42P01' || kickedUsersError.message.includes('does not exist'))) {
-                    console.log('강퇴 사용자 테이블이 존재하지 않습니다. 생성을 시도합니다.');
-                    
-                    // 직접 테이블 생성 시도
-                    const { error: createKickedError } = await this.client.from('kicked_users').insert({
-                        room_id: 'setup',
-                        user_id: 'system',
-                        kicked_by: 'system'
-                    });
-                    
-                    if (createKickedError && !createKickedError.message.includes('already exists')) {
-                        console.error('강퇴 사용자 테이블 생성 실패:', createKickedError);
-                    } else {
-                        console.log('강퇴 사용자 테이블 생성 완료');
-                    }
-                }
-            } else {
-                console.log('데이터베이스 테이블이 이미 존재합니다.');
-            }
-        } catch (error) {
-            console.error('테이블 설정 실패:', error);
-            throw error;
-        }
     }
     
     /**
@@ -356,7 +472,14 @@ class DatabaseService {
                     }
                 ]);
                 
-            if (error) throw error;
+            if (error) {
+                // 테이블이 없는 경우 생성 후 재시도
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    await this.createTables();
+                    return this.kickUser(userEmail);
+                }
+                throw error;
+            }
             
             // 강퇴 알림 메시지 전송
             await this.sendMessage(`${userEmail} 사용자가 강퇴되었습니다.`, true);
@@ -384,7 +507,13 @@ class DatabaseService {
                 .eq('user_id', this.currentUser.email)
                 .limit(1);
                 
-            if (error) throw error;
+            if (error) {
+                // 테이블이 없는 경우는 강퇴 아님
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    return false;
+                }
+                throw error;
+            }
             
             if (data && data.length > 0) {
                 console.log('현재 사용자가 강퇴되었습니다.');
@@ -394,6 +523,30 @@ class DatabaseService {
             return false;
         } catch (error) {
             console.error('강퇴 확인 실패:', error);
+            return false;
+        }
+    }
+    
+    /**
+     * API 연결 테스트를 수행합니다.
+     */
+    async testConnection() {
+        try {
+            const { data, error } = await this.client.from('messages').select('count(*)', { count: 'exact', head: true });
+            
+            if (error) {
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    console.log('테이블이 존재하지 않습니다. 생성을 시도합니다.');
+                    await this.createTables();
+                    return true;
+                }
+                throw error;
+            }
+            
+            console.log('Supabase 연결 테스트 성공');
+            return true;
+        } catch (error) {
+            console.error('Supabase 연결 테스트 실패:', error);
             return false;
         }
     }

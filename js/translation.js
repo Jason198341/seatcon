@@ -19,6 +19,26 @@ class TranslationService {
             'hi': 'हिन्दी',
             'te': 'తెలుగు'
         };
+        
+        this._testApiKey();
+    }
+    
+    /**
+     * API 키가 유효한지 테스트합니다.
+     */
+    async _testApiKey() {
+        try {
+            const testResult = await this.translateText('Hello, world!', 'en', 'ko');
+            console.log('번역 API 테스트 결과:', testResult);
+            
+            if (testResult === 'Hello, world!') {
+                console.warn('번역 API 키가 작동하지 않는 것 같습니다.');
+            } else {
+                console.log('번역 API 키가 정상적으로 작동합니다.');
+            }
+        } catch (error) {
+            console.error('번역 API 테스트 실패:', error);
+        }
     }
     
     /**
@@ -103,6 +123,8 @@ class TranslationService {
         }
         
         try {
+            console.log(`언어 감지 시도: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
+            
             const url = `https://translation.googleapis.com/language/translate/v2/detect?key=${this.apiKey}`;
             const response = await fetch(url, {
                 method: 'POST',
@@ -114,15 +136,23 @@ class TranslationService {
                 })
             });
             
+            // 응답 내용 로깅
+            const responseText = await response.text();
+            console.log('언어 감지 응답:', responseText);
+            
             if (!response.ok) {
-                throw new Error(`HTTP 오류! 상태: ${response.status}`);
+                throw new Error(`HTTP 오류! 상태: ${response.status}, 응답: ${responseText}`);
             }
             
-            const data = await response.json();
+            // 응답 파싱
+            const data = JSON.parse(responseText);
             if (data && data.data && data.data.detections && data.data.detections[0] && data.data.detections[0][0]) {
-                return data.data.detections[0][0].language;
+                const detectedLanguage = data.data.detections[0][0].language;
+                console.log(`언어 감지 결과: ${detectedLanguage}`);
+                return detectedLanguage;
             }
             
+            console.warn('언어 감지 결과가 예상 형식이 아닙니다:', data);
             return null;
         } catch (error) {
             console.error('언어 감지 오류:', error);
@@ -142,6 +172,8 @@ class TranslationService {
             return text;
         }
         
+        console.log(`번역 시도: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}" (${sourceLanguage} → ${targetLanguage})`);
+        
         const cacheKey = this.getCacheKey(text, sourceLanguage, targetLanguage);
         
         // 캐시에서 확인
@@ -153,6 +185,8 @@ class TranslationService {
         
         try {
             const url = `https://translation.googleapis.com/language/translate/v2?key=${this.apiKey}`;
+            console.log('번역 API 호출:', url);
+            
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
@@ -166,13 +200,19 @@ class TranslationService {
                 })
             });
             
+            // 응답 내용 로깅
+            const responseText = await response.text();
+            console.log('번역 API 응답:', responseText);
+            
             if (!response.ok) {
-                throw new Error(`HTTP 오류! 상태: ${response.status}`);
+                throw new Error(`HTTP 오류! 상태: ${response.status}, 응답: ${responseText}`);
             }
             
-            const data = await response.json();
+            // 응답 파싱
+            const data = JSON.parse(responseText);
             if (data && data.data && data.data.translations && data.data.translations[0]) {
                 const translation = data.data.translations[0].translatedText;
+                console.log('번역 결과:', translation);
                 
                 // 캐시에 저장
                 this.translationCache[cacheKey] = {
@@ -184,9 +224,11 @@ class TranslationService {
                 return translation;
             }
             
+            console.warn('번역 결과가 예상 형식이 아닙니다:', data);
             return text;
         } catch (error) {
             console.error('번역 오류:', error);
+            // 오류 발생 시 원본 텍스트 반환
             return text;
         }
     }
@@ -203,6 +245,8 @@ class TranslationService {
         }
         
         try {
+            console.log(`메시지 번역 시도: ID ${message.id} (${message.language} → ${targetLanguage})`);
+            
             const translatedContent = await this.translateText(
                 message.content,
                 message.language,
@@ -217,6 +261,23 @@ class TranslationService {
         } catch (error) {
             console.error('메시지 번역 오류:', error);
             return message;
+        }
+    }
+    
+    /**
+     * 번역 API 연결을 테스트합니다.
+     */
+    async testTranslation() {
+        try {
+            const testPhrase = 'Hello, this is a test message.';
+            const result = await this.translateText(testPhrase, 'en', 'ko');
+            console.log('번역 테스트 결과:', result);
+            
+            // 결과가 원본과 같으면 API 키에 문제가 있는 것
+            return result !== testPhrase;
+        } catch (error) {
+            console.error('번역 테스트 실패:', error);
+            return false;
         }
     }
 }
