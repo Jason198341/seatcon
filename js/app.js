@@ -843,6 +843,7 @@ class App {
     
     /**
      * 로그아웃 처리
+     * 사용자 세션 정보가 완전히 제거되도록 개선
      */
     handleLogout() {
         // 구독 해제
@@ -851,17 +852,82 @@ class App {
         // 사용자 정보 삭제
         databaseService.clearUserInfo();
         
-        // 시작 화면으로 이동
-        uiController.changeScreen('role-screen', true);
+        // 로컬 스토리지에서 모든 세션 관련 데이터 삭제
+        localStorage.removeItem('conferenceUserInfo');
+        localStorage.removeItem('messageQueue');
+        localStorage.removeItem('translationCache');
+        
+        // 세션 스토리지도 정리
+        sessionStorage.clear();
         
         // 메시지 컨테이너 초기화
         document.getElementById('message-container').innerHTML = '';
         
         // 상태 초기화
-        this.state.userRole = 'participant';
+        this.state = {
+            currentScreen: 'role-screen',
+            userRole: 'participant',
+            typingTimeout: null,
+            latestMessageTimestamp: null,
+            onlineUsers: []
+        };
+        
+        // 모듈 초기화
+        this.resetModules();
+        
+        // 시작 화면으로 이동
+        uiController.changeScreen('role-screen', true);
         
         // 토스트 표시
-        uiController.showToast('채팅을 종료했습니다.', 'info');
+        uiController.showToast('채팅을 종료했습니다. 재입장이 가능합니다.', 'info');
+        
+        console.log('모든 세션 정보가 초기화되었습니다. 재입장이 가능합니다.');
+    }
+    
+    /**
+     * 외부 모듈 초기화
+     */
+    resetModules() {
+        // 메시지 상태 관리자 초기화
+        if (window.messageStatusManager) {
+            // 내부 상태 초기화
+            messageStatusManager.messageStatusMap.clear();
+            messageStatusManager.tempToRealIdMap.clear();
+            messageStatusManager.retryQueue = [];
+            
+            // 타이머 정리
+            if (messageStatusManager.retryTimer) {
+                clearInterval(messageStatusManager.retryTimer);
+                messageStatusManager.retryTimer = null;
+            }
+        }
+        
+        // 타이핑 인디케이터 초기화
+        if (window.typingIndicatorManager) {
+            // 내부 상태 초기화
+            typingIndicatorManager.typingUsers.clear();
+            typingIndicatorManager.isTyping = false;
+            
+            // 타이머 정리
+            if (typingIndicatorManager.typingTimer) {
+                clearTimeout(typingIndicatorManager.typingTimer);
+                typingIndicatorManager.typingTimer = null;
+            }
+            
+            if (typingIndicatorManager.displayTimer) {
+                clearInterval(typingIndicatorManager.displayTimer);
+                typingIndicatorManager.displayTimer = null;
+            }
+            
+            // UI 정리
+            typingIndicatorManager.hideTypingIndicator();
+        }
+        
+        // 연결 상태 표시기 초기화
+        if (window.connectionStatusIndicator) {
+            // UI 숨기기
+            connectionStatusIndicator.hideIndicator();
+        }
     }
     
     /**
