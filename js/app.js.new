@@ -12,10 +12,7 @@ class App {
             userRole: 'participant',
             typingTimeout: null,
             latestMessageTimestamp: null,
-            onlineUsers: [],
-            typingUsers: new Map(), // 입력 중인 사용자 목록
-            messageElements: new Map(), // 메시지 요소 참조 저장
-            connectionState: 'connected' // 연결 상태: 'connected', 'connecting', 'disconnected'
+            onlineUsers: []
         };
         
         // 모더레이터 비밀번호
@@ -39,9 +36,6 @@ class App {
         
         // 저장된 사용자 세션 확인
         this.checkExistingSession();
-        
-        // 네트워크 상태 모니터링
-        this.monitorNetworkState();
     }
     
     /**
@@ -64,57 +58,12 @@ class App {
                 console.warn('번역 서비스 초기화 실패. 기본 언어로만 표시됩니다.');
             }
             
-            this.state.connectionState = 'connected';
-            uiController.updateConnectionStatus('connected');
             uiController.hideLoading();
         } catch (error) {
             console.error('초기화 오류:', error);
-            this.state.connectionState = 'disconnected';
-            uiController.updateConnectionStatus('disconnected');
             uiController.hideLoading();
             uiController.showToast('서비스 연결에 문제가 있습니다. 나중에 다시 시도해주세요.', 'error');
         }
-    }
-    
-    /**
-     * 네트워크 상태 모니터링
-     */
-    monitorNetworkState() {
-        window.addEventListener('online', () => {
-            console.log('네트워크 연결 복원');
-            this.state.connectionState = 'connecting';
-            uiController.updateConnectionStatus('connecting');
-            
-            // 연결 테스트
-            databaseService.testConnection().then(isConnected => {
-                if (isConnected) {
-                    this.state.connectionState = 'connected';
-                    uiController.updateConnectionStatus('connected');
-                    uiController.showToast('네트워크 연결이 복원되었습니다.', 'success');
-                    
-                    // 이전에 전송 실패한 메시지 재시도 확인
-                    this.retryFailedMessages();
-                } else {
-                    this.state.connectionState = 'disconnected';
-                    uiController.updateConnectionStatus('disconnected');
-                }
-            });
-        });
-        
-        window.addEventListener('offline', () => {
-            console.log('네트워크 연결 끊김');
-            this.state.connectionState = 'disconnected';
-            uiController.updateConnectionStatus('disconnected');
-            uiController.showToast('네트워크 연결이 끊겼습니다. 메시지가 저장되지 않을 수 있습니다.', 'warning');
-        });
-    }
-    
-    /**
-     * 전송 실패한 메시지 재시도
-     */
-    retryFailedMessages() {
-        // 현재는 구현하지 않음
-        // 향후 로컬 스토리지에 실패 메시지 저장 및 재전송 로직 추가 가능
     }
     
     /**
@@ -175,23 +124,37 @@ class App {
         window.addEventListener('beforeunload', this.handleBeforeUnload.bind(this));
         window.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
         
-        // 메시지 컨테이너 터치 이벤트
-        const messageContainer = document.getElementById('message-container');
-        if (messageContainer) {
-            messageContainer.addEventListener('touchstart', this.handleMessageContainerTouch.bind(this));
-        }
-    }
-    
-    /**
-     * 메시지 컨테이너 터치 이벤트 처리
-     * @param {TouchEvent} event - 터치 이벤트
-     */
-    handleMessageContainerTouch(event) {
-        // 입력 필드가 포커스되어 있으면 포커스 해제
-        const activeElement = document.activeElement;
-        if (activeElement && activeElement.tagName.toLowerCase() === 'textarea') {
-            activeElement.blur();
-        }
+        // 네트워크 상태 이벤트
+        window.addEventListener('online', () => {
+            console.log('인터넷 연결이 복원되었습니다.');
+            uiController.showToast('인터넷 연결이 복원되었습니다.', 'success');
+            
+            // 연결 상태 정보 업데이트
+            if (window.connectionStatusIndicator) {
+                connectionStatusIndicator.updateStatus('connected');
+            }
+            
+            // 메시지 다시 로드
+            this.loadMessages();
+            
+            // 메시지 구독 재설정
+            if (databaseService.currentUser) {
+                databaseService.subscribeToMessages(this.handleNewMessage.bind(this));
+                
+                // 브로드캐스트 채널 설정
+                databaseService.setupBroadcastChannel();
+            }
+        });
+        
+        window.addEventListener('offline', () => {
+            console.log('인터넷 연결이 끊겼습니다.');
+            uiController.showToast('인터넷 연결이 끊겼습니다. 메시지는 자동으로 대기열에 추가됩니다.', 'warning');
+            
+            // 연결 상태 정보 업데이트
+            if (window.connectionStatusIndicator) {
+                connectionStatusIndicator.updateStatus('disconnected');
+            }
+        });
     }
     
     /**
@@ -458,8 +421,20 @@ class App {
             // 메시지 구독 시작
             databaseService.subscribeToMessages(this.handleNewMessage.bind(this));
             
-            // 사용자 상태 구독 시작
-            databaseService.subscribeToPresence(this.handleUserPresenceUpdate.bind(this));
+            // 브로드캐스트 채널 설정 (새로 추가)
+            databaseService.setupBroadcastChannel();
+            
+            // 네트워크 상태 표시기 초기화 (새로 추가)
+            if (window.connectionStatusIndicator) {
+                connectionStatusIndicator.updateSettings({
+                    position: 'top',
+                    autoHide: true,
+                    showOnlineStatus: true
+                });
+                
+                // 현재 연결 상태 표시
+                connectionStatusIndicator.updateStatus(navigator.onLine ? 'connected' : 'disconnected');
+            }
             
             // 진입 메시지 표시
             uiController.addSystemMessage(`${databaseService.currentUser.name}님이 채팅에 참여했습니다.`);
@@ -469,9 +444,6 @@ class App {
             
             // 웰컴 토스트 표시
             uiController.showToast(`환영합니다, ${databaseService.currentUser.name}님!`, 'success');
-            
-            // 연결 상태 표시 업데이트
-            uiController.updateConnectionStatus(this.state.connectionState);
         } catch (error) {
             console.error('채팅 화면 열기 오류:', error);
             uiController.hideLoading();
@@ -514,10 +486,7 @@ class App {
                     const isOwnMessage = message.user_id === databaseService.currentUser.email;
                     
                     // UI에 메시지 추가
-                    const messageElement = uiController.addMessage(message, isOwnMessage);
-                    
-                    // 메시지 요소 참조 저장
-                    this.state.messageElements.set(message.id, messageElement);
+                    uiController.addMessage(message, isOwnMessage);
                 }
                 
                 // 스크롤을 하단으로
@@ -563,16 +532,26 @@ class App {
             this.clearTypingStatus();
             
             // 메시지 전송
-            await databaseService.sendMessage(content);
+            const message = await databaseService.sendMessage(content);
             
-            // 입력 필드에 포커스
-            messageInput.focus();
+            if (!message) {
+                throw new Error('메시지 전송 실패');
+            }
+            
+            // 최신 메시지 타임스탬프 업데이트
+            this.state.latestMessageTimestamp = new Date(message.created_at);
+            
+            // UI에 스크롤이 자동으로 이동함 (handleNewMessage에서 처리)
         } catch (error) {
             console.error('메시지 전송 오류:', error);
-            uiController.showToast('메시지 전송에 실패했습니다.', 'error');
             
-            // 입력 내용 복원
-            messageInput.value = content;
+            // 메시지가 큐에 들어간 경우는 오류 메시지를 표시하지 않음
+            if (!error.message.includes('queued')) {
+                uiController.showToast('메시지 전송에 실패했습니다.', 'error');
+                
+                // 입력 내용 복원
+                messageInput.value = content;
+            }
         }
     }
     
@@ -586,321 +565,79 @@ class App {
         // 자신의 메시지 여부 확인
         const isOwnMessage = message.user_id === databaseService.currentUser.email;
         
-        // 임시 메시지인 경우
-        if (message.isTemp) {
-            const messageElement = uiController.addMessage(message, isOwnMessage, true);
-            
-            // 메시지 요소 참조 저장
-            this.state.messageElements.set(message.id, messageElement);
-            
-            // 임시 메시지는 항상 스크롤 다운
-            uiController.scrollToBottom();
-            return;
+        // 임시 메시지 체크
+        const isTempMessage = message.isTemp === true;
+        
+        // 이미 표시된 임시 메시지인 경우 UI 업데이트만 수행
+        if (isOwnMessage && !isTempMessage && message.client_id) {
+            // 이미 임시 메시지가 표시되어 있는 경우, UI 업데이트만 수행
+            const tempMessageElement = document.querySelector(`[data-message-id="${message.client_id}"]`);
+            if (tempMessageElement) {
+                // 상태 업데이트 (전송 중 -> 전송 완료)
+                if (window.messageStatusManager) {
+                    messageStatusManager.updateMessageStatus(message.client_id, 'delivered');
+                }
+                return; // 이미 메시지가 표시되어 있으므로 추가 처리 불필요
+            }
         }
         
-        // 메시지 UI 추가 또는 업데이트
-        if (message.client_id && this.state.messageElements.has(message.client_id)) {
-            // 이미 표시된 임시 메시지가 있으므로 교체
-            this.updateTempMessage(message.client_id, message);
-        } else {
-            // 새로운 메시지 추가
-            const messageElement = uiController.addMessage(message, isOwnMessage);
-            
-            // 메시지 요소 참조 저장
-            this.state.messageElements.set(message.id, messageElement);
-            
-            // 자신의 메시지인 경우 항상 스크롤 다운
-            if (isOwnMessage) {
-                uiController.scrollToBottom();
-            } else {
-                // 다른 사용자의 메시지는 스크롤 위치에 따라 처리
-                this.handleOtherUserMessage(message);
-                
-                // 입력 중 표시 제거
-                this.removeTypingIndicator(message.user_id);
-            }
+        // UI에 메시지 추가 (임시 메시지가 아니거나, 표시되지 않은 경우)
+        uiController.addMessage(message, isOwnMessage);
+        
+        // 메시지 추가 후 스크롤 자동 조정
+        // 자신의 메시지 또는 화면 하단에 있는 경우 스크롤 다운
+        const chatMessages = document.querySelector('.chat-messages');
+        const isAtBottom = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < 100;
+        
+        if (isOwnMessage || isAtBottom) {
+            uiController.scrollToBottom();
+        } else if (!isOwnMessage && !isAtBottom) {
+            // 새 메시지 알림 표시 (화면 하단에 있지 않은 경우)
+            uiController.showNewMessageNotification();
+        }
+        
+        // 상대방 메시지가 왔을 때 소리 또는 알림
+        if (!isOwnMessage && !isTempMessage) {
+            this.notifyNewMessage(message);
         }
     }
     
     /**
-     * 다른 사용자의 메시지 처리
+     * 새 메시지 알림
      * @param {Object} message - 메시지 객체
      */
-    handleOtherUserMessage(message) {
-        const chatMessages = document.querySelector('.chat-messages');
-        if (!chatMessages) return;
+    notifyNewMessage(message) {
+        // 페이지가 포커스되어 있지 않은 경우 브라우저 알림
+        if (document.visibilityState !== 'visible') {
+            this.showBrowserNotification(message);
+        }
         
-        // 스크롤 위치 확인
-        const isNearBottom = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < 100;
-        
-        if (isNearBottom) {
-            // 스크롤이 하단에 있으면 자동 스크롤
-            uiController.scrollToBottom();
-        } else {
-            // 스크롤이 위에 있으면 새 메시지 알림 표시
-            uiController.showNewMessageNotification();
-            
-            // 알림 사운드 재생
-            this.playNotificationSound();
+        // 소리 알림 (필요한 경우 여기에 추가)
+        if (window.notificationSound) {
+            notificationSound.play();
         }
     }
     
     /**
-     * 알림 사운드 재생
+     * 브라우저 알림 표시
+     * @param {Object} message - 메시지 객체
      */
-    playNotificationSound() {
-        try {
-            // 오디오 컨텍스트 생성 (첫 번째 사용자 상호작용 시 초기화되어야 함)
-            if (!this.audioContext) {
-                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            }
+    showBrowserNotification(message) {
+        if ('Notification' in window && Notification.permission === 'granted') {
+            const title = message.is_announcement 
+                ? '새 공지사항' 
+                : `${message.user_name}님의 메시지`;
             
-            // 짧은 비프음 생성
-            const oscillator = this.audioContext.createOscillator();
-            const gainNode = this.audioContext.createGain();
+            const options = {
+                body: message.content,
+                icon: '/assets/images/notification-icon.png',
+                badge: '/assets/images/notification-badge.png'
+            };
             
-            oscillator.type = 'sine';
-            oscillator.frequency.value = 880; // A5 음
-            gainNode.gain.value = 0.1; // 볼륨 (0.1 = 10%)
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(this.audioContext.destination);
-            
-            // 0.1초 동안 재생
-            oscillator.start();
-            oscillator.stop(this.audioContext.currentTime + 0.1);
-        } catch (error) {
-            console.error('알림 사운드 재생 실패:', error);
-        }
-    }
-    
-    /**
-     * 임시 메시지 업데이트
-     * @param {string} tempId - 임시 메시지 ID
-     * @param {Object} message - 새 메시지 객체
-     */
-    updateTempMessage(tempId, message) {
-        const messageElement = this.state.messageElements.get(tempId);
-        if (!messageElement) return;
-        
-        // 메시지 상태 업데이트
-        messageElement.classList.remove('temp-message');
-        messageElement.classList.remove('error');
-        messageElement.dataset.id = message.id;
-        
-        // 메시지 버블 업데이트
-        const messageBubble = messageElement.querySelector('.message-bubble');
-        if (messageBubble) {
-            messageBubble.textContent = message.content;
-            messageBubble.classList.remove('sending');
-        }
-        
-        // 메시지 시간 업데이트
-        const messageTime = messageElement.querySelector('.message-time');
-        if (messageTime) {
-            const messageDate = new Date(message.created_at);
-            const timeString = messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            messageTime.textContent = timeString;
-        }
-        
-        // 번역된 내용이 있으면 업데이트
-        if (message.translatedContent) {
-            let translationElement = messageElement.querySelector('.message-translation');
-            
-            if (!translationElement) {
-                translationElement = document.createElement('div');
-                translationElement.classList.add('message-translation');
-                messageElement.appendChild(translationElement);
-            }
-            
-            translationElement.textContent = message.translatedContent;
-        }
-        
-        // 요소 참조 맵 업데이트
-        this.state.messageElements.delete(tempId);
-        this.state.messageElements.set(message.id, messageElement);
-        
-        console.log('임시 메시지 업데이트:', tempId, '→', message.id);
-    }
-    
-    /**
-     * 메시지 오류 처리
-     * @param {string} clientId - 메시지 클라이언트 ID
-     * @param {string} errorMessage - 오류 메시지
-     */
-    handleMessageError(clientId, errorMessage) {
-        const messageElement = this.state.messageElements.get(clientId);
-        if (!messageElement) return;
-        
-        // 메시지 요소에 오류 클래스 추가
-        messageElement.classList.add('error');
-        
-        // 메시지 버블 업데이트
-        const messageBubble = messageElement.querySelector('.message-bubble');
-        if (messageBubble) {
-            messageBubble.classList.remove('sending');
-            messageBubble.classList.add('error');
-        }
-        
-        // 오류 메시지 표시
-        let errorElement = messageElement.querySelector('.message-error');
-        
-        if (!errorElement) {
-            errorElement = document.createElement('div');
-            errorElement.classList.add('message-error');
-            messageElement.appendChild(errorElement);
-        }
-        
-        errorElement.innerHTML = `
-            <span class="error-text">전송 실패</span>
-            <button class="retry-button">재시도</button>
-        `;
-        
-        // 재시도 버튼 이벤트 추가
-        const retryButton = errorElement.querySelector('.retry-button');
-        if (retryButton) {
-            retryButton.addEventListener('click', () => this.retryMessage(clientId));
-        }
-        
-        console.error('메시지 전송 오류:', errorMessage);
-    }
-    
-    /**
-     * 메시지 재시도
-     * @param {string} clientId - 메시지 클라이언트 ID
-     */
-    async retryMessage(clientId) {
-        const messageElement = this.state.messageElements.get(clientId);
-        if (!messageElement) return;
-        
-        // 메시지 상태 업데이트
-        messageElement.classList.remove('error');
-        
-        // 메시지 버블 업데이트
-        const messageBubble = messageElement.querySelector('.message-bubble');
-        if (messageBubble) {
-            messageBubble.classList.remove('error');
-            messageBubble.classList.add('sending');
-        }
-        
-        // 오류 메시지 제거
-        const errorElement = messageElement.querySelector('.message-error');
-        if (errorElement) {
-            errorElement.remove();
-        }
-        
-        try {
-            // 메시지 재전송
-            const success = await databaseService.retryMessage(clientId);
-            
-            if (!success) {
-                throw new Error('메시지 재전송 실패');
-            }
-        } catch (error) {
-            console.error('메시지 재전송 오류:', error);
-            
-            // 오류 상태로 표시
-            this.handleMessageError(clientId, error.message || '메시지 재전송 실패');
-        }
-    }
-    
-    /**
-     * 메시지 상태 업데이트
-     * @param {string} clientId - 메시지 클라이언트 ID
-     * @param {Object} status - 상태 객체
-     */
-    updateMessageStatus(clientId, status) {
-        const messageElement = this.state.messageElements.get(clientId);
-        if (!messageElement) return;
-        
-        // 재시도 중 상태
-        if (status.isRetrying) {
-            // 에러 메시지 제거
-            const errorElement = messageElement.querySelector('.message-error');
-            if (errorElement) {
-                errorElement.remove();
-            }
-            
-            // 메시지 버블 상태 업데이트
-            const messageBubble = messageElement.querySelector('.message-bubble');
-            if (messageBubble) {
-                messageBubble.classList.remove('error');
-                messageBubble.classList.add('sending');
-            }
-        }
-        
-        // 재시도 성공 상태
-        if (status.retrySuccess) {
-            messageElement.classList.remove('error');
-            
-            const messageBubble = messageElement.querySelector('.message-bubble');
-            if (messageBubble) {
-                messageBubble.classList.remove('error');
-                messageBubble.classList.remove('sending');
-            }
-        }
-    }
-    
-    /**
-     * 사용자 상태 업데이트 처리
-     * @param {Array} users - 사용자 목록
-     */
-    handleUserPresenceUpdate(users) {
-        this.state.onlineUsers = users;
-        
-        // 입력 중인 사용자 업데이트
-        users.forEach(user => {
-            if (user.is_typing && user.user_id !== databaseService.currentUser.email) {
-                this.showTypingIndicator(user);
-            }
-        });
-    }
-    
-    /**
-     * 입력 중 표시
-     * @param {Object} user - 사용자 정보
-     */
-    showTypingIndicator(user) {
-        // 이미 표시된 경우 타이머 갱신
-        if (this.state.typingUsers.has(user.user_id)) {
-            clearTimeout(this.state.typingUsers.get(user.user_id).timeout);
-        } else {
-            // 새로 표시
-            uiController.showTypingIndicator(user.user_name);
-        }
-        
-        // 3초 후 자동으로 표시 제거하는 타이머 설정
-        const timeout = setTimeout(() => {
-            this.removeTypingIndicator(user.user_id);
-        }, 3000);
-        
-        // 사용자와 타이머 저장
-        this.state.typingUsers.set(user.user_id, {
-            user,
-            timeout
-        });
-    }
-    
-    /**
-     * 입력 중 표시 제거
-     * @param {string} userId - 사용자 ID
-     */
-    removeTypingIndicator(userId) {
-        if (this.state.typingUsers.has(userId)) {
-            // 타이머 취소
-            clearTimeout(this.state.typingUsers.get(userId).timeout);
-            
-            // 목록에서 제거
-            this.state.typingUsers.delete(userId);
-            
-            // 모든 입력 중 표시 제거
-            if (this.state.typingUsers.size === 0) {
-                uiController.hideTypingIndicator();
-            } else {
-                // 다른 사용자는 여전히 입력 중
-                const nextUser = Array.from(this.state.typingUsers.values())[0].user;
-                uiController.showTypingIndicator(nextUser.user_name);
-            }
+            new Notification(title, options);
+        } else if ('Notification' in window && Notification.permission !== 'denied') {
+            // 알림 권한 요청
+            Notification.requestPermission();
         }
     }
     
@@ -976,41 +713,39 @@ class App {
      */
     async getActiveUsers() {
         try {
-            // 온라인 사용자 목록
-            const onlineUsers = this.state.onlineUsers.map(user => ({
-                email: user.user_id,
-                name: user.user_name,
-                isModerator: user.is_moderator,
-                isOnline: true
-            }));
+            // 온라인 사용자 목록 활용 (있는 경우)
+            if (databaseService.onlineUsers && databaseService.onlineUsers.size > 0) {
+                const users = Array.from(databaseService.onlineUsers.values()).map(user => ({
+                    email: user.user_id,
+                    name: user.user_name,
+                    isModerator: user.is_moderator
+                }));
+                
+                // 자신은 제외
+                return users.filter(user => user.email !== databaseService.currentUser.email);
+            }
             
-            // 최근 메시지를 보낸 사용자 목록
+            // 온라인 사용자 목록이 없으면 메시지를 보낸 사용자 목록을 가져옴
             const messages = await databaseService.getRecentMessages(100);
-            const messageUsers = [];
+            
+            // 중복 제거 (이메일 기준)
+            const uniqueUsers = [];
             const userEmails = new Set();
             
-            // 중복 제거
             for (const message of messages) {
                 if (!userEmails.has(message.user_id) && 
                     message.user_id !== databaseService.currentUser.email) {
                     userEmails.add(message.user_id);
                     
-                    // 이미 온라인 목록에 있는지 확인
-                    const isOnline = onlineUsers.some(user => user.email === message.user_id);
-                    
-                    if (!isOnline) {
-                        messageUsers.push({
-                            email: message.user_id,
-                            name: message.user_name,
-                            isModerator: message.is_moderator,
-                            isOnline: false
-                        });
-                    }
+                    uniqueUsers.push({
+                        email: message.user_id,
+                        name: message.user_name,
+                        isModerator: message.is_moderator
+                    });
                 }
             }
             
-            // 온라인 사용자를 먼저 보여주기 위해 병합
-            return [...onlineUsers, ...messageUsers];
+            return uniqueUsers;
         } catch (error) {
             console.error('사용자 목록 가져오기 오류:', error);
             return [];
@@ -1041,17 +776,10 @@ class App {
             const userItem = document.createElement('div');
             userItem.classList.add('user-item');
             
-            if (!user.isOnline) {
-                userItem.classList.add('offline');
-            }
-            
             userItem.innerHTML = `
                 <div class="user-info">
                     <div class="user-name">${user.name}</div>
                     <div class="user-email">${user.email}</div>
-                    <div class="user-status ${user.isOnline ? 'online' : 'offline'}">
-                        ${user.isOnline ? '온라인' : '오프라인'}
-                    </div>
                 </div>
                 <button class="btn btn-sm btn-danger kick-button" data-email="${user.email}" data-name="${user.name}">강퇴</button>
             `;
@@ -1078,7 +806,7 @@ class App {
      * @param {string} name - 사용자 이름
      */
     confirmKickUser(email, name) {
-        // 확인 다이얼로그
+        // 확인 토스트
         if (confirm(`${name}님을 강퇴하시겠습니까?`)) {
             this.kickUser(email, name);
         }
@@ -1141,15 +869,17 @@ class App {
      * 입력 중 상태 업데이트
      */
     updateTypingStatus() {
+        // 입력 중 상태 브로드캐스트 (추가)
+        if (databaseService.broadcastChannel) {
+            databaseService.broadcastTypingStatus(true);
+        }
+        
         // 기존 타이머 취소
         if (this.state.typingTimeout) {
             clearTimeout(this.state.typingTimeout);
         }
         
-        // 입력 중 상태 설정
-        databaseService.updateTypingStatus(true);
-        
-        // 새 타이머 설정 (3초 후 상태 취소)
+        // 새 타이머 설정
         this.state.typingTimeout = setTimeout(() => {
             this.clearTypingStatus();
         }, 3000);
@@ -1164,8 +894,10 @@ class App {
             this.state.typingTimeout = null;
         }
         
-        // 입력 중 상태 해제
-        databaseService.updateTypingStatus(false);
+        // 입력 중 상태 브로드캐스트 (추가)
+        if (databaseService.broadcastChannel) {
+            databaseService.broadcastTypingStatus(false);
+        }
     }
     
     /**
@@ -1190,9 +922,6 @@ class App {
             // 메시지 컨테이너 초기화
             document.getElementById('message-container').innerHTML = '';
             
-            // 메시지 요소 참조 맵 초기화
-            this.state.messageElements.clear();
-            
             // 메시지 다시 로드
             await this.loadMessages();
             
@@ -1210,6 +939,7 @@ class App {
     
     /**
      * 로그아웃 처리
+     * 사용자 세션 정보가 완전히 제거되도록 개선
      */
     handleLogout() {
         // 구독 해제
@@ -1218,23 +948,82 @@ class App {
         // 사용자 정보 삭제
         databaseService.clearUserInfo();
         
-        // 시작 화면으로 이동
-        uiController.changeScreen('role-screen', true);
+        // 로컬 스토리지에서 모든 세션 관련 데이터 삭제
+        localStorage.removeItem('conferenceUserInfo');
+        localStorage.removeItem('messageQueue');
+        localStorage.removeItem('translationCache');
+        
+        // 세션 스토리지도 정리
+        sessionStorage.clear();
         
         // 메시지 컨테이너 초기화
         document.getElementById('message-container').innerHTML = '';
         
-        // 메시지 요소 참조 맵 초기화
-        this.state.messageElements.clear();
-        
         // 상태 초기화
-        this.state.userRole = 'participant';
-        this.state.latestMessageTimestamp = null;
-        this.state.onlineUsers = [];
-        this.state.typingUsers.clear();
+        this.state = {
+            currentScreen: 'role-screen',
+            userRole: 'participant',
+            typingTimeout: null,
+            latestMessageTimestamp: null,
+            onlineUsers: []
+        };
+        
+        // 모듈 초기화
+        this.resetModules();
+        
+        // 시작 화면으로 이동
+        uiController.changeScreen('role-screen', true);
         
         // 토스트 표시
-        uiController.showToast('채팅을 종료했습니다.', 'info');
+        uiController.showToast('채팅을 종료했습니다. 재입장이 가능합니다.', 'info');
+        
+        console.log('모든 세션 정보가 초기화되었습니다. 재입장이 가능합니다.');
+    }
+    
+    /**
+     * 외부 모듈 초기화
+     */
+    resetModules() {
+        // 메시지 상태 관리자 초기화
+        if (window.messageStatusManager) {
+            // 내부 상태 초기화
+            messageStatusManager.messageStatusMap.clear();
+            messageStatusManager.tempToRealIdMap.clear();
+            messageStatusManager.retryQueue = [];
+            
+            // 타이머 정리
+            if (messageStatusManager.retryTimer) {
+                clearInterval(messageStatusManager.retryTimer);
+                messageStatusManager.retryTimer = null;
+            }
+        }
+        
+        // 타이핑 인디케이터 초기화
+        if (window.typingIndicatorManager) {
+            // 내부 상태 초기화
+            typingIndicatorManager.typingUsers.clear();
+            typingIndicatorManager.isTyping = false;
+            
+            // 타이머 정리
+            if (typingIndicatorManager.typingTimer) {
+                clearTimeout(typingIndicatorManager.typingTimer);
+                typingIndicatorManager.typingTimer = null;
+            }
+            
+            if (typingIndicatorManager.displayTimer) {
+                clearInterval(typingIndicatorManager.displayTimer);
+                typingIndicatorManager.displayTimer = null;
+            }
+            
+            // UI 정리
+            typingIndicatorManager.hideTypingIndicator();
+        }
+        
+        // 연결 상태 표시기 초기화
+        if (window.connectionStatusIndicator) {
+            // UI 숨기기
+            connectionStatusIndicator.hideIndicator();
+        }
     }
     
     /**
@@ -1254,21 +1043,6 @@ class App {
             if (this.state.latestMessageTimestamp) {
                 this.checkNewMessages();
             }
-            
-            // 네트워크 상태 확인
-            if (navigator.onLine) {
-                // 온라인 상태이면 구독 유지 확인
-                if (!databaseService.messageSubscription && databaseService.currentUser) {
-                    // 메시지 구독 시작
-                    databaseService.subscribeToMessages(this.handleNewMessage.bind(this));
-                    
-                    // 사용자 상태 구독 시작
-                    databaseService.subscribeToPresence(this.handleUserPresenceUpdate.bind(this));
-                }
-            }
-        } else {
-            // 페이지가 비활성화되면 입력 중 상태 취소
-            this.clearTypingStatus();
         }
     }
     

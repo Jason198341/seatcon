@@ -1,86 +1,50 @@
-# 컨퍼런스 채팅 애플리케이션 개선 프로젝트
+# Conference Chat Application Project Plan
 
-## 1. 프로젝트 개요
+## Overview
+This project implements a real-time multilingual chat application for conferences, allowing participants and presenters to communicate in their preferred languages with automatic translation. The application will be used during a conference featuring various exhibits and presentations as detailed in the provided documentation.
 
-본 프로젝트의 목표는 기존의 컨퍼런스 채팅 애플리케이션을 개선하여 사용자 경험을 향상시키는 것입니다. 특히 실시간 메시지 동기화, 상대방 메시지 업데이트, UI/UX 개선, 그리고 기능 안정성을 높이는 데 중점을 둡니다.
+## Key Features
+- Real-time message synchronization across all users
+- Multilingual support with automatic translation
+- User role management (participants, presenters, moderators)
+- Message status indicators (sent, delivered, read)
+- Network connection status monitoring
+- Session management (proper logout functionality)
 
-## 2. 현재 문제점 분석
+## Current Issues to Address
+1. **Real-time Message Synchronization**: Messages from other users are not appearing in real-time for all participants
+2. **Session Cleanup**: When a user logs out, session information should be completely cleared
 
-현재 애플리케이션에서 발견된 주요 문제점:
+## Implementation Plan
 
-1. **실시간 메시지 동기화 문제**: 상대방이 메시지를 입력할 때 실시간 업데이트가 제대로 이루어지지 않고 있습니다.
-2. **UX/UI 개선 필요**: 아이콘 및 로직에 대한 전반적인 점검이 필요합니다.
-3. **채팅 기능 불안정**: 메시지 전송 및 수신이 원활하게 이루어지지 않는 경우가 있습니다.
+### 1. Fix Real-time Message Synchronization
+- Properly implement Supabase real-time subscriptions
+- Ensure correct handling of both sent and received messages
+- Implement connection status monitoring
+- Add proper error handling and reconnection logic
 
-## 3. 개선 사항 계획
+### 2. Improve Session Management
+- Enhance logout functionality to completely clear all session data
+- Ensure proper cleanup of all subscriptions and event listeners
+- Reset application state to allow clean re-entry
 
-### 3.1 실시간 메시지 동기화 개선
-- Supabase 실시간 구독 방식 재구현
-- 채널 설정 및 이벤트 처리 최적화
-- 두 명 이상 사용자의 실시간 메시지 동기화 테스트
+### 3. UI/UX Improvements
+- Add message status indicators
+- Implement connection status indicator
+- Add typing indicators
 
-### 3.2 UI/UX 개선
-- 아이콘 및 시각적 요소 점검
-- 사용자 피드백 시각적 표현 강화
-- 모바일 환경 최적화
-- 다크 모드 개선
+## Technologies
+- Frontend: HTML, CSS, JavaScript
+- Backend: Supabase (serverless PostgreSQL)
+- Translation: Google Cloud Translation API
 
-### 3.3 성능 및 안정성 개선
-- 오류 처리 및 예외 상황 대응 강화
-- 로딩 및 상태 표시 개선
-- 메시지 전송 실패 시 재시도 메커니즘 구현
+## Timeline
+1. Analysis and planning - Complete
+2. Implementation of fixes - In progress
+3. Testing - Pending
+4. Deployment - Pending
 
-### 3.4 추가 기능 개발
-- 읽음 확인 기능 구현
-- 입력 중 표시 기능 개선
-- 오프라인 메시지 캐싱
-
-## 4. 단계별 작업 계획
-
-### 4.1 분석 및 준비 단계
-- [x] 현재 코드 분석 및 문제점 파악
-- [x] 개선 방향 설정
-- [x] 개발 환경 설정
-
-### 4.2 핵심 기능 개선 단계
-- [ ] 실시간 메시지 동기화 로직 재구현
-- [ ] Supabase 채널 구독 개선
-- [ ] 메시지 렌더링 및 상태 관리 개선
-
-### 4.3 UI/UX 개선 단계
-- [ ] 아이콘 및 시각적 요소 점검
-- [ ] 사용자 피드백 인터페이스 개선
-- [ ] 모바일 환경 최적화
-
-### 4.4 테스트 및 최적화 단계
-- [ ] 다중 사용자 실시간 동기화 테스트
-- [ ] 성능 최적화
-- [ ] 오류 시나리오 테스트
-
-### 4.5 배포 및 모니터링 단계
-- [ ] 최종 코드 리뷰
-- [ ] 배포
-- [ ] 성능 모니터링 및 사용자 피드백 수집
-
-## 5. 기술 스택
-
-- **프론트엔드**: HTML5, CSS3, JavaScript
-- **백엔드 서비스**: Supabase (실시간 데이터베이스)
-- **번역 서비스**: Google Cloud Translation API
-- **상태 관리**: 브라우저 LocalStorage, 실시간 구독
-
-## 6. 일정 계획
-
-- **분석 및 준비 단계**: 1일
-- **핵심 기능 개선 단계**: 2일
-- **UI/UX 개선 단계**: 1일
-- **테스트 및 최적화 단계**: 1일
-- **배포 및 문서화 단계**: 1일
-
-총 예상 개발 기간: 6일
-
-## 7. 현재 작업 중인 항목
-
-- 실시간 메시지 동기화 로직 재구현
-- Supabase 채널 구독 최적화
-- 메시지 렌더링 개선
+## Success Criteria
+- All messages appear in real-time for all participants
+- Session data is completely cleared on logout
+- UI provides clear feedback about message and connection status

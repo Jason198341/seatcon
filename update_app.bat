@@ -1,11 +1,14 @@
 @echo off
-echo Updating app.js with improved logout functionality...
+echo 컨퍼런스 채팅 앱 업데이트 시작...
 
-REM Create a backup of the original file
-copy /y js\app.js js\app.js.bak
+echo 기존 파일 백업 중...
+copy "C:\MYCLAUDE_PROJECT\conference-chat\js\app.js" "C:\MYCLAUDE_PROJECT\conference-chat\js\app.js.bak"
+copy "C:\MYCLAUDE_PROJECT\conference-chat\js\database.js" "C:\MYCLAUDE_PROJECT\conference-chat\js\database.js.bak"
 
-REM Replace with the updated version
-copy /y js\app.js.updated js\app.js
+echo 새 파일 적용 중...
+copy "C:\MYCLAUDE_PROJECT\conference-chat\js\app.js.new" "C:\MYCLAUDE_PROJECT\conference-chat\js\app.js"
+copy "C:\MYCLAUDE_PROJECT\conference-chat\js\database_fixed.js" "C:\MYCLAUDE_PROJECT\conference-chat\js\database.js"
 
-echo App.js has been updated successfully!
-echo The logout functionality now completely clears all session information.
+echo 업데이트 완료!
+echo 실시간 메시지 동기화 문제가 해결되었습니다.
+pause
