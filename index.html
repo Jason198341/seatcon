@@ -7,6 +7,39 @@
     <link rel="stylesheet" href="css/styles.css">
     <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        #debugConsole {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            max-height: 200px;
+            overflow-y: auto;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #00ff00;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 10px;
+            z-index: 9999;
+            display: none;
+        }
+        .debug-line {
+            margin: 2px 0;
+            word-wrap: break-word;
+        }
+        #debugToggle {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            z-index: 10000;
+            background-color: #4a76a8;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -60,11 +93,117 @@
         </div>
     </div>
     
+    <!-- Debug Console -->
+    <div id="debugConsole"></div>
+    <button id="debugToggle">Debug</button>
+
     <!-- Application Scripts -->
     <script src="js/config.js"></script>
     <script src="js/supabase-client.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/chat.js"></script>
     <script src="js/app.js"></script>
+    
+    <!-- Debug Console Script -->
+    <script>
+        // Debug console implementation
+        (function() {
+            const debugConsole = document.getElementById('debugConsole');
+            const debugToggle = document.getElementById('debugToggle');
+            let isDebugVisible = false;
+            
+            // Override console.log and other methods to capture in our debug console
+            const originalLog = console.log;
+            const originalError = console.error;
+            const originalWarn = console.warn;
+            const originalInfo = console.info;
+            
+            function addToDebugConsole(message, type) {
+                const line = document.createElement('div');
+                line.className = `debug-line debug-${type}`;
+                line.textContent = message;
+                debugConsole.appendChild(line);
+                debugConsole.scrollTop = debugConsole.scrollHeight;
+            }
+            
+            console.log = function() {
+                const args = Array.from(arguments);
+                let message = args.map(arg => {
+                    if (typeof arg === 'object') {
+                        try {
+                            return JSON.stringify(arg);
+                        } catch (e) {
+                            return String(arg);
+                        }
+                    }
+                    return String(arg);
+                }).join(' ');
+                
+                addToDebugConsole(message, 'log');
+                originalLog.apply(console, arguments);
+            };
+            
+            console.error = function() {
+                const args = Array.from(arguments);
+                let message = 'ERROR: ' + args.map(arg => {
+                    if (typeof arg === 'object') {
+                        try {
+                            return JSON.stringify(arg);
+                        } catch (e) {
+                            return String(arg);
+                        }
+                    }
+                    return String(arg);
+                }).join(' ');
+                
+                addToDebugConsole(message, 'error');
+                originalError.apply(console, arguments);
+            };
+            
+            console.warn = function() {
+                const args = Array.from(arguments);
+                let message = 'WARN: ' + args.map(arg => {
+                    if (typeof arg === 'object') {
+                        try {
+                            return JSON.stringify(arg);
+                        } catch (e) {
+                            return String(arg);
+                        }
+                    }
+                    return String(arg);
+                }).join(' ');
+                
+                addToDebugConsole(message, 'warn');
+                originalWarn.apply(console, arguments);
+            };
+            
+            console.info = function() {
+                const args = Array.from(arguments);
+                let message = 'INFO: ' + args.map(arg => {
+                    if (typeof arg === 'object') {
+                        try {
+                            return JSON.stringify(arg);
+                        } catch (e) {
+                            return String(arg);
+                        }
+                    }
+                    return String(arg);
+                }).join(' ');
+                
+                addToDebugConsole(message, 'info');
+                originalInfo.apply(console, arguments);
+            };
+            
+            // Toggle debug console visibility
+            debugToggle.addEventListener('click', function() {
+                isDebugVisible = !isDebugVisible;
+                debugConsole.style.display = isDebugVisible ? 'block' : 'none';
+                debugToggle.textContent = isDebugVisible ? 'Hide Debug' : 'Debug';
+            });
+            
+            // Add initial debug log
+            console.log('Debug console initialized');
+        })();
+    </script>
 </body>
 </html>

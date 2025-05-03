@@ -16,10 +16,34 @@ class SupabaseClient {
      */
     init() {
         try {
+            console.log("Supabase URL:", CONFIG.SUPABASE_URL);
+            console.log("Supabase Key (first 10 chars):", CONFIG.SUPABASE_KEY.substring(0, 10) + "...");
             this.supabase = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
             console.log('Supabase client initialized successfully');
+            // Test connection
+            this.testConnection();
         } catch (error) {
             console.error('Error initializing Supabase client:', error);
+        }
+    }
+    
+    /**
+     * Test the Supabase connection
+     */
+    async testConnection() {
+        try {
+            const { data, error } = await this.supabase
+                .from('messages')
+                .select('count')
+                .limit(1);
+                
+            if (error) {
+                console.error('Connection test failed:', error);
+            } else {
+                console.log('Connection test successful:', data);
+            }
+        } catch (error) {
+            console.error('Connection test error:', error);
         }
     }
 
@@ -81,23 +105,30 @@ class SupabaseClient {
             return null;
         }
         
+        console.log("Sending message:", content);
+        console.log("Current user:", this.currentUser);
+        
         try {
+            const message = {
+                user_name: this.currentUser.name,
+                user_email: this.currentUser.email,
+                user_role: this.currentUser.role,
+                content: content
+            };
+            
+            console.log("Message to insert:", message);
+            
             const { data, error } = await this.supabase
                 .from('messages')
-                .insert([
-                    {
-                        user_name: this.currentUser.name,
-                        user_email: this.currentUser.email,
-                        user_role: this.currentUser.role,
-                        content: content
-                    }
-                ])
+                .insert([message])
                 .select();
                 
             if (error) {
+                console.error("Insert error details:", error);
                 throw error;
             }
             
+            console.log("Message inserted successfully:", data);
             return data[0];
         } catch (error) {
             console.error('Error sending message:', error);
@@ -138,16 +169,21 @@ class SupabaseClient {
             this.messageSubscription.unsubscribe();
         }
         
+        console.log("Subscribing to messages...");
+        
         this.messageSubscription = this.supabase
             .channel('public:messages')
             .on('postgres_changes', 
                 { event: 'INSERT', schema: 'public', table: 'messages' }, 
                 payload => {
+                    console.log("New message received:", payload);
                     const message = payload.new;
                     callback(message);
                 }
             )
-            .subscribe();
+            .subscribe(status => {
+                console.log("Subscription status:", status);
+            });
     }
 
     /**

@@ -113,14 +113,22 @@ class ChatManager {
      * Load existing messages from the database
      */
     async loadMessages() {
+        console.log('Loading existing messages...');
         const messages = await supabaseClient.getMessages();
         
-        if (!messages || !messages.length) return;
+        console.log('Loaded messages:', messages);
+        
+        if (!messages || !messages.length) {
+            console.log('No messages found or error loading messages');
+            return;
+        }
         
         const currentUser = supabaseClient.currentUser;
+        console.log('Current user for message comparison:', currentUser);
         
         messages.forEach(message => {
             const isCurrentUser = currentUser && message.user_email === currentUser.email;
+            console.log(`Adding message from ${message.user_name}, isCurrentUser: ${isCurrentUser}`);
             chatUI.addMessage(message, isCurrentUser);
         });
         
@@ -132,11 +140,17 @@ class ChatManager {
      * @param {Object} message - New message object
      */
     handleNewMessage(message) {
-        if (!message) return;
+        console.log('Received new message from subscription:', message);
+        
+        if (!message) {
+            console.error('Received empty message in handler');
+            return;
+        }
         
         const currentUser = supabaseClient.currentUser;
         const isCurrentUser = currentUser && message.user_email === currentUser.email;
         
+        console.log(`Handling message from ${message.user_name}, isCurrentUser: ${isCurrentUser}`);
         chatUI.addMessage(message, isCurrentUser);
         chatUI.scrollToBottom();
     }
@@ -145,26 +159,39 @@ class ChatManager {
      * Send a new message
      */
     async sendMessage() {
+        console.log('Attempting to send message...');
+        
         const messageInput = document.getElementById('messageInput');
-        if (!messageInput) return;
+        if (!messageInput) {
+            console.error('Message input element not found');
+            return;
+        }
         
         const content = messageInput.value.trim();
-        if (!content) return;
+        if (!content) {
+            console.log('Message content is empty, not sending');
+            return;
+        }
         
         // Simple throttle to prevent spam
         const now = Date.now();
         if (now - this.lastMessageTime < CONFIG.CHAT.MESSAGE_THROTTLE) {
+            console.log('Message throttled, sending too fast');
             chatUI.showError('Please wait a moment before sending another message');
             return;
         }
+        
+        console.log(`Sending message: "${content}"`);
         
         // Send the message
         const result = await supabaseClient.sendMessage(content);
         
         if (result) {
+            console.log('Message sent successfully:', result);
             chatUI.clearMessageInput();
             this.lastMessageTime = now;
         } else {
+            console.error('Failed to send message');
             chatUI.showError('Failed to send message. Please try again.');
         }
     }

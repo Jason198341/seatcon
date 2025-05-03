@@ -16,6 +16,7 @@ A real-time chat application designed for conference participants to communicate
 
 - Modern web browser
 - Internet connection
+- Python or Node.js (for running the local server)
 
 ### Installation
 
@@ -29,7 +30,37 @@ A real-time chat application designed for conference participants to communicate
    cd conference-chat
    ```
 
-3. Open `index.html` in a web browser, or serve the files using a local development server.
+3. Start the local development server:
+
+   **Using Python (recommended):**
+   ```
+   start_server.bat
+   ```
+   or manually:
+   ```
+   python -m http.server 8000
+   ```
+   Then open http://localhost:8000 in your browser.
+
+   **Using Node.js:**
+   ```
+   start_node_server.bat
+   ```
+   or manually:
+   ```
+   npx serve
+   ```
+   Then open the URL shown in the console.
+
+### Debugging
+
+The application includes a built-in debug console to help troubleshoot issues:
+
+1. After loading the application in your browser, click the 'Debug' button in the bottom right corner.
+2. A debug console will appear showing all console logs, warnings, and errors.
+3. This can help diagnose connection issues with Supabase or other problems.
+
+For more advanced debugging, you can also use your browser's Developer Tools (F12).
 
 ## Project Structure
 

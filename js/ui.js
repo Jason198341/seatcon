@@ -20,6 +20,8 @@ class ChatUI {
      * Initialize UI elements
      */
     init() {
+        console.log('Initializing UI elements...');
+        
         // Get all relevant DOM elements
         this.elements.userForm = document.getElementById('userForm');
         this.elements.chatInterface = document.getElementById('chatInterface');
@@ -29,6 +31,18 @@ class ChatUI {
         this.elements.userInfo = document.getElementById('userInfo');
         this.elements.logoutButton = document.getElementById('logoutButton');
         this.elements.errorAlert = document.getElementById('errorAlert');
+
+        // Log status of UI elements
+        console.log('UI elements found:', {
+            userForm: !!this.elements.userForm,
+            chatInterface: !!this.elements.chatInterface,
+            messagesList: !!this.elements.messagesList,
+            messageInput: !!this.elements.messageInput,
+            sendButton: !!this.elements.sendButton,
+            userInfo: !!this.elements.userInfo,
+            logoutButton: !!this.elements.logoutButton,
+            errorAlert: !!this.elements.errorAlert
+        });
 
         // Initial UI state
         this.hideElement(this.elements.errorAlert);
@@ -77,7 +91,17 @@ class ChatUI {
      * @param {boolean} isCurrentUser - Whether the message is from the current user
      */
     addMessage(message, isCurrentUser) {
-        if (!this.elements.messagesList || !message) return;
+        console.log('Adding message to UI:', message, 'isCurrentUser:', isCurrentUser);
+        
+        if (!this.elements.messagesList) {
+            console.error('Message list element not found');
+            return;
+        }
+        
+        if (!message) {
+            console.error('Cannot add undefined message');
+            return;
+        }
         
         const messageEl = document.createElement('div');
         messageEl.className = `message ${isCurrentUser ? 'message-own' : 'message-other'}`;
@@ -92,6 +116,7 @@ class ChatUI {
         const timeSpan = document.createElement('span');
         timeSpan.className = 'message-time';
         timeSpan.textContent = this.formatTimestamp(message.created_at);
+        console.log('Message timestamp:', message.created_at, 'formatted as:', this.formatTimestamp(message.created_at));
         
         messageHeader.appendChild(nameSpan);
         messageHeader.appendChild(timeSpan);
@@ -104,6 +129,7 @@ class ChatUI {
         messageEl.appendChild(messageContent);
         
         this.elements.messagesList.appendChild(messageEl);
+        console.log('Message added to DOM');
         
         // Scroll to the bottom
         this.scrollToBottom();
