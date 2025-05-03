@@ -6,6 +6,7 @@ class ChatManager {
     constructor() {
         this.lastMessageTime = 0;
         this.isInitialized = false;
+        this.boundHandleNewMessage = null;
     }
 
     /**
@@ -74,6 +75,7 @@ class ChatManager {
      * @param {Object} user - User information
      */
     setupChatInterface(user) {
+        console.log('Setting up chat interface for user:', user);
         chatUI.showChatInterface();
         chatUI.updateUserInfo(user);
         
@@ -81,7 +83,7 @@ class ChatManager {
         this.loadMessages();
         
         // Set up message subscription
-        supabaseClient.subscribeToMessages(this.handleNewMessage.bind(this));
+        this.setupRealTimeSubscription();
         
         // Set up send message functionality
         const sendButton = document.getElementById('sendButton');
@@ -110,6 +112,36 @@ class ChatManager {
     }
 
     /**
+     * Set up real-time message subscription with auto-reconnect
+     */
+    setupRealTimeSubscription() {
+        console.log('Setting up real-time subscription for messages');
+        
+        // Bind the handler to this instance and store the bound function
+        this.boundHandleNewMessage = this.handleNewMessage.bind(this);
+        
+        // Subscribe to messages
+        supabaseClient.subscribeToMessages(this.boundHandleNewMessage);
+        
+        // Set up auto-reconnect
+        window.addEventListener('online', () => {
+            console.log('Network connection restored, reconnecting to message stream');
+            supabaseClient.unsubscribeFromMessages();
+            supabaseClient.subscribeToMessages(this.boundHandleNewMessage);
+            
+            // Reload messages to ensure we didn't miss any
+            this.loadMessages();
+        });
+
+        // Set a periodic reconnection to ensure subscription stays active
+        this.reconnectInterval = setInterval(() => {
+            console.log('Performing periodic reconnection check...');
+            supabaseClient.unsubscribeFromMessages();
+            supabaseClient.subscribeToMessages(this.boundHandleNewMessage);
+        }, 60000); // Check every minute
+    }
+
+    /**
      * Load existing messages from the database
      */
     async loadMessages() {
@@ -121,6 +153,12 @@ class ChatManager {
         if (!messages || !messages.length) {
             console.log('No messages found or error loading messages');
             return;
+        }
+        
+        // Clear existing messages to prevent duplicates
+        const messagesList = document.getElementById('messagesList');
+        if (messagesList) {
+            messagesList.innerHTML = '';
         }
         
         const currentUser = supabaseClient.currentUser;
@@ -151,6 +189,27 @@ class ChatManager {
         const isCurrentUser = currentUser && message.user_email === currentUser.email;
         
         console.log(`Handling message from ${message.user_name}, isCurrentUser: ${isCurrentUser}`);
+        
+        // Get message list element to check if this message already exists
+        const messagesList = document.getElementById('messagesList');
+        if (messagesList) {
+            // Simple check to avoid duplicate messages
+            const messageElements = messagesList.querySelectorAll('.message-content');
+            let isDuplicate = false;
+            
+            messageElements.forEach(element => {
+                if (element.textContent === message.content &&
+                    element.closest('.message').querySelector('.message-name').textContent === message.user_name) {
+                    isDuplicate = true;
+                }
+            });
+            
+            if (isDuplicate) {
+                console.log('Duplicate message detected, not adding to UI');
+                return;
+            }
+        }
+        
         chatUI.addMessage(message, isCurrentUser);
         chatUI.scrollToBottom();
     }
@@ -183,12 +242,27 @@ class ChatManager {
         
         console.log(`Sending message: "${content}"`);
         
+        // Clear input immediately to improve perceived performance
+        chatUI.clearMessageInput();
+        
+        // Add optimistic message to UI
+        const optimisticMessage = {
+            id: 'temp-' + Date.now(),
+            user_name: supabaseClient.currentUser.name,
+            user_email: supabaseClient.currentUser.email,
+            user_role: supabaseClient.currentUser.role,
+            content: content,
+            created_at: new Date().toISOString()
+        };
+        
+        chatUI.addMessage(optimisticMessage, true);
+        chatUI.scrollToBottom();
+        
         // Send the message
         const result = await supabaseClient.sendMessage(content);
         
         if (result) {
             console.log('Message sent successfully:', result);
-            chatUI.clearMessageInput();
             this.lastMessageTime = now;
         } else {
             console.error('Failed to send message');
@@ -200,6 +274,12 @@ class ChatManager {
      * Log out the current user
      */
     logout() {
+        // Clear reconnection interval
+        if (this.reconnectInterval) {
+            clearInterval(this.reconnectInterval);
+            this.reconnectInterval = null;
+        }
+        
         supabaseClient.unsubscribeFromMessages();
         supabaseClient.clearUser();
         

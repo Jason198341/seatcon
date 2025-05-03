@@ -171,19 +171,49 @@ class SupabaseClient {
         
         console.log("Subscribing to messages...");
         
-        this.messageSubscription = this.supabase
-            .channel('public:messages')
-            .on('postgres_changes', 
-                { event: 'INSERT', schema: 'public', table: 'messages' }, 
-                payload => {
-                    console.log("New message received:", payload);
-                    const message = payload.new;
-                    callback(message);
-                }
-            )
-            .subscribe(status => {
-                console.log("Subscription status:", status);
-            });
+        try {
+            // 새로운 방식의 Supabase 실시간 구독
+            this.messageSubscription = this.supabase
+                .channel('public:messages')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: 'messages'
+                    },
+                    (payload) => {
+                        console.log("New message received:", payload);
+                        const message = payload.new;
+                        if (message) {
+                            // 메시지가 성공적으로 수신되면 즉시 콜백 호출
+                            callback(message);
+                        }
+                    }
+                )
+                .subscribe((status) => {
+                    console.log("Subscription status:", status);
+                    
+                    if (status === 'SUBSCRIBED') {
+                        console.log("Successfully subscribed to real-time updates");
+                    } else if (status === 'CHANNEL_ERROR') {
+                        console.error("Error subscribing to real-time updates");
+                        // 에러 발생 시 재시도
+                        setTimeout(() => this.subscribeToMessages(callback), 3000);
+                    }
+                });
+                
+            // 구독이 활성화되었는지 확인
+            if (this.messageSubscription) {
+                console.log("Subscription object created:", this.messageSubscription);
+            } else {
+                console.error("Failed to create subscription object");
+            }
+        } catch (error) {
+            console.error("Error setting up real-time subscription:", error);
+            // 예외 발생 시 재시도
+            setTimeout(() => this.subscribeToMessages(callback), 3000);
+        }
     }
 
     /**
