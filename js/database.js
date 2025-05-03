@@ -249,6 +249,27 @@ class DatabaseService {
             // 언어 감지
             const detectedLanguage = await translationService.detectLanguage(content) || this.currentUser.language;
             
+            // 임시 메시지 ID 생성
+            const tempId = `temp-${Date.now()}`;
+            
+            // 임시 메시지 객체 생성 (UI 즉시 표시용)
+            const tempMessage = {
+                id: tempId,
+                room_id: this.roomId,
+                user_id: this.currentUser.email,
+                user_name: this.currentUser.name,
+                content: content,
+                language: detectedLanguage,
+                is_moderator: this.currentUser.isModerator,
+                is_announcement: isAnnouncement,
+                created_at: new Date().toISOString(),
+                isTemp: true // 임시 메시지 플래그
+            };
+            
+            // 메시지 전송 시도 전에 UI에 임시 메시지 표시
+            // app.js의 handleNewMessage 함수가 이를 처리하도록 호출
+            window.app.handleNewMessage(tempMessage);
+            
             // 메시지 전송 시도
             const { data, error } = await this.client
                 .from('messages')
@@ -277,6 +298,10 @@ class DatabaseService {
             }
             
             console.log('메시지 전송 성공:', data[0]);
+            
+            // 임시 메시지 교체 로직은 필요하다면 구현할 수 있음
+            // 현재는 realtime 구독을 통해 수신된 실제 메시지가 표시됨
+            
             return data[0];
         } catch (error) {
             console.error('메시지 전송 실패:', error);
@@ -329,19 +354,17 @@ class DatabaseService {
         console.log('메시지 구독 시작 시도...');
         
         try {
-            // 채널 이름을 'public:messages'로 변경 (Supabase의 기본 채널 형식)
+            // 채널 이름을 'messages'로 변경 (Supabase의 기본 채널 형식)
             this.messageSubscription = this.client
-                .channel('public:messages')
+                .channel('messages')
                 .on('postgres_changes', 
-                    { event: 'INSERT', schema: 'public', table: 'messages' }, // filter 제거
+                    { event: 'INSERT', schema: 'public', table: 'messages' }, 
                     async payload => {
                         const message = payload.new;
                         console.log('새 메시지 수신:', message);
                         
-                        // 자신의 메시지는 이미 UI에 표시되었으므로 무시
-                        if (this.currentUser && message.user_id === this.currentUser.email) {
-                            return;
-                        }
+                        // 자신의 메시지도 실시간으로 업데이트 처리
+                        // 기존 코드는 자신의 메시지를 무시했지만 이제는 처리합니다
                         
                         // 번역 처리
                         if (this.currentUser && this.currentUser.language !== message.language) {
@@ -364,6 +387,13 @@ class DatabaseService {
                 )
                 .subscribe((status) => {
                     console.log('메시지 구독 상태:', status);
+                    if (status === 'SUBSCRIBED') {
+                        console.log('메시지 구독이 성공적으로 활성화되었습니다');
+                    } else if (status === 'CHANNEL_ERROR') {
+                        console.error('메시지 구독 중 채널 오류가 발생했습니다');
+                        // 재구독 시도
+                        setTimeout(() => this.subscribeToMessages(callback), 3000);
+                    }
                 });
                 
             console.log('메시지 구독 시작 완료');

@@ -1,0 +1,118 @@
+/* 
+ * 컨퍼런스 채팅 애플리케이션 스타일 수정
+ * 진행자 메시지가 세로로 표시되는 문제 해결
+ */
+
+/* 기본 메시지 컨테이너 스타일 강제 적용 */
+.message-container {
+  display: flex !important;
+  flex-direction: column !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  max-width: 85% !important;
+}
+
+/* 진행자 메시지 컨테이너 수정 */
+.message-container.moderator,
+.message-container.horizontal-message {
+  display: flex !important;
+  flex-direction: column !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+}
+
+/* 메시지 버블 스타일 강제 적용 */
+.message-bubble {
+  display: block !important;
+  width: auto !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  word-break: break-word !important;
+}
+
+/* 진행자 메시지 버블 수정 */
+.message-container.moderator .message-bubble,
+.message-container.horizontal-message .message-bubble {
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+}
+
+/* 사용자 역할 배지 */
+.user-role {
+  writing-mode: horizontal-tb !important;
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+}
+
+/* 메시지 헤더 */
+.message-header {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  margin-bottom: var(--space-1) !important;
+  padding-left: var(--space-1) !important;
+  writing-mode: horizontal-tb !important;
+}
+
+/* 진행자 아이콘 이미지 스타일 */
+.role-badge {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  writing-mode: horizontal-tb !important;
+}
+
+/* 메시지 시간 표시 */
+.message-time {
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+}
+
+/* 글꼴 방향 */
+body, * {
+  font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif !important;
+}
+
+/* 채팅 메시지 컨테이너 */
+.chat-messages {
+  direction: ltr !important;
+  writing-mode: horizontal-tb !important;
+}
+
+/* 진행자 아이콘 및 이름 수정 */
+.message-container.moderator,
+.message-container.horizontal-message {
+  width: auto !important;
+  height: auto !important;
+}
+
+/* 추가적인 세로 방향 해결책 */
+body .vertical-fix {
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+}
+
+/* 가로 방향 텍스트 클래스 */
+.horizontal-text {
+  display: block !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  direction: ltr !important;
+  text-align: left !important;
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  width: auto !important;
+  max-width: 100% !important;
+}
+
+/* 진행자 프로필 이미지 */
+.message-container.moderator img,
+.message-container.horizontal-message img {
+  width: auto !important;
+  height: auto !important;
+  max-width: 40px !important;
+  max-height: 40px !important;
+  border-radius: 50% !important;
+  writing-mode: horizontal-tb !important;
+}

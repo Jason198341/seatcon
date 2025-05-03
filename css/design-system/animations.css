@@ -1,0 +1,280 @@
+/* 
+ * Design System - Animations
+ * 컨퍼런스 다국어 채팅 애플리케이션 애니메이션 시스템
+ */
+
+/* ====== Fade 애니메이션 ====== */
+
+/* 페이드 인 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn var(--transition-normal) ease-in-out forwards;
+}
+
+/* 페이드 아웃 */
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.animate-fade-out {
+  animation: fadeOut var(--transition-normal) ease-in-out forwards;
+}
+
+/* ====== 슬라이드 애니메이션 ====== */
+
+/* 위에서 아래로 */
+@keyframes slideInDown {
+  from {
+    transform: translateY(-1rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-down {
+  animation: slideInDown var(--transition-normal) cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* 아래에서 위로 */
+@keyframes slideInUp {
+  from {
+    transform: translateY(1rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-up {
+  animation: slideInUp var(--transition-normal) cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* 왼쪽에서 오른쪽으로 */
+@keyframes slideInRight {
+  from {
+    transform: translateX(-1rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight var(--transition-normal) cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* 오른쪽에서 왼쪽으로 */
+@keyframes slideInLeft {
+  from {
+    transform: translateX(1rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft var(--transition-normal) cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* ====== 크기 변화 애니메이션 ====== */
+
+/* 확대 */
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-scale-in {
+  animation: scaleIn var(--transition-normal) cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* 축소 */
+@keyframes scaleOut {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+}
+
+.animate-scale-out {
+  animation: scaleOut var(--transition-normal) cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* ====== 펄스 애니메이션 ====== */
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ====== 회전 애니메이션 ====== */
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* ====== 팝 애니메이션 ====== */
+
+@keyframes popIn {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-pop-in {
+  animation: popIn var(--transition-normal) cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* ====== 물결 효과 (리플) ====== */
+
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple::after {
+  content: "";
+  display: block;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, #fff 10%, transparent 10.01%);
+  background-repeat: no-repeat;
+  background-position: 50%;
+  transform: scale(10, 10);
+  opacity: 0;
+  transition: transform 0.6s, opacity 0.6s;
+}
+
+.ripple:active::after {
+  transform: scale(0, 0);
+  opacity: 0.3;
+  transition: 0s;
+}
+
+/* ====== 시간 지연 클래스 ====== */
+
+.delay-100 {
+  animation-delay: 100ms;
+}
+
+.delay-200 {
+  animation-delay: 200ms;
+}
+
+.delay-300 {
+  animation-delay: 300ms;
+}
+
+.delay-400 {
+  animation-delay: 400ms;
+}
+
+.delay-500 {
+  animation-delay: 500ms;
+}
+
+/* ====== 접근성 대응 ====== */
+
+/* 사용자가 애니메이션 감소를 선호하는 경우 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .animate-fade-in,
+  .animate-fade-out,
+  .animate-slide-in-down,
+  .animate-slide-in-up,
+  .animate-slide-in-right,
+  .animate-slide-in-left,
+  .animate-scale-in,
+  .animate-scale-out,
+  .animate-pulse,
+  .animate-spin,
+  .animate-pop-in {
+    animation: none !important;
+  }
+  
+  .ripple::after {
+    display: none !important;
+  }
+}

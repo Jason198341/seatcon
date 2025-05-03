@@ -494,8 +494,7 @@ class App {
             // 최신 메시지 타임스탬프 업데이트
             this.state.latestMessageTimestamp = new Date(message.created_at);
             
-            // 스크롤을 하단으로
-            uiController.scrollToBottom();
+            // UI에 스크롤이 자동으로 이동함 (handleNewMessage에서 처리)
         } catch (error) {
             console.error('메시지 전송 오류:', error);
             uiController.showToast('메시지 전송에 실패했습니다.', 'error');
@@ -518,8 +517,14 @@ class App {
         // UI에 메시지 추가
         uiController.addMessage(message, isOwnMessage);
         
+        // 메시지 추가 후 스크롤 자동 조정
+        if (isOwnMessage || message.isTemp) {
+            // 자신의 메시지 또는 임시 메시지인 경우 항상 스크롤 다운
+            uiController.scrollToBottom();
+        }
+        
         // 상대방 메시지가 왔을 때 소리 또는 알림
-        if (!isOwnMessage) {
+        if (!isOwnMessage && !message.isTemp) {
             this.notifyNewMessage(message);
         }
     }

@@ -583,6 +583,7 @@ class UIController {
         
         if (message.is_moderator) {
             messageContainer.classList.add('moderator');
+            messageContainer.classList.add('horizontal-message'); // 가로 방향 메시지 클래스 추가
         }
         
         // 시간 포맷
@@ -601,6 +602,12 @@ class UIController {
         // 버블
         const messageBubble = document.createElement('div');
         messageBubble.classList.add('message-bubble');
+        
+        // 가로 방향을 강제하기 위한 클래스 추가
+        if (message.is_moderator) {
+            messageBubble.classList.add('horizontal-text');
+        }
+        
         messageBubble.textContent = message.content;
         messageContainer.appendChild(messageBubble);
         
