@@ -1,138 +1,152 @@
-<<<<<<< HEAD
-"# seatcon" 
-=======
-# 모바일 전용 컨퍼런스 다국어 채팅 애플리케이션
+# 컨퍼런스 다국어 채팅 애플리케이션
 
-컨퍼런스나 전시회 환경에서 사용할 수 있는 모바일 최적화 다국어 실시간 채팅 애플리케이션입니다. 진행자와 참가자 역할을 구분하고, 6개 언어(한국어, 영어, 일본어, 중국어, 힌디어, 텔루구어)를 지원하며 자동 번역 기능을 제공합니다.
+프리미엄급 UX/UI를 갖춘 모바일 최적화 컨퍼런스용 다국어 실시간 채팅 애플리케이션입니다. 진행자와 참가자 역할을 구분하고, 실시간 언어 번역을 지원하여 다양한 언어를 사용하는 참가자들 간의 원활한 소통을 가능하게 합니다.
+
+![컨퍼런스 채팅 애플리케이션](./assets/images/app-preview.png)
 
 ## 주요 기능
 
 ### 역할 기반 시스템
-- 사용자는 참가자 또는 진행자로 참여 가능
-- 진행자는 비밀번호(9881)로 인증
-- 진행자 전용 기능:
-  - 공지사항 작성
-  - 참가자 강퇴
-  - 보라색 메시지 박스로 구분
+- **참가자/진행자 역할 구분**: 사용자는 참가자 또는 진행자 역할을 선택할 수 있습니다.
+- **진행자 인증**: 진행자는 비밀번호(9881)를 통해 인증됩니다.
+- **역할별 차별화된 UI**: 진행자의 메시지는 특별한 스타일로 표시됩니다.
+- **진행자 권한**: 공지사항 등록, 참가자 강퇴 등 진행자 전용 기능 제공.
 
-### 다국어 지원
-- 지원 언어: 한국어, 영어, 일본어, 중국어, 힌디어, 텔루구어
-- 사용자별 선호 언어 설정
-- 메시지 자동 언어 감지
-- 선호 언어로 자동 번역
-- 번역 결과 캐싱으로 성능 최적화
+### 다국어 실시간 번역
+- **다양한 언어 지원**: 한국어, 영어, 일본어, 중국어, 힌디어, 텔루구어 지원.
+- **자동 언어 감지**: 메시지 작성 시 언어를 자동으로 감지합니다.
+- **실시간 번역**: 사용자의 선호 언어로 자동 번역되어 표시됩니다.
+- **번역 캐싱**: 동일한 내용의 중복 번역을 방지하여 성능을 최적화합니다.
 
-### 고급 UI/UX
-- 모바일 최적화 반응형 디자인
-- 다크/라이트 모드 지원
-- 부드러운 애니메이션 및 전환 효과
-- 직관적인 사용자 인터페이스
+### 프리미엄급 UX/UI
+- **세련된 디자인 시스템**: 고급스러운 색상 팔레트, 타이포그래피, 여백 시스템 적용.
+- **부드러운 애니메이션**: 화면 전환 및 요소 등장 시 자연스러운 애니메이션 적용.
+- **마이크로 인터랙션**: 버튼 클릭, 메시지 전송 등에 섬세한 피드백 제공.
+- **다크 모드 지원**: 사용자 환경에 맞는 라이트/다크 테마 전환 가능.
 
-## 시작하기
-
-### 사전 요구사항
-- 모던 웹 브라우저 (Chrome, Firefox, Safari, Edge 최신 버전)
-- 인터넷 연결
-
-### 설치 및 실행
-1. 저장소 클론:
-   ```
-   git clone https://github.com/yourusername/conference-chat.git
-   ```
-
-2. 웹 서버에 배포 또는 로컬에서 실행:
-   - 로컬에서 실행할 경우, 간단한 웹 서버를 사용:
-     ```
-     npx serve
-     ```
-   - 또는 직접 `index.html` 파일을 브라우저로 열기
-
-### 사용 방법
-1. 시작 화면에서 역할 선택 (참가자 또는 진행자)
-2. 진행자 선택 시 비밀번호(9881) 입력
-3. 프로필 화면에서 이름, 이메일, 선호 언어 설정
-4. 채팅 화면에서 메시지 입력 및 실시간 채팅 참여
-5. 설정 버튼으로 언어 변경, 테마 변경, 로그아웃 가능
-6. 진행자는 설정에서 공지사항 작성 및 참가자 강퇴 가능
+### 기타 기능
+- **메시지 알림**: 새 메시지 및 공지사항 알림 기능.
+- **자동 스크롤**: 새 메시지가 오면 스크롤이 자동으로 이동합니다.
+- **날짜 구분선**: 날짜 별로 메시지를 구분하여 표시합니다.
+- **접근성 지원**: 키보드 네비게이션 및 모션 축소 환경 설정 지원.
 
 ## 기술 스택
 
-### 프론트엔드
-- HTML5
-- CSS3
-- JavaScript (ES6+)
+- **프론트엔드**: HTML5, CSS3, JavaScript(ES6+)
+- **백엔드**: Supabase (실시간 데이터베이스)
+- **번역 API**: Google Cloud Translation API
+- **디자인 시스템**: 커스텀 디자인 시스템
 
-### 백엔드
-- Supabase (실시간 데이터 동기화)
-- Google Cloud Translation API (다국어 번역)
+## 프로젝트 구조
 
-## 파일 구조
 ```
 conference-chat/
-├── index.html                 # 메인 HTML 파일
+├── index.html                      # 메인 HTML 파일
 ├── css/
-│   └── styles.css             # 스타일시트
+│   ├── styles.css                  # 메인 스타일시트 (임포트)
+│   ├── design-system.css           # 디자인 시스템
+│   ├── animations.css              # 애니메이션 스타일
+│   ├── components.css              # 컴포넌트 스타일
+│   ├── layout.css                  # 레이아웃 구조
+│   ├── chat-screens.css            # 화면별 스타일
+│   ├── messages.css                # 메시지 관련 스타일
+│   └── utilities.css               # 유틸리티 클래스
 ├── js/
-│   ├── app.js                 # 애플리케이션 메인 로직
-│   ├── auth.js                # 인증 관련 기능
-│   ├── database.js            # Supabase 연동
-│   └── translation.js         # 번역 기능
-└── assets/
-    └── images/                # 이미지 리소스
+│   ├── app.js                      # 애플리케이션 메인 로직
+│   ├── auth.js                     # 인증 관련 기능
+│   ├── database.js                 # Supabase 연동
+│   ├── translation.js              # 번역 기능
+│   ├── ui-controller.js            # UI 제어 기능
+│   └── animations.js               # 애니메이션 제어
+├── assets/
+│   └── images/                     # 이미지 리소스
+└── project_plan.md                 # 프로젝트 계획 문서
 ```
 
-## 주요 구현 모듈
+## 설치 및 설정
 
-### 번역 서비스 (translation.js)
-Google Cloud Translation API를 사용하여 메시지 번역 및 언어 감지를 처리하는 모듈입니다. 번역 결과를 로컬 스토리지에 캐싱하여 동일한 텍스트에 대한 반복 요청을 최적화합니다.
+### 필수 요구사항
+- 최신 웹 브라우저 (Chrome, Firefox, Safari, Edge 등)
+- Supabase 계정
+- Google Cloud Translation API 키
 
-### 데이터베이스 서비스 (database.js)
-Supabase를 사용하여 실시간 메시지 송수신 및 사용자 상태를 관리하는 모듈입니다. 사용자 정보, 온라인 상태, 강퇴 관련 데이터를 처리합니다.
+### 설정 방법
 
-### 인증 서비스 (auth.js)
-사용자 역할(참가자/진행자) 관리 및 진행자 인증을 처리하는 모듈입니다. 비밀번호 검증, 접근 권한 확인 등의 기능을 제공합니다.
+1. 프로젝트를 클론합니다.
+```bash
+git clone https://github.com/yourusername/conference-chat.git
+cd conference-chat
+```
 
-### 애플리케이션 로직 (app.js)
-UI 컴포넌트와 비즈니스 로직을 연결하는 메인 모듈입니다. 화면 전환, 이벤트 처리, 메시지 표시, 테마 관리 등 사용자 인터페이스와 관련된 모든 기능을 관리합니다.
+2. Supabase 프로젝트를 생성하고 다음 테이블을 설정합니다.
+```sql
+-- 메시지 테이블
+CREATE TABLE messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    room_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    user_name TEXT NOT NULL,
+    content TEXT NOT NULL,
+    language TEXT NOT NULL,
+    is_moderator BOOLEAN DEFAULT FALSE,
+    is_announcement BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
-## 데이터베이스 구조
-Supabase에서 필요한 테이블:
+-- 강퇴된 사용자 테이블
+CREATE TABLE kicked_users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    room_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    kicked_by TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE (room_id, user_id)
+);
+```
 
-1. **messages**: 채팅 메시지 저장
-   - id: UUID (기본 키)
-   - room_id: String (채팅방 ID)
-   - user_id: String (사용자 이메일)
-   - user_name: String (사용자 이름)
-   - content: Text (메시지 내용)
-   - language: String (메시지 언어 코드)
-   - is_moderator: Boolean (진행자 여부)
-   - is_announcement: Boolean (공지사항 여부)
-   - created_at: Timestamp (생성 시간)
+3. `js/database.js` 파일에 Supabase URL과 API 키를 설정합니다.
+```javascript
+this.supabaseUrl = 'YOUR_SUPABASE_URL';
+this.supabaseKey = 'YOUR_SUPABASE_API_KEY';
+```
 
-2. **kicked_users**: 강퇴된 사용자 정보 저장
-   - id: UUID (기본 키)
-   - room_id: String (채팅방 ID)
-   - user_id: String (강퇴된 사용자 이메일)
-   - kicked_by: String (강퇴한 진행자 이메일)
-   - created_at: Timestamp (강퇴 시간)
+4. `js/translation.js` 파일에 Google Cloud Translation API 키를 설정합니다.
+```javascript
+this.apiKey = 'YOUR_GOOGLE_TRANSLATION_API_KEY';
+```
 
-## 보안 고려사항
-- 진행자 비밀번호는 클라이언트 측에서 검증되며 보안을 위해 향후 서버 측 인증으로 개선 필요
-- 사용자 인증은 간소화되어 있으며 프로덕션 환경에서는 강화된 인증 시스템 권장
-- API 키는 환경 변수로 관리하는 것이 바람직하나 현재는 코드에 직접 포함됨
+5. 웹 서버를 사용하여 프로젝트를 호스팅하세요. 간단한 로컬 서버를 시작하려면:
+```bash
+# Python을 사용하는 경우
+python -m http.server 8000
 
-## 향후 개선 사항
-- 파일 및 이미지 공유 기능
-- 이모티콘 지원
-- 오프라인 모드 및 메시지 동기화
-- 푸시 알림 기능
-- 채팅 내역 저장 및 내보내기
-- 보안 강화 (서버 측 인증, API 키 관리)
-- PWA(Progressive Web App) 지원
+# Node.js를 사용하는 경우
+npx serve
+```
+
+6. 브라우저에서 `http://localhost:8000`으로 접속하여 애플리케이션을 사용하세요.
+
+## 사용 방법
+
+### 참가자로 참여하기
+1. 시작 화면에서 '참가자' 역할을 선택합니다.
+2. 이름, 이메일, 선호 언어를 입력하고 '채팅 참여' 버튼을 클릭합니다.
+3. 채팅 화면에서 메시지를 작성하고 전송 버튼을 누릅니다.
+
+### 진행자로 참여하기
+1. 시작 화면에서 '진행자' 역할을 선택합니다.
+2. 비밀번호 '9881'을 입력하여 인증합니다.
+3. 이름, 이메일, 선호 언어를 입력하고 '채팅 참여' 버튼을 클릭합니다.
+4. 채팅 화면 상단의 설정 버튼을 클릭하여 진행자 도구에 접근할 수 있습니다.
+
+## 프로젝트 참여 및 기여
+
+버그 신고, 기능 요청, 개선 제안 등은 이슈 트래커를 통해 제출해 주세요.
 
 ## 라이선스
-MIT License
 
-## 연락처
-GitHub: [github.com/yourusername](https://github.com/yourusername)
->>>>>>> b89d20b (커밋 메시지)
+이 프로젝트는 MIT 라이선스 하에 배포됩니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
+
+## 제작자
+
+- ChatKorea Team (contact@chatkorea.com)

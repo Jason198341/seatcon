@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>컨퍼런스 채팅룸</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Sans:wght@300;400;500;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=Noto+Sans:wght@300;400;500;600;700&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
     <meta name="theme-color" content="#6200EA">
@@ -26,7 +26,7 @@
                 <p class="welcome-description">참여하기 전에 역할을 선택해주세요</p>
                 
                 <div class="role-selection">
-                    <div class="role-option" id="participant-role">
+                    <div class="role-option ripple-effect" id="participant-role">
                         <div class="role-icon">
                             <i class="fas fa-user"></i>
                         </div>
@@ -36,7 +36,7 @@
                         </div>
                     </div>
                     
-                    <div class="role-option" id="moderator-role">
+                    <div class="role-option ripple-effect" id="moderator-role">
                         <div class="role-icon">
                             <i class="fas fa-user-tie"></i>
                         </div>
@@ -61,7 +61,7 @@
                             <input type="password" maxlength="1" class="password-digit" data-index="3">
                         </div>
                         <p class="password-error" id="password-error-message">비밀번호가 올바르지 않습니다</p>
-                        <button class="button primary-button" id="confirm-password">인증</button>
+                        <button class="btn btn-primary" id="confirm-password">인증</button>
                     </div>
                 </div>
             </div>
@@ -101,7 +101,7 @@
                         </select>
                     </div>
                     
-                    <button type="submit" class="button primary-button">채팅 참여</button>
+                    <button type="submit" class="ripple-effect">채팅 참여</button>
                 </form>
             </div>
         </div>
@@ -118,7 +118,7 @@
                         </div>
                     </div>
                     <div class="header-actions">
-                        <button class="icon-button" id="settings-button">
+                        <button class="btn btn-icon" id="settings-button">
                             <i class="fas fa-cog"></i>
                         </button>
                     </div>
@@ -130,8 +130,8 @@
                 
                 <div class="chat-input">
                     <div class="input-container">
-                        <textarea id="message-input" placeholder="메시지를 입력하세요..."></textarea>
-                        <button class="send-button" id="send-button">
+                        <textarea id="message-input" class="auto-height" placeholder="메시지를 입력하세요..."></textarea>
+                        <button class="send-button ripple-effect" id="send-button">
                             <i class="fas fa-paper-plane"></i>
                         </button>
                     </div>
@@ -139,10 +139,10 @@
             </div>
             
             <!-- 설정 메뉴 (기본적으로 숨겨짐) -->
-            <div class="settings-panel hidden" id="settings-panel">
+            <div class="settings-panel" id="settings-panel">
                 <div class="settings-header">
                     <h3>설정</h3>
-                    <button class="icon-button" id="close-settings">
+                    <button class="btn btn-icon" id="close-settings">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -178,11 +178,11 @@
                     <!-- 진행자 전용 설정 (역할에 따라 표시/숨김) -->
                     <div class="settings-section moderator-only hidden" id="moderator-tools">
                         <h4>진행자 도구</h4>
-                        <button class="button secondary-button" id="announcement-button">공지사항 작성</button>
-                        <button class="button warning-button" id="kick-user-button">참가자 강퇴</button>
+                        <button class="btn btn-secondary ripple-effect" id="announcement-button">공지사항 작성</button>
+                        <button class="btn btn-warning ripple-effect" id="kick-user-button">참가자 강퇴</button>
                     </div>
                     
-                    <button class="button danger-button" id="logout-button">나가기</button>
+                    <button class="btn btn-danger ripple-effect" id="logout-button">나가기</button>
                 </div>
             </div>
             
@@ -190,7 +190,7 @@
             <div class="kick-panel hidden" id="kick-panel">
                 <div class="kick-header">
                     <h3>참가자 강퇴</h3>
-                    <button class="icon-button" id="close-kick">
+                    <button class="btn btn-icon" id="close-kick">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -206,14 +206,14 @@
             <div class="announcement-panel hidden" id="announcement-panel">
                 <div class="announcement-header">
                     <h3>공지사항 작성</h3>
-                    <button class="icon-button" id="close-announcement">
+                    <button class="btn btn-icon" id="close-announcement">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
                 
                 <div class="announcement-content">
                     <textarea id="announcement-text" placeholder="공지사항을 입력하세요..."></textarea>
-                    <button class="button primary-button" id="send-announcement">공지하기</button>
+                    <button class="btn btn-primary ripple-effect" id="send-announcement">공지하기</button>
                 </div>
             </div>
         </div>
@@ -231,12 +231,19 @@
             <i class="toast-icon fas fa-info-circle"></i>
             <p class="toast-message">알림 메시지</p>
         </div>
+        
+        <!-- 스크롤 하단 버튼 -->
+        <button class="scroll-bottom-button hidden" id="scroll-bottom-button">
+            <i class="fas fa-arrow-down"></i>
+        </button>
     </div>
 
     <!-- 라이브러리 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.21.0/dist/umd/supabase.min.js"></script>
     
     <!-- 애플리케이션 스크립트 -->
+    <script src="js/animations.js"></script>
+    <script src="js/ui-controller.js"></script>
     <script src="js/translation.js"></script>
     <script src="js/database.js"></script>
     <script src="js/auth.js"></script>
