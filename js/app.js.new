@@ -1,0 +1,1304 @@
+/**
+ * 컨퍼런스 채팅 애플리케이션 - 메인 로직
+ * 
+ * 고급 UX/UI와 다국어 번역을 지원하는 실시간 채팅 애플리케이션의 메인 스크립트입니다.
+ * 사용자 인터페이스와 데이터베이스 서비스를 조정하여 원활한 채팅 경험을 제공합니다.
+ */
+class App {
+    constructor() {
+        // 애플리케이션 상태
+        this.state = {
+            currentScreen: 'role-screen',
+            userRole: 'participant',
+            typingTimeout: null,
+            latestMessageTimestamp: null,
+            onlineUsers: [],
+            typingUsers: new Map(), // 입력 중인 사용자 목록
+            messageElements: new Map(), // 메시지 요소 참조 저장
+            connectionState: 'connected' // 연결 상태: 'connected', 'connecting', 'disconnected'
+        };
+        
+        // 모더레이터 비밀번호
+        this.moderatorPassword = '9881';
+        
+        // 초기화
+        this.init();
+    }
+    
+    /**
+     * 애플리케이션 초기화
+     */
+    async init() {
+        console.log('컨퍼런스 채팅 애플리케이션 초기화');
+        
+        // 데이터베이스 연결 테스트
+        await this.testDatabaseConnection();
+        
+        // 이벤트 리스너 설정
+        this.setupEventListeners();
+        
+        // 저장된 사용자 세션 확인
+        this.checkExistingSession();
+        
+        // 네트워크 상태 모니터링
+        this.monitorNetworkState();
+    }
+    
+    /**
+     * 데이터베이스 연결 테스트
+     */
+    async testDatabaseConnection() {
+        try {
+            uiController.showLoading('데이터베이스 연결 중...');
+            
+            const isConnected = await databaseService.testConnection();
+            
+            if (!isConnected) {
+                throw new Error('데이터베이스 연결 실패');
+            }
+            
+            // 번역 서비스 테스트
+            const isTranslationWorking = await translationService.testTranslation();
+            
+            if (!isTranslationWorking) {
+                console.warn('번역 서비스 초기화 실패. 기본 언어로만 표시됩니다.');
+            }
+            
+            this.state.connectionState = 'connected';
+            uiController.updateConnectionStatus('connected');
+            uiController.hideLoading();
+        } catch (error) {
+            console.error('초기화 오류:', error);
+            this.state.connectionState = 'disconnected';
+            uiController.updateConnectionStatus('disconnected');
+            uiController.hideLoading();
+            uiController.showToast('서비스 연결에 문제가 있습니다. 나중에 다시 시도해주세요.', 'error');
+        }
+    }
+    
+    /**
+     * 네트워크 상태 모니터링
+     */
+    monitorNetworkState() {
+        window.addEventListener('online', () => {
+            console.log('네트워크 연결 복원');
+            this.state.connectionState = 'connecting';
+            uiController.updateConnectionStatus('connecting');
+            
+            // 연결 테스트
+            databaseService.testConnection().then(isConnected => {
+                if (isConnected) {
+                    this.state.connectionState = 'connected';
+                    uiController.updateConnectionStatus('connected');
+                    uiController.showToast('네트워크 연결이 복원되었습니다.', 'success');
+                    
+                    // 이전에 전송 실패한 메시지 재시도 확인
+                    this.retryFailedMessages();
+                } else {
+                    this.state.connectionState = 'disconnected';
+                    uiController.updateConnectionStatus('disconnected');
+                }
+            });
+        });
+        
+        window.addEventListener('offline', () => {
+            console.log('네트워크 연결 끊김');
+            this.state.connectionState = 'disconnected';
+            uiController.updateConnectionStatus('disconnected');
+            uiController.showToast('네트워크 연결이 끊겼습니다. 메시지가 저장되지 않을 수 있습니다.', 'warning');
+        });
+    }
+    
+    /**
+     * 전송 실패한 메시지 재시도
+     */
+    retryFailedMessages() {
+        // 현재는 구현하지 않음
+        // 향후 로컬 스토리지에 실패 메시지 저장 및 재전송 로직 추가 가능
+    }
+    
+    /**
+     * 이벤트 리스너 설정
+     */
+    setupEventListeners() {
+        // 역할 선택 화면
+        document.getElementById('participant-role').addEventListener('click', () => this.handleRoleSelect('participant'));
+        document.getElementById('moderator-role').addEventListener('click', () => this.handleRoleSelect('moderator'));
+        
+        // 진행자 비밀번호 화면
+        document.getElementById('close-password').addEventListener('click', this.hideModeratorPassword.bind(this));
+        document.getElementById('confirm-password').addEventListener('click', this.verifyModeratorPassword.bind(this));
+        
+        // 비밀번호 입력 필드 이벤트
+        const passwordDigits = document.querySelectorAll('.password-digit');
+        passwordDigits.forEach(digit => {
+            digit.addEventListener('input', this.handlePasswordDigitInput.bind(this));
+            digit.addEventListener('keydown', this.handlePasswordDigitKeydown.bind(this));
+        });
+        
+        // 프로필 설정 화면
+        document.getElementById('profile-form').addEventListener('submit', this.handleProfileSubmit.bind(this));
+        
+        // 채팅 화면
+        document.getElementById('message-input').addEventListener('keydown', this.handleMessageKeydown.bind(this));
+        document.getElementById('message-input').addEventListener('input', this.handleMessageInput.bind(this));
+        document.getElementById('send-button').addEventListener('click', this.sendMessage.bind(this));
+        
+        // 설정 메뉴
+        document.getElementById('settings-button').addEventListener('click', () => uiController.showPanel('settings-panel'));
+        document.getElementById('close-settings').addEventListener('click', () => uiController.hidePanel('settings-panel'));
+        document.getElementById('logout-button').addEventListener('click', this.handleLogout.bind(this));
+        document.getElementById('settings-language').addEventListener('change', this.handleLanguageChange.bind(this));
+        
+        // 진행자 도구
+        const announcementButton = document.getElementById('announcement-button');
+        if (announcementButton) {
+            announcementButton.addEventListener('click', () => uiController.showPanel('announcement-panel'));
+        }
+        
+        const kickUserButton = document.getElementById('kick-user-button');
+        if (kickUserButton) {
+            kickUserButton.addEventListener('click', () => this.openKickPanel());
+        }
+        
+        // 공지사항 패널
+        document.getElementById('close-announcement').addEventListener('click', () => uiController.hidePanel('announcement-panel'));
+        document.getElementById('send-announcement').addEventListener('click', this.sendAnnouncement.bind(this));
+        
+        // 강퇴 패널
+        document.getElementById('close-kick').addEventListener('click', () => uiController.hidePanel('kick-panel'));
+        
+        // 스크롤 하단 버튼
+        document.getElementById('scroll-bottom-button').addEventListener('click', () => uiController.scrollToBottom());
+        
+        // 윈도우 이벤트
+        window.addEventListener('beforeunload', this.handleBeforeUnload.bind(this));
+        window.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
+        
+        // 메시지 컨테이너 터치 이벤트
+        const messageContainer = document.getElementById('message-container');
+        if (messageContainer) {
+            messageContainer.addEventListener('touchstart', this.handleMessageContainerTouch.bind(this));
+        }
+    }
+    
+    /**
+     * 메시지 컨테이너 터치 이벤트 처리
+     * @param {TouchEvent} event - 터치 이벤트
+     */
+    handleMessageContainerTouch(event) {
+        // 입력 필드가 포커스되어 있으면 포커스 해제
+        const activeElement = document.activeElement;
+        if (activeElement && activeElement.tagName.toLowerCase() === 'textarea') {
+            activeElement.blur();
+        }
+    }
+    
+    /**
+     * 기존 사용자 세션 확인
+     */
+    checkExistingSession() {
+        const savedUser = databaseService.getSavedUserInfo();
+        
+        if (savedUser) {
+            // 강퇴 여부 확인
+            databaseService.checkIfKicked().then(isKicked => {
+                if (isKicked) {
+                    // 강퇴된 사용자라면 세션 정보 삭제
+                    databaseService.clearUserInfo();
+                    uiController.showToast('강퇴되어 채팅에 참여할 수 없습니다.', 'error');
+                    return;
+                }
+                
+                // 사용자 정보 복원
+                this.state.userRole = savedUser.isModerator ? 'moderator' : 'participant';
+                
+                // 채팅 화면으로 이동
+                this.openChatScreen();
+            });
+        }
+    }
+    
+    /**
+     * 역할 선택 처리
+     * @param {string} role - 선택한 역할 ('participant' 또는 'moderator')
+     */
+    handleRoleSelect(role) {
+        if (role === 'participant') {
+            this.state.userRole = 'participant';
+            uiController.changeScreen('profile-screen');
+            
+            // 프로필 뱃지 업데이트
+            const roleBadge = document.getElementById('profile-role-badge');
+            roleBadge.innerHTML = '<i class="fas fa-user"></i><span>참가자</span>';
+            roleBadge.classList.remove('moderator');
+        } else if (role === 'moderator') {
+            this.state.userRole = 'moderator';
+            this.showModeratorPassword();
+        }
+    }
+    
+    /**
+     * 진행자 비밀번호 화면 표시
+     */
+    showModeratorPassword() {
+        const passwordContainer = document.getElementById('moderator-password');
+        
+        // 에러 메시지 숨기기
+        document.getElementById('password-error-message').style.display = 'none';
+        
+        // 입력 필드 초기화
+        const passwordDigits = document.querySelectorAll('.password-digit');
+        passwordDigits.forEach(digit => {
+            digit.value = '';
+        });
+        
+        // 첫 번째 입력 필드에 포커스
+        setTimeout(() => {
+            passwordDigits[0].focus();
+        }, 300);
+        
+        // 비밀번호 컨테이너 표시
+        passwordContainer.classList.remove('hidden');
+        
+        // 애니메이션 적용
+        animationsController.animate('zoomIn', passwordContainer);
+    }
+    
+    /**
+     * 진행자 비밀번호 화면 숨기기
+     */
+    hideModeratorPassword() {
+        const passwordContainer = document.getElementById('moderator-password');
+        
+        // 애니메이션 적용 후 숨기기
+        animationsController.animate('zoomOut', passwordContainer, {
+            onComplete: () => {
+                passwordContainer.classList.add('hidden');
+            }
+        });
+    }
+    
+    /**
+     * 비밀번호 입력 필드 처리
+     * @param {Event} event - 입력 이벤트
+     */
+    handlePasswordDigitInput(event) {
+        const input = event.target;
+        const index = parseInt(input.dataset.index);
+        
+        // 숫자만 허용
+        input.value = input.value.replace(/[^0-9]/g, '');
+        
+        // 값이 입력되면 다음 필드로 이동
+        if (input.value.length > 0 && index < 3) {
+            const nextInput = document.querySelector(`.password-digit[data-index="${index + 1}"]`);
+            if (nextInput) {
+                nextInput.focus();
+            }
+        }
+        
+        // 모든 필드가 입력되었는지 확인
+        const allFilled = Array.from(document.querySelectorAll('.password-digit'))
+            .every(digit => digit.value.length > 0);
+        
+        if (allFilled) {
+            this.verifyModeratorPassword();
+        }
+    }
+    
+    /**
+     * 비밀번호 입력 필드 키 이벤트 처리
+     * @param {KeyboardEvent} event - 키보드 이벤트
+     */
+    handlePasswordDigitKeydown(event) {
+        const input = event.target;
+        const index = parseInt(input.dataset.index);
+        
+        // 백스페이스 처리
+        if (event.key === 'Backspace') {
+            if (input.value.length === 0 && index > 0) {
+                // 현재 필드가 비어있으면 이전 필드로 이동
+                const prevInput = document.querySelector(`.password-digit[data-index="${index - 1}"]`);
+                if (prevInput) {
+                    prevInput.focus();
+                    prevInput.value = '';
+                }
+            }
+        }
+    }
+    
+    /**
+     * 진행자 비밀번호 확인
+     */
+    verifyModeratorPassword() {
+        const enteredPassword = Array.from(document.querySelectorAll('.password-digit'))
+            .map(digit => digit.value)
+            .join('');
+        
+        if (enteredPassword === this.moderatorPassword) {
+            // 비밀번호 정확
+            this.hideModeratorPassword();
+            
+            // 프로필 화면으로 이동
+            uiController.changeScreen('profile-screen');
+            
+            // 프로필 뱃지 업데이트
+            const roleBadge = document.getElementById('profile-role-badge');
+            roleBadge.innerHTML = '<i class="fas fa-user-tie"></i><span>진행자</span>';
+            roleBadge.classList.add('moderator');
+        } else {
+            // 비밀번호 불일치
+            const errorMessage = document.getElementById('password-error-message');
+            errorMessage.style.display = 'block';
+            
+            // 애니메이션 적용
+            animationsController.animate('shake', document.querySelector('.password-digits'));
+            
+            // 입력 필드 초기화
+            document.querySelectorAll('.password-digit').forEach(digit => {
+                digit.value = '';
+            });
+            
+            // 첫 번째 입력 필드에 포커스
+            document.querySelector('.password-digit[data-index="0"]').focus();
+        }
+    }
+    
+    /**
+     * 프로필 제출 처리
+     * @param {Event} event - 폼 제출 이벤트
+     */
+    async handleProfileSubmit(event) {
+        event.preventDefault();
+        
+        // 입력값 가져오기
+        const name = document.getElementById('user-name').value.trim();
+        const email = document.getElementById('user-email').value.trim();
+        const language = document.getElementById('preferred-language').value;
+        
+        if (!name || !email) {
+            uiController.showToast('모든 필드를 입력해주세요.', 'warning');
+            return;
+        }
+        
+        // 이메일 형식 검사
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailPattern.test(email)) {
+            uiController.showToast('유효한 이메일 주소를 입력해주세요.', 'warning');
+            return;
+        }
+        
+        try {
+            uiController.showLoading('채팅에 참여하는 중...');
+            
+            // 강퇴 여부 확인
+            const isKicked = await databaseService.checkIfKicked();
+            
+            if (isKicked) {
+                uiController.hideLoading();
+                uiController.showToast('강퇴되어 채팅에 참여할 수 없습니다.', 'error');
+                return;
+            }
+            
+            // 사용자 정보 저장
+            const userInfo = {
+                name: name,
+                email: email,
+                language: language,
+                isModerator: this.state.userRole === 'moderator'
+            };
+            
+            databaseService.saveUserInfo(userInfo);
+            
+            // 채팅 화면으로 이동
+            this.openChatScreen();
+        } catch (error) {
+            console.error('프로필 저장 오류:', error);
+            uiController.hideLoading();
+            uiController.showToast('프로필 저장 중 오류가 발생했습니다.', 'error');
+        }
+    }
+    
+    /**
+     * 채팅 화면 열기
+     */
+    async openChatScreen() {
+        try {
+            // 채팅 화면으로 전환
+            uiController.changeScreen('chat-screen');
+            
+            // 역할 뱃지 업데이트
+            const roleBadge = document.getElementById('chat-role-badge');
+            
+            if (databaseService.currentUser.isModerator) {
+                roleBadge.innerHTML = '<i class="fas fa-user-tie"></i><span>진행자</span>';
+                roleBadge.classList.add('moderator');
+                
+                // 진행자 도구 표시
+                document.getElementById('moderator-tools').classList.remove('hidden');
+            } else {
+                roleBadge.innerHTML = '<i class="fas fa-user"></i><span>참가자</span>';
+                roleBadge.classList.remove('moderator');
+                
+                // 진행자 도구 숨기기
+                const moderatorTools = document.getElementById('moderator-tools');
+                if (moderatorTools) {
+                    moderatorTools.classList.add('hidden');
+                }
+            }
+            
+            // 설정의 언어 옵션 동기화
+            const settingsLanguage = document.getElementById('settings-language');
+            settingsLanguage.value = databaseService.currentUser.language;
+            
+            // 이전 메시지 로드
+            this.loadMessages();
+            
+            // 메시지 구독 시작
+            databaseService.subscribeToMessages(this.handleNewMessage.bind(this));
+            
+            // 사용자 상태 구독 시작
+            databaseService.subscribeToPresence(this.handleUserPresenceUpdate.bind(this));
+            
+            // 진입 메시지 표시
+            uiController.addSystemMessage(`${databaseService.currentUser.name}님이 채팅에 참여했습니다.`);
+            
+            // 로딩 숨기기
+            uiController.hideLoading();
+            
+            // 웰컴 토스트 표시
+            uiController.showToast(`환영합니다, ${databaseService.currentUser.name}님!`, 'success');
+            
+            // 연결 상태 표시 업데이트
+            uiController.updateConnectionStatus(this.state.connectionState);
+        } catch (error) {
+            console.error('채팅 화면 열기 오류:', error);
+            uiController.hideLoading();
+            uiController.showToast('채팅 초기화 중 오류가 발생했습니다.', 'error');
+        }
+    }
+    
+    /**
+     * 이전 메시지 로드
+     */
+    async loadMessages() {
+        try {
+            uiController.showLoading('메시지를 로드하는 중...');
+            
+            const messages = await databaseService.getRecentMessages();
+            
+            if (messages && messages.length > 0) {
+                // 최신 메시지 타임스탬프 설정
+                this.state.latestMessageTimestamp = new Date(messages[messages.length - 1].created_at);
+                
+                // 메시지 추가
+                for (const message of messages) {
+                    // 번역 처리
+                    if (databaseService.currentUser.language !== message.language) {
+                        try {
+                            const translatedContent = await translationService.translateText(
+                                message.content,
+                                message.language,
+                                databaseService.currentUser.language
+                            );
+                            
+                            message.translatedContent = translatedContent;
+                            message.targetLanguage = databaseService.currentUser.language;
+                        } catch (error) {
+                            console.error('메시지 번역 오류:', error);
+                        }
+                    }
+                    
+                    // 자신의 메시지 여부 확인
+                    const isOwnMessage = message.user_id === databaseService.currentUser.email;
+                    
+                    // UI에 메시지 추가
+                    const messageElement = uiController.addMessage(message, isOwnMessage);
+                    
+                    // 메시지 요소 참조 저장
+                    this.state.messageElements.set(message.id, messageElement);
+                }
+                
+                // 스크롤을 하단으로
+                uiController.scrollToBottom(false);
+            } else {
+                // 메시지가 없는 경우
+                uiController.addSystemMessage('채팅에 오신 것을 환영합니다! 첫 메시지를 보내보세요.');
+            }
+            
+            uiController.hideLoading();
+        } catch (error) {
+            console.error('메시지 로드 오류:', error);
+            uiController.hideLoading();
+            uiController.showToast('메시지를 로드하는 중 오류가 발생했습니다.', 'error');
+            
+            // 오류 메시지 표시
+            uiController.addSystemMessage('메시지를 불러오지 못했습니다. 페이지를 새로고침해 주세요.');
+        }
+    }
+    
+    /**
+     * 메시지 전송
+     */
+    async sendMessage() {
+        if (!databaseService.currentUser) {
+            uiController.showToast('로그인 정보가 없습니다. 다시 로그인해주세요.', 'error');
+            return;
+        }
+        
+        const messageInput = document.getElementById('message-input');
+        const content = messageInput.value.trim();
+        
+        if (!content) return;
+        
+        try {
+            // 입력 필드 초기화
+            messageInput.value = '';
+            
+            // 자동 높이 조절 적용
+            uiController.autoResizeTextarea(messageInput);
+            
+            // 입력 중 상태 취소
+            this.clearTypingStatus();
+            
+            // 메시지 전송
+            await databaseService.sendMessage(content);
+            
+            // 입력 필드에 포커스
+            messageInput.focus();
+        } catch (error) {
+            console.error('메시지 전송 오류:', error);
+            uiController.showToast('메시지 전송에 실패했습니다.', 'error');
+            
+            // 입력 내용 복원
+            messageInput.value = content;
+        }
+    }
+    
+    /**
+     * 새 메시지 처리
+     * @param {Object} message - 메시지 객체
+     */
+    handleNewMessage(message) {
+        if (!message) return;
+        
+        // 자신의 메시지 여부 확인
+        const isOwnMessage = message.user_id === databaseService.currentUser.email;
+        
+        // 임시 메시지인 경우
+        if (message.isTemp) {
+            const messageElement = uiController.addMessage(message, isOwnMessage, true);
+            
+            // 메시지 요소 참조 저장
+            this.state.messageElements.set(message.id, messageElement);
+            
+            // 임시 메시지는 항상 스크롤 다운
+            uiController.scrollToBottom();
+            return;
+        }
+        
+        // 메시지 UI 추가 또는 업데이트
+        if (message.client_id && this.state.messageElements.has(message.client_id)) {
+            // 이미 표시된 임시 메시지가 있으므로 교체
+            this.updateTempMessage(message.client_id, message);
+        } else {
+            // 새로운 메시지 추가
+            const messageElement = uiController.addMessage(message, isOwnMessage);
+            
+            // 메시지 요소 참조 저장
+            this.state.messageElements.set(message.id, messageElement);
+            
+            // 자신의 메시지인 경우 항상 스크롤 다운
+            if (isOwnMessage) {
+                uiController.scrollToBottom();
+            } else {
+                // 다른 사용자의 메시지는 스크롤 위치에 따라 처리
+                this.handleOtherUserMessage(message);
+                
+                // 입력 중 표시 제거
+                this.removeTypingIndicator(message.user_id);
+            }
+        }
+    }
+    
+    /**
+     * 다른 사용자의 메시지 처리
+     * @param {Object} message - 메시지 객체
+     */
+    handleOtherUserMessage(message) {
+        const chatMessages = document.querySelector('.chat-messages');
+        if (!chatMessages) return;
+        
+        // 스크롤 위치 확인
+        const isNearBottom = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < 100;
+        
+        if (isNearBottom) {
+            // 스크롤이 하단에 있으면 자동 스크롤
+            uiController.scrollToBottom();
+        } else {
+            // 스크롤이 위에 있으면 새 메시지 알림 표시
+            uiController.showNewMessageNotification();
+            
+            // 알림 사운드 재생
+            this.playNotificationSound();
+        }
+    }
+    
+    /**
+     * 알림 사운드 재생
+     */
+    playNotificationSound() {
+        try {
+            // 오디오 컨텍스트 생성 (첫 번째 사용자 상호작용 시 초기화되어야 함)
+            if (!this.audioContext) {
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            
+            // 짧은 비프음 생성
+            const oscillator = this.audioContext.createOscillator();
+            const gainNode = this.audioContext.createGain();
+            
+            oscillator.type = 'sine';
+            oscillator.frequency.value = 880; // A5 음
+            gainNode.gain.value = 0.1; // 볼륨 (0.1 = 10%)
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
+            
+            // 0.1초 동안 재생
+            oscillator.start();
+            oscillator.stop(this.audioContext.currentTime + 0.1);
+        } catch (error) {
+            console.error('알림 사운드 재생 실패:', error);
+        }
+    }
+    
+    /**
+     * 임시 메시지 업데이트
+     * @param {string} tempId - 임시 메시지 ID
+     * @param {Object} message - 새 메시지 객체
+     */
+    updateTempMessage(tempId, message) {
+        const messageElement = this.state.messageElements.get(tempId);
+        if (!messageElement) return;
+        
+        // 메시지 상태 업데이트
+        messageElement.classList.remove('temp-message');
+        messageElement.classList.remove('error');
+        messageElement.dataset.id = message.id;
+        
+        // 메시지 버블 업데이트
+        const messageBubble = messageElement.querySelector('.message-bubble');
+        if (messageBubble) {
+            messageBubble.textContent = message.content;
+            messageBubble.classList.remove('sending');
+        }
+        
+        // 메시지 시간 업데이트
+        const messageTime = messageElement.querySelector('.message-time');
+        if (messageTime) {
+            const messageDate = new Date(message.created_at);
+            const timeString = messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            messageTime.textContent = timeString;
+        }
+        
+        // 번역된 내용이 있으면 업데이트
+        if (message.translatedContent) {
+            let translationElement = messageElement.querySelector('.message-translation');
+            
+            if (!translationElement) {
+                translationElement = document.createElement('div');
+                translationElement.classList.add('message-translation');
+                messageElement.appendChild(translationElement);
+            }
+            
+            translationElement.textContent = message.translatedContent;
+        }
+        
+        // 요소 참조 맵 업데이트
+        this.state.messageElements.delete(tempId);
+        this.state.messageElements.set(message.id, messageElement);
+        
+        console.log('임시 메시지 업데이트:', tempId, '→', message.id);
+    }
+    
+    /**
+     * 메시지 오류 처리
+     * @param {string} clientId - 메시지 클라이언트 ID
+     * @param {string} errorMessage - 오류 메시지
+     */
+    handleMessageError(clientId, errorMessage) {
+        const messageElement = this.state.messageElements.get(clientId);
+        if (!messageElement) return;
+        
+        // 메시지 요소에 오류 클래스 추가
+        messageElement.classList.add('error');
+        
+        // 메시지 버블 업데이트
+        const messageBubble = messageElement.querySelector('.message-bubble');
+        if (messageBubble) {
+            messageBubble.classList.remove('sending');
+            messageBubble.classList.add('error');
+        }
+        
+        // 오류 메시지 표시
+        let errorElement = messageElement.querySelector('.message-error');
+        
+        if (!errorElement) {
+            errorElement = document.createElement('div');
+            errorElement.classList.add('message-error');
+            messageElement.appendChild(errorElement);
+        }
+        
+        errorElement.innerHTML = `
+            <span class="error-text">전송 실패</span>
+            <button class="retry-button">재시도</button>
+        `;
+        
+        // 재시도 버튼 이벤트 추가
+        const retryButton = errorElement.querySelector('.retry-button');
+        if (retryButton) {
+            retryButton.addEventListener('click', () => this.retryMessage(clientId));
+        }
+        
+        console.error('메시지 전송 오류:', errorMessage);
+    }
+    
+    /**
+     * 메시지 재시도
+     * @param {string} clientId - 메시지 클라이언트 ID
+     */
+    async retryMessage(clientId) {
+        const messageElement = this.state.messageElements.get(clientId);
+        if (!messageElement) return;
+        
+        // 메시지 상태 업데이트
+        messageElement.classList.remove('error');
+        
+        // 메시지 버블 업데이트
+        const messageBubble = messageElement.querySelector('.message-bubble');
+        if (messageBubble) {
+            messageBubble.classList.remove('error');
+            messageBubble.classList.add('sending');
+        }
+        
+        // 오류 메시지 제거
+        const errorElement = messageElement.querySelector('.message-error');
+        if (errorElement) {
+            errorElement.remove();
+        }
+        
+        try {
+            // 메시지 재전송
+            const success = await databaseService.retryMessage(clientId);
+            
+            if (!success) {
+                throw new Error('메시지 재전송 실패');
+            }
+        } catch (error) {
+            console.error('메시지 재전송 오류:', error);
+            
+            // 오류 상태로 표시
+            this.handleMessageError(clientId, error.message || '메시지 재전송 실패');
+        }
+    }
+    
+    /**
+     * 메시지 상태 업데이트
+     * @param {string} clientId - 메시지 클라이언트 ID
+     * @param {Object} status - 상태 객체
+     */
+    updateMessageStatus(clientId, status) {
+        const messageElement = this.state.messageElements.get(clientId);
+        if (!messageElement) return;
+        
+        // 재시도 중 상태
+        if (status.isRetrying) {
+            // 에러 메시지 제거
+            const errorElement = messageElement.querySelector('.message-error');
+            if (errorElement) {
+                errorElement.remove();
+            }
+            
+            // 메시지 버블 상태 업데이트
+            const messageBubble = messageElement.querySelector('.message-bubble');
+            if (messageBubble) {
+                messageBubble.classList.remove('error');
+                messageBubble.classList.add('sending');
+            }
+        }
+        
+        // 재시도 성공 상태
+        if (status.retrySuccess) {
+            messageElement.classList.remove('error');
+            
+            const messageBubble = messageElement.querySelector('.message-bubble');
+            if (messageBubble) {
+                messageBubble.classList.remove('error');
+                messageBubble.classList.remove('sending');
+            }
+        }
+    }
+    
+    /**
+     * 사용자 상태 업데이트 처리
+     * @param {Array} users - 사용자 목록
+     */
+    handleUserPresenceUpdate(users) {
+        this.state.onlineUsers = users;
+        
+        // 입력 중인 사용자 업데이트
+        users.forEach(user => {
+            if (user.is_typing && user.user_id !== databaseService.currentUser.email) {
+                this.showTypingIndicator(user);
+            }
+        });
+    }
+    
+    /**
+     * 입력 중 표시
+     * @param {Object} user - 사용자 정보
+     */
+    showTypingIndicator(user) {
+        // 이미 표시된 경우 타이머 갱신
+        if (this.state.typingUsers.has(user.user_id)) {
+            clearTimeout(this.state.typingUsers.get(user.user_id).timeout);
+        } else {
+            // 새로 표시
+            uiController.showTypingIndicator(user.user_name);
+        }
+        
+        // 3초 후 자동으로 표시 제거하는 타이머 설정
+        const timeout = setTimeout(() => {
+            this.removeTypingIndicator(user.user_id);
+        }, 3000);
+        
+        // 사용자와 타이머 저장
+        this.state.typingUsers.set(user.user_id, {
+            user,
+            timeout
+        });
+    }
+    
+    /**
+     * 입력 중 표시 제거
+     * @param {string} userId - 사용자 ID
+     */
+    removeTypingIndicator(userId) {
+        if (this.state.typingUsers.has(userId)) {
+            // 타이머 취소
+            clearTimeout(this.state.typingUsers.get(userId).timeout);
+            
+            // 목록에서 제거
+            this.state.typingUsers.delete(userId);
+            
+            // 모든 입력 중 표시 제거
+            if (this.state.typingUsers.size === 0) {
+                uiController.hideTypingIndicator();
+            } else {
+                // 다른 사용자는 여전히 입력 중
+                const nextUser = Array.from(this.state.typingUsers.values())[0].user;
+                uiController.showTypingIndicator(nextUser.user_name);
+            }
+        }
+    }
+    
+    /**
+     * 공지사항 전송
+     */
+    async sendAnnouncement() {
+        if (!databaseService.currentUser || !databaseService.currentUser.isModerator) {
+            uiController.showToast('진행자만 공지사항을 등록할 수 있습니다.', 'warning');
+            return;
+        }
+        
+        const announcementText = document.getElementById('announcement-text');
+        const content = announcementText.value.trim();
+        
+        if (!content) {
+            uiController.showToast('공지사항 내용을 입력해주세요.', 'warning');
+            return;
+        }
+        
+        try {
+            // 패널 닫기
+            uiController.hidePanel('announcement-panel');
+            
+            // 입력 필드 초기화
+            announcementText.value = '';
+            
+            // 공지사항 전송
+            await databaseService.sendMessage(content, true);
+            
+            // 토스트 표시
+            uiController.showToast('공지사항이 등록되었습니다.', 'success');
+        } catch (error) {
+            console.error('공지사항 등록 오류:', error);
+            uiController.showToast('공지사항 등록에 실패했습니다.', 'error');
+            
+            // 입력 내용 복원 및 패널 다시 열기
+            announcementText.value = content;
+            uiController.showPanel('announcement-panel');
+        }
+    }
+    
+    /**
+     * 강퇴 패널 열기
+     */
+    async openKickPanel() {
+        if (!databaseService.currentUser || !databaseService.currentUser.isModerator) {
+            uiController.showToast('진행자만 사용할 수 있는 기능입니다.', 'warning');
+            return;
+        }
+        
+        try {
+            // 패널 표시
+            uiController.showPanel('kick-panel');
+            
+            // 사용자 목록 가져오기
+            const users = await this.getActiveUsers();
+            
+            // 사용자 목록 표시
+            this.renderUserList(users);
+        } catch (error) {
+            console.error('사용자 목록 로드 오류:', error);
+            uiController.showToast('사용자 목록을 불러오는 중 오류가 발생했습니다.', 'error');
+            
+            // 패널 닫기
+            uiController.hidePanel('kick-panel');
+        }
+    }
+    
+    /**
+     * 활성 사용자 목록 가져오기
+     * @returns {Promise<Array>} - 사용자 목록
+     */
+    async getActiveUsers() {
+        try {
+            // 온라인 사용자 목록
+            const onlineUsers = this.state.onlineUsers.map(user => ({
+                email: user.user_id,
+                name: user.user_name,
+                isModerator: user.is_moderator,
+                isOnline: true
+            }));
+            
+            // 최근 메시지를 보낸 사용자 목록
+            const messages = await databaseService.getRecentMessages(100);
+            const messageUsers = [];
+            const userEmails = new Set();
+            
+            // 중복 제거
+            for (const message of messages) {
+                if (!userEmails.has(message.user_id) && 
+                    message.user_id !== databaseService.currentUser.email) {
+                    userEmails.add(message.user_id);
+                    
+                    // 이미 온라인 목록에 있는지 확인
+                    const isOnline = onlineUsers.some(user => user.email === message.user_id);
+                    
+                    if (!isOnline) {
+                        messageUsers.push({
+                            email: message.user_id,
+                            name: message.user_name,
+                            isModerator: message.is_moderator,
+                            isOnline: false
+                        });
+                    }
+                }
+            }
+            
+            // 온라인 사용자를 먼저 보여주기 위해 병합
+            return [...onlineUsers, ...messageUsers];
+        } catch (error) {
+            console.error('사용자 목록 가져오기 오류:', error);
+            return [];
+        }
+    }
+    
+    /**
+     * 사용자 목록 렌더링
+     * @param {Array} users - 사용자 목록
+     */
+    renderUserList(users) {
+        const userList = document.getElementById('user-list');
+        
+        // 목록 초기화
+        userList.innerHTML = '';
+        
+        if (users.length === 0) {
+            // 사용자가 없는 경우
+            userList.innerHTML = '<p class="empty-list">현재 채팅에 참여한 사용자가 없습니다.</p>';
+            return;
+        }
+        
+        // 사용자 목록 렌더링
+        users.forEach(user => {
+            // 진행자는 강퇴 대상에서 제외
+            if (user.isModerator) return;
+            
+            const userItem = document.createElement('div');
+            userItem.classList.add('user-item');
+            
+            if (!user.isOnline) {
+                userItem.classList.add('offline');
+            }
+            
+            userItem.innerHTML = `
+                <div class="user-info">
+                    <div class="user-name">${user.name}</div>
+                    <div class="user-email">${user.email}</div>
+                    <div class="user-status ${user.isOnline ? 'online' : 'offline'}">
+                        ${user.isOnline ? '온라인' : '오프라인'}
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-danger kick-button" data-email="${user.email}" data-name="${user.name}">강퇴</button>
+            `;
+            
+            userList.appendChild(userItem);
+        });
+        
+        // 강퇴 버튼 이벤트 리스너 추가
+        userList.querySelectorAll('.kick-button').forEach(button => {
+            button.addEventListener('click', (event) => {
+                const email = event.target.dataset.email;
+                const name = event.target.dataset.name;
+                
+                if (email && name) {
+                    this.confirmKickUser(email, name);
+                }
+            });
+        });
+    }
+    
+    /**
+     * 사용자 강퇴 확인
+     * @param {string} email - 사용자 이메일
+     * @param {string} name - 사용자 이름
+     */
+    confirmKickUser(email, name) {
+        // 확인 다이얼로그
+        if (confirm(`${name}님을 강퇴하시겠습니까?`)) {
+            this.kickUser(email, name);
+        }
+    }
+    
+    /**
+     * 사용자 강퇴
+     * @param {string} email - 사용자 이메일
+     * @param {string} name - 사용자 이름
+     */
+    async kickUser(email, name) {
+        if (!databaseService.currentUser || !databaseService.currentUser.isModerator) {
+            uiController.showToast('진행자만 사용할 수 있는 기능입니다.', 'warning');
+            return;
+        }
+        
+        try {
+            // 강퇴 처리
+            const success = await databaseService.kickUser(email);
+            
+            if (success) {
+                uiController.showToast(`${name}님을 강퇴했습니다.`, 'success');
+                
+                // 강퇴 패널 닫기
+                uiController.hidePanel('kick-panel');
+            } else {
+                throw new Error('강퇴 처리 실패');
+            }
+        } catch (error) {
+            console.error('사용자 강퇴 오류:', error);
+            uiController.showToast('사용자 강퇴 중 오류가 발생했습니다.', 'error');
+        }
+    }
+    
+    /**
+     * 메시지 입력 키 이벤트 처리
+     * @param {KeyboardEvent} event - 키보드 이벤트
+     */
+    handleMessageKeydown(event) {
+        // Shift + Enter는 줄바꿈, Enter는 전송
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            this.sendMessage();
+        }
+    }
+    
+    /**
+     * 메시지 입력 이벤트 처리
+     */
+    handleMessageInput() {
+        // 자동 높이 조절
+        const messageInput = document.getElementById('message-input');
+        uiController.autoResizeTextarea(messageInput);
+        
+        // 입력 중 상태 업데이트
+        this.updateTypingStatus();
+    }
+    
+    /**
+     * 입력 중 상태 업데이트
+     */
+    updateTypingStatus() {
+        // 기존 타이머 취소
+        if (this.state.typingTimeout) {
+            clearTimeout(this.state.typingTimeout);
+        }
+        
+        // 입력 중 상태 설정
+        databaseService.updateTypingStatus(true);
+        
+        // 새 타이머 설정 (3초 후 상태 취소)
+        this.state.typingTimeout = setTimeout(() => {
+            this.clearTypingStatus();
+        }, 3000);
+    }
+    
+    /**
+     * 입력 중 상태 취소
+     */
+    clearTypingStatus() {
+        if (this.state.typingTimeout) {
+            clearTimeout(this.state.typingTimeout);
+            this.state.typingTimeout = null;
+        }
+        
+        // 입력 중 상태 해제
+        databaseService.updateTypingStatus(false);
+    }
+    
+    /**
+     * 언어 변경 처리
+     */
+    async handleLanguageChange() {
+        if (!databaseService.currentUser) return;
+        
+        const newLanguage = document.getElementById('settings-language').value;
+        const currentLanguage = databaseService.currentUser.language;
+        
+        if (newLanguage === currentLanguage) return;
+        
+        try {
+            // 로딩 표시
+            uiController.showLoading('언어 설정 변경 중...');
+            
+            // 사용자 정보 업데이트
+            databaseService.currentUser.language = newLanguage;
+            databaseService.saveUserInfo(databaseService.currentUser);
+            
+            // 메시지 컨테이너 초기화
+            document.getElementById('message-container').innerHTML = '';
+            
+            // 메시지 요소 참조 맵 초기화
+            this.state.messageElements.clear();
+            
+            // 메시지 다시 로드
+            await this.loadMessages();
+            
+            // 로딩 숨기기
+            uiController.hideLoading();
+            
+            // 토스트 표시
+            uiController.showToast('언어 설정이 변경되었습니다.', 'success');
+        } catch (error) {
+            console.error('언어 변경 오류:', error);
+            uiController.hideLoading();
+            uiController.showToast('언어 설정 변경 중 오류가 발생했습니다.', 'error');
+        }
+    }
+    
+    /**
+     * 로그아웃 처리
+     */
+    handleLogout() {
+        // 구독 해제
+        databaseService.unsubscribeAll();
+        
+        // 사용자 정보 삭제
+        databaseService.clearUserInfo();
+        
+        // 시작 화면으로 이동
+        uiController.changeScreen('role-screen', true);
+        
+        // 메시지 컨테이너 초기화
+        document.getElementById('message-container').innerHTML = '';
+        
+        // 메시지 요소 참조 맵 초기화
+        this.state.messageElements.clear();
+        
+        // 상태 초기화
+        this.state.userRole = 'participant';
+        this.state.latestMessageTimestamp = null;
+        this.state.onlineUsers = [];
+        this.state.typingUsers.clear();
+        
+        // 토스트 표시
+        uiController.showToast('채팅을 종료했습니다.', 'info');
+    }
+    
+    /**
+     * 페이지 언로드 처리
+     */
+    handleBeforeUnload() {
+        // 구독 해제
+        databaseService.unsubscribeAll();
+    }
+    
+    /**
+     * 페이지 가시성 변경 처리
+     */
+    handleVisibilityChange() {
+        if (document.visibilityState === 'visible') {
+            // 페이지가 활성화되면 새 메시지가 있는지 확인
+            if (this.state.latestMessageTimestamp) {
+                this.checkNewMessages();
+            }
+            
+            // 네트워크 상태 확인
+            if (navigator.onLine) {
+                // 온라인 상태이면 구독 유지 확인
+                if (!databaseService.messageSubscription && databaseService.currentUser) {
+                    // 메시지 구독 시작
+                    databaseService.subscribeToMessages(this.handleNewMessage.bind(this));
+                    
+                    // 사용자 상태 구독 시작
+                    databaseService.subscribeToPresence(this.handleUserPresenceUpdate.bind(this));
+                }
+            }
+        } else {
+            // 페이지가 비활성화되면 입력 중 상태 취소
+            this.clearTypingStatus();
+        }
+    }
+    
+    /**
+     * 새 메시지 확인
+     */
+    async checkNewMessages() {
+        try {
+            // 최신 메시지 가져오기
+            const messages = await databaseService.getRecentMessages(10);
+            
+            if (messages && messages.length > 0) {
+                const latestMessage = messages[messages.length - 1];
+                const latestTimestamp = new Date(latestMessage.created_at);
+                
+                // 현재 저장된 최신 메시지보다 새로운 메시지가 있는지 확인
+                if (latestTimestamp > this.state.latestMessageTimestamp) {
+                    this.state.latestMessageTimestamp = latestTimestamp;
+                    
+                    // 새 메시지 알림
+                    uiController.showNewMessageNotification();
+                }
+            }
+        } catch (error) {
+            console.error('새 메시지 확인 오류:', error);
+        }
+    }
+}
+
+// 애플리케이션 인스턴스 생성 및 시작
+document.addEventListener('DOMContentLoaded', () => {
+    window.app = new App();
+});
