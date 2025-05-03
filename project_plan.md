@@ -1,50 +1,73 @@
 # Conference Chat Application Project Plan
 
-## Overview
-This project implements a real-time multilingual chat application for conferences, allowing participants and presenters to communicate in their preferred languages with automatic translation. The application will be used during a conference featuring various exhibits and presentations as detailed in the provided documentation.
-
-## Key Features
-- Real-time message synchronization across all users
-- Multilingual support with automatic translation
-- User role management (participants, presenters, moderators)
-- Message status indicators (sent, delivered, read)
-- Network connection status monitoring
-- Session management (proper logout functionality)
-
-## Current Issues to Address
-1. **Real-time Message Synchronization**: Messages from other users are not appearing in real-time for all participants
-2. **Session Cleanup**: When a user logs out, session information should be completely cleared
-
-## Implementation Plan
-
-### 1. Fix Real-time Message Synchronization
-- Properly implement Supabase real-time subscriptions
-- Ensure correct handling of both sent and received messages
-- Implement connection status monitoring
-- Add proper error handling and reconnection logic
-
-### 2. Improve Session Management
-- Enhance logout functionality to completely clear all session data
-- Ensure proper cleanup of all subscriptions and event listeners
-- Reset application state to allow clean re-entry
-
-### 3. UI/UX Improvements
-- Add message status indicators
-- Implement connection status indicator
-- Add typing indicators
+## Project Overview
+This project aims to create a basic conference chat application that allows participants in a conference to communicate in real-time. We'll integrate with Supabase for backend services and data storage, with potential for adding the Google Cloud Translation API for multi-language support in future iterations.
 
 ## Technologies
-- Frontend: HTML, CSS, JavaScript
-- Backend: Supabase (serverless PostgreSQL)
-- Translation: Google Cloud Translation API
+- HTML/CSS/JavaScript (Frontend)
+- Supabase (Backend as a Service)
+- Supabase Realtime (for real-time chat functionality)
+- Google Cloud Translation API (for future multi-language support)
+
+## Project Structure
+```
+conference-chat/
+├── index.html              # Main HTML file
+├── css/
+│   └── styles.css          # Main stylesheet
+├── js/
+│   ├── config.js           # Configuration and API keys
+│   ├── app.js              # Main application logic
+│   ├── chat.js             # Chat functionality
+│   ├── supabase-client.js  # Supabase connection and data handling
+│   └── ui.js               # UI-related functions
+├── assets/
+│   ├── images/             # Image resources
+│   └── icons/              # Icon resources
+└── README.md               # Project documentation
+```
+
+## Database Schema (Supabase)
+```sql
+CREATE TABLE messages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_name TEXT NOT NULL,
+  user_email TEXT,
+  user_role TEXT,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+## Development Tasks
+
+### Phase 1: Setup and Basic Structure
+- [x] Create project plan
+- [x] Setup project structure and files
+- [x] Configure Supabase connection
+- [x] Create database schema
+
+### Phase 2: Core Chat Functionality
+- [x] Implement basic UI layout
+- [x] Create user login/identification form
+- [x] Implement message sending functionality
+- [x] Implement real-time message receiving
+- [x] Display messages in the chat interface
+
+### Phase 3: Enhancement and Testing
+- [x] Add styling and improve UI
+- [x] Implement simple user roles (e.g., attendee, speaker, moderator)
+- [ ] Test functionality on different devices/browsers
+- [ ] Fix bugs and optimize performance
 
 ## Timeline
-1. Analysis and planning - Complete
-2. Implementation of fixes - In progress
-3. Testing - Pending
-4. Deployment - Pending
+- Phase 1: 1 day
+- Phase 2: 2 days
+- Phase 3: 1 day
 
-## Success Criteria
-- All messages appear in real-time for all participants
-- Session data is completely cleared on logout
-- UI provides clear feedback about message and connection status
+## Future Enhancements (Post-MVP)
+- Multi-language support using Google Cloud Translation API
+- Message reactions/likes
+- Private messaging
+- File/image sharing
+- Admin panel for moderators
