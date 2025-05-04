@@ -46,6 +46,20 @@ class AuthComponent {
             this.elements.passwordInput = document.getElementById('password');
             this.elements.submitButton = this.elements.form?.querySelector('button[type="submit"]');
             
+            // 스토리지에서 언어 설정 가져와서 언어 선택기에 적용
+            const savedLanguage = localStorage.getItem('premium-chat-language');
+            if (savedLanguage && this.elements.languageSelect) {
+                // 지원되는 언어인지 확인
+                const isSupported = Array.from(this.elements.languageSelect.options)
+                    .some(option => option.value === savedLanguage);
+                
+                if (isSupported) {
+                    this.elements.languageSelect.value = savedLanguage;
+                    // 언어에 따른 UI 텍스트 업데이트
+                    this.updateInterfaceTexts(savedLanguage);
+                }
+            }
+            
             // 폼 제출 이벤트 리스너 설정
             this.setupEventListeners();
             
@@ -57,9 +71,93 @@ class AuthComponent {
                 this.populateForm(savedUser);
             }
             
+            // 언어 선택기 변경시 즉시 LocalStorage에 저장하고 UI 업데이트
+            this.elements.languageSelect?.addEventListener('change', (e) => {
+                const selectedLanguage = e.target.value;
+                if (selectedLanguage) {
+                    localStorage.setItem('premium-chat-language', selectedLanguage);
+                    this.updateInterfaceTexts(selectedLanguage);
+                }
+            });
+            
             this.logger.info('인증 컴포넌트 초기화 완료');
         } catch (error) {
             this.logger.error('인증 컴포넌트 초기화 중 오류 발생:', error);
+        }
+    }
+
+    /**
+     * 언어에 따른 인터페이스 텍스트 업데이트
+     * @param {string} language - 언어 코드
+     */
+    async updateInterfaceTexts(language) {
+        try {
+            // 언어 리소스 로드
+            const res = await fetch(`js/locales/${language}.json`);
+            if (!res.ok) {
+                throw new Error(`언어 리소스를 로드할 수 없습니다: ${language}`);
+            }
+            
+            const dict = await res.json();
+            
+            // 로그인/회원가입 폼 라벨/플레이스홀더/버튼/역할 옵션 등 적용
+            const titleElement = document.querySelector('.auth-header h2');
+            if (titleElement) titleElement.textContent = dict.title || '컨퍼런스 채팅 시스템';
+            
+            const subtitleElement = document.querySelector('.auth-header p');
+            if (subtitleElement) subtitleElement.textContent = dict.subtitle || '계속하려면 정보를 입력해주세요';
+            
+            // 이름 라벨 및 플레이스홀더
+            const nameLabel = document.querySelector('label[for="name"]');
+            if (nameLabel) nameLabel.textContent = dict.name || '이름';
+            
+            if (this.elements.nameInput) {
+                this.elements.nameInput.placeholder = dict.name_placeholder || '이름을 입력하세요';
+            }
+            
+            // 이메일 라벨 및 플레이스홀더
+            const emailLabel = document.querySelector('label[for="email"]');
+            if (emailLabel) emailLabel.textContent = dict.email || '이메일';
+            
+            if (this.elements.emailInput) {
+                this.elements.emailInput.placeholder = dict.email_placeholder || '이메일을 입력하세요';
+            }
+            
+            // 역할 라벨 및 옵션
+            const roleLabel = document.querySelector('label[for="role"]');
+            if (roleLabel) roleLabel.textContent = dict.role || '역할';
+            
+            if (this.elements.roleSelect) {
+                this.elements.roleSelect.options[0].textContent = dict.role_placeholder || '역할을 선택하세요';
+                
+                // 역할 옵션
+                const roleMap = [null, 'attendee', 'exhibitor', 'presenter', 'staff', 'admin', 'interpreter'];
+                for (let i = 1; i < roleMap.length; i++) {
+                    if (this.elements.roleSelect.options[i] && dict[roleMap[i]]) {
+                        this.elements.roleSelect.options[i].textContent = dict[roleMap[i]];
+                    }
+                }
+            }
+            
+            // 비밀번호 라벨 및 플레이스홀더
+            const passwordLabel = document.querySelector('label[for="password"]');
+            if (passwordLabel) passwordLabel.textContent = dict.password || '비밀번호';
+            
+            if (this.elements.passwordInput) {
+                this.elements.passwordInput.placeholder = dict.password_placeholder || '비밀번호를 입력하세요';
+            }
+            
+            // 언어 라벨
+            const languageLabel = document.querySelector('label[for="language"]');
+            if (languageLabel) languageLabel.textContent = dict.language || '선호 언어';
+            
+            // 입장하기 버튼
+            if (this.elements.submitButton) {
+                this.elements.submitButton.textContent = dict.enter || '입장하기';
+            }
+            
+        } catch (error) {
+            this.logger.warn('인터페이스 텍스트 업데이트 중 오류 발생:', error);
         }
     }
 
@@ -116,28 +214,42 @@ class AuthComponent {
         try {
             // 로딩 표시
             this.setLoading(true);
+            
             // 폼 데이터 가져오기
             const supportedLanguages = ['en', 'ko', 'hi', 'te', 'zh'];
-            let language = localStorage.getItem('premium-chat-language') || this.elements.languageSelect.value;
-            // 모바일 등에서 ""(빈 문자열)로 넘어오는 경우 방어
+            
+            // 선택된 언어 가져오기 - 폼의 선택 값을 우선으로 사용하고, 폼이 없거나 비어있으면 저장된 값 사용
+            let language = this.elements.languageSelect?.value;
+            
+            // 언어 선택 요소 존재하는지 확인
             if (!language || language === "" || !supportedLanguages.includes(language)) {
-                const select = this.elements.languageSelect;
-                if (select && select.options && select.options.length > 0) {
-                    language = select.options[select.selectedIndex]?.value || select.options[0].value;
-                } else {
-                    language = 'en'; // 최후의 방어
+                // localStorage에서 가져오기
+                language = localStorage.getItem('premium-chat-language');
+                
+                // 그래도 없거나 유효하지 않으면, 기본 언어 사용
+                if (!language || !supportedLanguages.includes(language)) {
+                    language = 'en'; // 최후의 기본 언어
                 }
+                
+                // 디버깅 로그
+                console.log('[DEBUG] 언어 선택 없음, 저장된 언어 또는 기본값 사용:', language);
             }
+            
+            // 확정된 언어 값 저장 (로그인 시점에 언어 값 보존)
+            localStorage.setItem('premium-chat-language', language);
+            
             const userInfo = {
                 name: this.elements.nameInput.value.trim(),
                 email: this.elements.emailInput.value.trim(),
                 role: this.elements.roleSelect.value,
                 language,
             };
+            
             // 관리자 또는 통역사 역할인 경우 비밀번호 추가
             if (userInfo.role === 'admin' || userInfo.role === 'interpreter') {
                 userInfo.password = this.elements.passwordInput.value;
             }
+            
             // 사용자 정보 유효성 검사
             const validation = this.userService.validateUserInfo(userInfo);
             if (!validation.isValid) {
@@ -152,6 +264,7 @@ class AuthComponent {
                 if (this.elements.passwordInput) this.elements.passwordInput.value = '';
                 return;
             }
+            
             // 사용자 인증 처리
             const success = await this.userService.authenticate(userInfo);
             if (!success) {
@@ -161,15 +274,30 @@ class AuthComponent {
                 if (this.elements.passwordInput) this.elements.passwordInput.value = '';
                 return;
             }
+            
             // 참가자 목록에 추가
             this.dataManager.addParticipant(userInfo);
             this.logger.info('로그인 성공:', userInfo);
             
-            // === [핵심] main.js로 로그인 성공 이벤트 dispatch ===
+            // 로그인 성공 이벤트 발생 (main.js에서 감지)
             const loginEvent = new CustomEvent('auth:login-success', {
                 detail: { userInfo }
             });
             document.dispatchEvent(loginEvent);
+            
+            // UI 전환 이벤트가 제대로 동작하지 않을 경우를 대비한 백업 메커니즘
+            // 0.5초 후에도 인증 컨테이너가 보이면 강제로 숨기기
+            setTimeout(() => {
+                if (this.elements.authContainer && !this.elements.authContainer.classList.contains('hidden')) {
+                    console.log('[DEBUG] 로그인 후 UI 전환이 안됨, 강제 숨김 적용');
+                    this.hide();
+                    // 채팅 인터페이스 표시 시도
+                    const chatInterface = document.getElementById('chat-interface');
+                    if (chatInterface) {
+                        chatInterface.classList.remove('hidden');
+                    }
+                }
+            }, 500);
             
             // 인증 컨테이너 숨기기
             this.hide();
@@ -400,12 +528,22 @@ class AuthComponent {
     show() {
         if (!this.elements.authContainer) return;
         this.elements.authContainer.classList.remove('hidden');
+        
         // 역할에 따라 비밀번호 필드 동기화 (강제)
         this.handleRoleChange();
+        
         // 디버깅: 현재 역할/비밀번호 컨테이너 상태 출력
         if (this.elements.roleSelect && this.elements.passwordContainer) {
             console.log('[DEBUG] show() - 현재 역할:', this.elements.roleSelect.value);
             console.log('[DEBUG] show() - passwordContainer.hidden:', this.elements.passwordContainer.classList.contains('hidden'));
+        }
+        
+        // 현재 언어 설정에 따라 UI 텍스트 업데이트
+        try {
+            const currentLanguage = this.elements.languageSelect?.value || localStorage.getItem('premium-chat-language') || 'en';
+            this.updateInterfaceTexts(currentLanguage);
+        } catch (error) {
+            console.error('언어 업데이트 중 오류:', error);
         }
     }
 

@@ -50,14 +50,40 @@ async function applyLocale(lang) {
 // 언어 선택 모달 관련 코드 완전 제거
 // DOMContentLoaded에서 언어 모달/로컬스토리지 제어 삭제
 window.addEventListener('DOMContentLoaded', () => {
+    // 언어 초기화 및 동기화
+    const languageSelect = document.getElementById('language');
+    let savedLanguage = localStorage.getItem('premium-chat-language');
+    const defaultLanguage = 'en';
+    const supportedLanguages = Array.from(languageSelect?.options || []).map(opt => opt.value);
+
+    // 저장된 언어가 없거나 지원 언어가 아니면 기본값 사용
+    if (!savedLanguage || !supportedLanguages.includes(savedLanguage)) {
+        savedLanguage = defaultLanguage;
+        localStorage.setItem('premium-chat-language', savedLanguage);
+    }
+    // 드롭다운에도 적용
+    if (languageSelect) languageSelect.value = savedLanguage;
+
+    // UI에 적용
+    applyLocale(savedLanguage);
+
+    // 언어 변경 이벤트
+    languageSelect?.addEventListener('change', (e) => {
+        const selectedLanguage = e.target.value;
+        if (supportedLanguages.includes(selectedLanguage)) {
+            localStorage.setItem('premium-chat-language', selectedLanguage);
+            applyLocale(selectedLanguage);
+        }
+    });
+
     // 서비스/컴포넌트 초기화
     initializeServices().then(() => {
-        // 반드시 컴포넌트 먼저 초기화
         initializeComponents();
-        // 전역 이벤트 리스너 반드시 등록!
         setupGlobalEventListeners();
-        // 인증 폼만 바로 표시
         showAuthInterface();
+    }).catch(error => {
+        console.error('초기화 중 오류 발생:', error);
+        showErrorMessage('초기화 중 오류가 발생했습니다. 페이지를 새로고침해주세요.');
     });
 });
 
