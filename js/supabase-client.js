@@ -238,9 +238,12 @@ class SupabaseClient {
      * @param {Function} callback - 이벤트 콜백 함수
      */
     subscribeToMessages(callback) {
+        console.log('Subscribing to messages...');
+        
         // 기존 구독 해제
         if (this.messageSubscription) {
             this.messageSubscription.unsubscribe();
+            console.log('Unsubscribed from previous channel');
         }
         
         // 새 메시지 이벤트 구독
@@ -249,23 +252,30 @@ class SupabaseClient {
             .on('postgres_changes', 
                 { event: 'INSERT', schema: 'public', table: 'comments' }, 
                 async payload => {
+                    console.log('Received raw message:', payload);
+                    
                     const message = payload.new;
+                    
+                    // 이미 표시된 메시지인지 확인 (중복 방지)
+                    const messageElement = document.querySelector(`[data-message-id="${message.id}"]`);
+                    if (messageElement) {
+                        console.log(`Message ${message.id} already displayed, skipping...`);
+                        return;
+                    }
                     
                     // 메시지 번역 처리
                     const translatedMessage = await this.translateMessageIfNeeded(message);
+                    console.log('Translated message ready:', translatedMessage);
                     
-                    if (CONFIG.APP.DEBUG_MODE) {
-                        console.log('New message received:', {
-                            id: message.id,
-                            author: message.author_name,
-                            language: message.language
-                        });
-                    }
-                    
-                    callback('new_message', translatedMessage);
+                    // 콜백 호출 전 약간의 지연 추가 (렌더링 안정화)
+                    setTimeout(() => {
+                        callback('new_message', translatedMessage);
+                    }, 50);
                 }
             )
-            .subscribe();
+            .subscribe((status) => {
+                console.log(`Supabase realtime subscription status: ${status}`);
+            });
             
         if (CONFIG.APP.DEBUG_MODE) {
             console.log('Subscribed to new messages');

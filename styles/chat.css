@@ -364,7 +364,12 @@
     background-color: rgba(255, 255, 255, 0.3);
 }
 
-/* 메시지 애니메이션 */
+/* 메시지 애니메이션 최적화 */
+.message {
+    will-change: transform, opacity, background-color;
+    transform: translateZ(0); /* 하드웨어 가속화 활성화 */
+}
+
 @keyframes message-appear {
     from {
         opacity: 0;
@@ -389,7 +394,7 @@
 
 /* 새 메시지 애니메이션 */
 .new-message-animation {
-    animation: message-highlight 2s ease;
+    animation: message-highlight 1s ease-out forwards;
 }
 
 @keyframes message-highlight {
@@ -402,7 +407,7 @@
 }
 
 .message.own-message.new-message-animation {
-    animation: own-message-highlight 2s ease;
+    animation: own-message-highlight 1s ease-out forwards;
 }
 
 @keyframes own-message-highlight {

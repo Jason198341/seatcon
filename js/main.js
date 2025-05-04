@@ -43,6 +43,23 @@ class ConferenceChatApp {
             // 환경 호환성 검사
             this.checkEnvironment();
             
+            // Supabase 연결 확인
+            if (!supabaseClient.supabase) {
+                console.error('Supabase 클라이언트가 초기화되지 않았습니다.');
+                await supabaseClient.init();
+            }
+            
+            // Supabase 실시간 구독 활성화 확인
+            console.log('Checking Supabase realtime capability...');
+            try {
+                const status = await supabaseClient.supabase.channel('test').subscribe((status) => {
+                    console.log(`Supabase realtime test status: ${status}`);
+                });
+                console.log('Supabase realtime is working.');
+            } catch (realtimeError) {
+                console.warn('실시간 구독 테스트 오류:', realtimeError);
+            }
+            
             // DOM 요소 참조 설정
             this.setupDOMReferences();
             

@@ -546,6 +546,16 @@ class ChatManager {
     renderMessage(message, isNew = true) {
         if (!this.messageList || !message) return;
         
+        // 이미 존재하는 메시지인지 확인
+        const existingMessage = this.messageList.querySelector(`[data-message-id="${message.id}"]`);
+        if (existingMessage) {
+            console.log(`Message ${message.id} already exists in DOM, skipping rendering`);
+            return;
+        }
+        
+        // Document Fragment 사용으로 리플로우 최소화
+        const fragment = document.createDocumentFragment();
+        
         // 메시지 요소 생성
         const messageElement = document.createElement('div');
         messageElement.className = 'message';
@@ -582,20 +592,27 @@ class ChatManager {
         messageElement.appendChild(messageMetaInfo);
         messageElement.appendChild(messageLikesElement);
         
-        // 모션 효과 설정
-        if (isNew) {
-            messageElement.classList.add('new-message-animation');
-            setTimeout(() => {
-                messageElement.classList.remove('new-message-animation');
-            }, 500);
-            
-            this.messageList.appendChild(messageElement);
-        } else {
-            this.messageList.appendChild(messageElement);
-        }
-        
         // 이벤트 리스너 설정
         this.setupMessageEventListeners(messageElement, message.id);
+        
+        // Fragment에 추가
+        fragment.appendChild(messageElement);
+        
+        // 한 번에 DOM에 추가
+        this.messageList.appendChild(fragment);
+        
+        // 모션 효과 설정 (별도 프레임에서 처리)
+        if (isNew) {
+            requestAnimationFrame(() => {
+                messageElement.classList.add('new-message-animation');
+                
+                setTimeout(() => {
+                    if (messageElement.isConnected) { // DOM에 연결되어 있는지 확인
+                        messageElement.classList.remove('new-message-animation');
+                    }
+                }, 500);
+            });
+        }
     }
 
     /**
