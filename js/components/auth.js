@@ -378,8 +378,9 @@ class AuthComponent {
      */
     show() {
         if (!this.elements.authContainer) return;
-        
         this.elements.authContainer.classList.remove('hidden');
+        // 역할에 따라 비밀번호 필드 동기화
+        this.handleRoleChange();
     }
 
     /**
