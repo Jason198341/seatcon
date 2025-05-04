@@ -18,35 +18,50 @@ let messageComponent;
 let sidebarComponent;
 let settingsComponent;
 
-// DOM 로드 완료 시 초기화
-document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        console.log('프리미엄 컨퍼런스 채팅 애플리케이션 초기화 중...');
-        
-        // 로딩 스피너 표시
-        showLoadingSpinner();
-        
-        // 서비스 및 컴포넌트 초기화
-        await initializeServices();
-        initializeComponents();
-        
-        // 이벤트 리스너 설정
-        setupGlobalEventListeners();
-        
-        // 로딩 스피너 숨기기
-        hideLoadingSpinner();
-        
-        console.log('애플리케이션 초기화 완료');
-    } catch (error) {
-        console.error('애플리케이션 초기화 중 오류 발생:', error);
-        
-        // 오류 메시지 표시
-        showErrorMessage('애플리케이션을 초기화하는 중 오류가 발생했습니다. 페이지를 새로고침해주세요.');
-        
-        // 로딩 스피너 숨기기
-        hideLoadingSpinner();
+// 최초 진입 시 선호 언어 선택 모달 표시 및 처리 (서비스 초기화보다 먼저!)
+window.addEventListener('DOMContentLoaded', () => {
+    const langKey = 'premium-chat-language';
+    const modal = document.getElementById('language-modal');
+    const selector = document.getElementById('modal-language-selector');
+    const confirmBtn = document.getElementById('confirm-language-btn');
+    if (!localStorage.getItem(langKey)) {
+        // 언어 선택 전에는 아무것도 초기화하지 않음
+        modal.style.display = 'flex';
+        confirmBtn.onclick = () => {
+            const lang = selector.value || 'en';
+            localStorage.setItem(langKey, lang);
+            modal.style.display = 'none';
+            // 언어 선택 후에만 서비스/컴포넌트 초기화 시작
+            startAppInit();
+        };
+    } else {
+        modal.style.display = 'none';
+        // 이미 언어가 설정되어 있으면 바로 초기화
+        startAppInit();
     }
 });
+
+// 서비스/컴포넌트 초기화 진입점 함수로 분리
+function startAppInit() {
+    try {
+        console.log('프리미엄 컨퍼런스 채팅 애플리케이션 초기화 중...');
+        showLoadingSpinner();
+        initializeServices().then(() => {
+            initializeComponents();
+            setupGlobalEventListeners();
+            hideLoadingSpinner();
+            console.log('애플리케이션 초기화 완료');
+        }).catch(error => {
+            console.error('애플리케이션 초기화 중 오류 발생:', error);
+            showErrorMessage('애플리케이션을 초기화하는 중 오류가 발생했습니다. 페이지를 새로고침해주세요.');
+            hideLoadingSpinner();
+        });
+    } catch (error) {
+        console.error('애플리케이션 초기화 중 오류 발생:', error);
+        showErrorMessage('애플리케이션을 초기화하는 중 오류가 발생했습니다. 페이지를 새로고침해주세요.');
+        hideLoadingSpinner();
+    }
+}
 
 /**
  * 서비스 초기화
@@ -525,22 +540,3 @@ function logout() {
         showErrorMessage('로그아웃 중 오류가 발생했습니다.');
     }
 }
-
-// 최초 진입 시 선호 언어 선택 모달 표시 및 처리
-window.addEventListener('DOMContentLoaded', () => {
-    const langKey = 'premium-chat-language';
-    const modal = document.getElementById('language-modal');
-    const selector = document.getElementById('modal-language-selector');
-    const confirmBtn = document.getElementById('confirm-language-btn');
-    if (!localStorage.getItem(langKey)) {
-        modal.style.display = 'flex';
-        confirmBtn.onclick = () => {
-            const lang = selector.value || 'en';
-            localStorage.setItem(langKey, lang);
-            modal.style.display = 'none';
-            location.reload();
-        };
-    } else {
-        modal.style.display = 'none';
-    }
-});
