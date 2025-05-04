@@ -44,25 +44,11 @@ async function applyLocale(lang) {
     }
 }
 
-// 언어 선택 모달/로그인 폼에 다국어 적용
+// 언어 선택 모달 관련 코드 완전 제거
+// DOMContentLoaded에서 언어 모달/로컬스토리지 제어 삭제
 window.addEventListener('DOMContentLoaded', () => {
-    const langKey = 'premium-chat-language';
-    const modal = document.getElementById('language-modal');
-    let lang = localStorage.getItem(langKey);
-    if (!lang) {
-        showLanguageModal();
-    } else {
-        modal.style.display = 'none';
-        applyLocale(lang);
-        // 인증 폼 언어 select 동기화
-        const languageSelect = document.querySelector('select#language[data-sync-language]');
-        if (languageSelect) {
-            languageSelect.value = lang;
-            languageSelect.disabled = true;
-        }
-        // 인증 폼 표시
-        showAuthInterface();
-    }
+    // 인증 폼만 바로 표시
+    showAuthInterface();
 });
 
 // 서비스/컴포넌트 초기화 진입점 함수로 분리
@@ -543,32 +529,6 @@ function hideLoadingSpinner() {
  * 로그아웃 처리
  */
 function logout() {
-    // 사용자 정보 모두 삭제, 선호 언어만 남김
-    const langKey = 'premium-chat-language';
-    const lang = localStorage.getItem(langKey);
     localStorage.clear();
-    if (lang) localStorage.setItem(langKey, lang);
-    // 언어 선택 모달부터 다시 시작
-    showLanguageModal();
-}
-
-function showLanguageModal() {
-    const modal = document.getElementById('language-modal');
-    const selector = document.getElementById('modal-language-selector');
-    const confirmBtn = document.getElementById('confirm-language-btn');
-    modal.style.display = 'flex';
-    confirmBtn.onclick = () => {
-        const lang = selector.value || 'en';
-        localStorage.setItem('premium-chat-language', lang);
-        modal.style.display = 'none';
-        applyLocale(lang);
-        // 인증 폼 언어 select 동기화
-        const languageSelect = document.querySelector('select#language[data-sync-language]');
-        if (languageSelect) {
-            languageSelect.value = lang;
-            languageSelect.disabled = true;
-        }
-        // 인증 폼 표시
-        showAuthInterface();
-    };
+    showAuthInterface();
 }
