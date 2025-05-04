@@ -54,6 +54,8 @@ window.addEventListener('DOMContentLoaded', () => {
     initializeServices().then(() => {
         // 반드시 컴포넌트 먼저 초기화
         initializeComponents();
+        // 전역 이벤트 리스너 반드시 등록!
+        setupGlobalEventListeners();
         // 인증 폼만 바로 표시
         showAuthInterface();
     });
