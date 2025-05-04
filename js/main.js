@@ -3,6 +3,9 @@
  * 애플리케이션 초기화 및 전역 이벤트 처리
  */
 
+// [DEBUG] main.js 로드됨
+console.log('[DEBUG] main.js 로드됨');
+
 // 전역 객체
 // logger 객체는 LoggerService에서 생성됨
 let supabaseClient;
@@ -172,6 +175,7 @@ function setupGlobalEventListeners() {
     
     // 로그인 성공 이벤트
     document.addEventListener('auth:login-success', async (event) => {
+        console.log('[DEBUG] auth:login-success 이벤트 수신', event.detail);
         logger.info('로그인 성공 이벤트 수신:', event.detail);
         supabaseClient.setCurrentUser(event.detail.userInfo);
         // 채팅 인터페이스 표시 (반드시 호출)
@@ -346,14 +350,17 @@ function showAuthInterface() {
  * 채팅 인터페이스 표시
  */
 function showChatInterface() {
-    logger.info('채팅 인터페이스 표시');
-    // 인증 컨테이너 숨기기
+    console.log('[DEBUG] showChatInterface 진입');
+    // DOM 상태 출력
     const authContainer = document.getElementById('auth-container');
+    const chatInterface = document.getElementById('chat-interface');
+    console.log('[DEBUG] auth-container:', authContainer, 'classList:', authContainer?.classList?.toString());
+    console.log('[DEBUG] chat-interface:', chatInterface, 'classList:', chatInterface?.classList?.toString());
+    // 인증 컨테이너 숨기기
     if (authContainer) {
         authContainer.classList.add('hidden');
     }
     // 채팅 인터페이스 표시
-    const chatInterface = document.getElementById('chat-interface');
     if (chatInterface) {
         chatInterface.classList.remove('hidden');
     }
