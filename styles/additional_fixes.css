@@ -1,0 +1,67 @@
+/* 입력창 문제 해결을 위한 추가 수정사항 */
+
+/* 메시지를 가리지 않도록 추가 여백 */
+@media (max-width: 767px) {
+    .message-list {
+        padding-bottom: 100px !important; /* 더 큰 여백 적용 */
+    }
+    
+    /* 입력폼 배경 강화 */
+    .message-form {
+        background-color: var(--background);
+        box-shadow: 0 -5px 10px rgba(0, 0, 0, 0.1);
+        z-index: 30;
+    }
+    
+    .theme-dark .message-form {
+        background-color: #1a1d21;
+        box-shadow: 0 -5px 10px rgba(0, 0, 0, 0.2);
+    }
+}
+
+/* 좋아요 버튼 z-index 추가 */
+.message-likes {
+    z-index: 5 !important; /* 격리된 요소가 가려지지 않도록 */
+}
+
+/* iOS 최적화 추가 */
+.message-list {
+    -webkit-overflow-scrolling: touch; /* iOS 스크롤 개선 */
+}
+
+/* 메시지 최적화 */
+.message {
+    overflow: hidden; /* 오버플로우 방지 */
+}
+
+/* iOS에서 좌우 여백 계산 방식 변경 */
+.message.own-message {
+    margin-left: 20%;
+    margin-right: 2px;
+}
+
+/* 기본 메시지는 왼쪽 정렬 */
+.message:not(.own-message) {
+    margin-right: 20%;
+    margin-left: 2px;
+}
+
+/* 작은 디바이스에서 메시지 크기 추가 조정 */
+@media (max-width: 375px) {
+    .message {
+        max-width: 78%; /* 더 작은 기기에서는 너비 추가 제한 */
+        padding: 6px 8px; /* 패딩 더 감소 */
+        font-size: 13px; /* 글자 크기 감소 */
+    }
+    
+    .message-meta {
+        font-size: 9px;
+        gap: 3px;
+    }
+    
+    .like-button {
+        width: 14px;
+        height: 14px;
+        font-size: 9px;
+    }
+}
