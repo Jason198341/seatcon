@@ -133,6 +133,10 @@ class SupabaseClient {
         const clientGeneratedId = Date.now().toString();
         
         try {
+            // 디버그 로그 추가
+            this.logger.debug('전송 시도 중인 메시지:', content);
+            this.logger.debug('현재 사용자 정보:', this.currentUser);
+            
             const { data, error } = await this.supabase
                 .from('comments')
                 .insert([
@@ -148,12 +152,32 @@ class SupabaseClient {
                 ])
                 .select();
                 
-            if (error) throw error;
+            if (error) {
+                this.logger.error('Supabase 오류:', error);
+                throw error;
+            }
             
             this.logger.info('메시지 전송 완료:', data[0]);
             return data[0];
         } catch (error) {
             this.logger.error('메시지 전송 중 오류 발생:', error);
+            
+            // 개발 환경에서는 목업 메시지 반환
+            if (this.config && this.config.DEBUG && this.config.DEBUG.ENABLED) {
+                this.logger.warn('개발 환경에서는 목업 메시지를 생성합니다.');
+                return {
+                    id: 'mock-' + clientGeneratedId,
+                    speaker_id: 'global-chat',
+                    author_name: this.currentUser.name,
+                    author_email: this.currentUser.email,
+                    content: content,
+                    client_generated_id: clientGeneratedId,
+                    user_role: this.currentUser.role,
+                    language: this.currentUser.language,
+                    created_at: new Date().toISOString()
+                };
+            }
+            
             throw new Error('메시지 전송에 실패했습니다.');
         }
     }

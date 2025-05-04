@@ -57,6 +57,107 @@ class ChatManager {
     }
 
     /**
+     * 더미 메시지 생성 (개발 환경용)
+     * @returns {Array} - 더미 메시지 목록
+     */
+    createDummyMessages() {
+        if (!this.config.DEBUG.ENABLED) return [];
+        
+        this.logger.info('개발 환경용 더미 메시지 생성 중...');
+        
+        const currentUser = this.userService.getCurrentUser();
+        
+        if (!currentUser) {
+            this.logger.warn('현재 사용자 정보가 없어 더미 메시지를 생성할 수 없습니다.');
+            return [];
+        }
+        
+        const dummyUsers = [
+            { name: '관리자', email: 'admin@example.com', role: 'staff', language: 'ko' },
+            { name: '발표자', email: 'presenter@example.com', role: 'presenter', language: 'ko' },
+            { name: '전시자', email: 'exhibitor@example.com', role: 'exhibitor', language: 'ko' },
+            { name: 'John Smith', email: 'john@example.com', role: 'attendee', language: 'en' },
+            { name: '山田太郎', email: 'yamada@example.com', role: 'attendee', language: 'ja' },
+        ];
+        
+        const dummyMessages = [
+            {
+                id: 'dummy-1',
+                speaker_id: 'global-chat',
+                author_name: '관리자',
+                author_email: 'admin@example.com',
+                content: '컴퍼런스 채팅 방을 시작합니다. 환영합니다!',
+                created_at: new Date(Date.now() - 3600000).toISOString(),
+                user_role: 'staff',
+                language: 'ko'
+            },
+            {
+                id: 'dummy-2',
+                speaker_id: 'global-chat',
+                author_name: 'John Smith',
+                author_email: 'john@example.com',
+                content: 'Hello everyone! I\'m excited for this conference.',
+                created_at: new Date(Date.now() - 3300000).toISOString(),
+                user_role: 'attendee',
+                language: 'en'
+            },
+            {
+                id: 'dummy-3',
+                speaker_id: 'global-chat',
+                author_name: '山田太郎',
+                author_email: 'yamada@example.com',
+                content: 'よろしくお願いします！',
+                created_at: new Date(Date.now() - 3000000).toISOString(),
+                user_role: 'attendee',
+                language: 'ja'
+            },
+            {
+                id: 'dummy-4',
+                speaker_id: 'global-chat',
+                author_name: '발표자',
+                author_email: 'presenter@example.com',
+                content: '오늘 2시에 있는 발표에 많은 관심 부탁드립니다!',
+                created_at: new Date(Date.now() - 2700000).toISOString(),
+                user_role: 'presenter',
+                language: 'ko'
+            },
+            {
+                id: 'dummy-5',
+                speaker_id: 'global-chat',
+                author_name: '전시자',
+                author_email: 'exhibitor@example.com',
+                content: '부스 B-03에서 특별 이벤트를 진행하고 있습니다. 관심있으신 분들은 부스로 오세요!',
+                created_at: new Date(Date.now() - 2400000).toISOString(),
+                user_role: 'exhibitor',
+                language: 'ko'
+            },
+            {
+                id: 'dummy-6',
+                speaker_id: 'global-chat',
+                author_name: currentUser.name,
+                author_email: currentUser.email,
+                content: '안녕하세요! 반갑습니다 :)',
+                created_at: new Date(Date.now() - 2100000).toISOString(),
+                user_role: currentUser.role,
+                language: currentUser.language
+            },
+            {
+                id: 'dummy-7',
+                speaker_id: 'global-chat',
+                author_name: '관리자',
+                author_email: 'admin@example.com',
+                content: '점심 시간은 12시부터 1시 30분까지입니다. 승강관 1층에 식당이 있습니다.',
+                created_at: new Date(Date.now() - 1800000).toISOString(),
+                user_role: 'staff',
+                language: 'ko'
+            },
+        ];
+        
+        this.logger.info(`${dummyMessages.length}개의 더미 메시지를 생성했습니다.`);
+        return dummyMessages;
+    }
+
+    /**
      * 메시지 이력 로드
      * @param {number} limit - 로드할 메시지 수 제한
      * @returns {Promise<Array>} - 로드된 메시지 목록
@@ -70,6 +171,12 @@ class ChatManager {
             
             this.messages = messages || [];
             this.logger.info(`${this.messages.length}개 메시지를 로드했습니다.`);
+            
+            // 개발 환경에서는 더미 메시지 사용
+            if (this.config.DEBUG.ENABLED && this.messages.length === 0) {
+                this.messages = this.createDummyMessages();
+                this.logger.info(`개발 환경용 더미 메시지 ${this.messages.length}개를 로드했습니다.`);
+            }
             
             // 현재 사용자 언어로 메시지 번역
             if (this.config.CHAT.AUTO_TRANSLATION && this.userService.getCurrentUser()) {
@@ -86,10 +193,10 @@ class ChatManager {
         } catch (error) {
             this.logger.error('메시지 이력 로드 중 오류 발생:', error);
             
-            // 개발 환경에서는 빈 배열을 반환하고 계속 진행
+            // 개발 환경에서는 더미 메시지 사용
             if (this.config.DEBUG.ENABLED) {
-                this.logger.warn('개발 환경에서는 메시지 로드 오류를 무시하고 빈 배열을 반환합니다.');
-                this.messages = [];
+                this.logger.warn('개발 환경에서는 메시지 로드 오류를 무시하고 더미 메시지를 사용합니다.');
+                this.messages = this.createDummyMessages();
                 return this.messages;
             }
             
@@ -145,6 +252,39 @@ class ChatManager {
             return message;
         } catch (error) {
             this.logger.error('메시지 전송 중 오류 발생:', error);
+            
+            // 개발 환경에서는 더미 메시지 생성
+            if (this.config.DEBUG.ENABLED) {
+                this.logger.warn('개발 환경에서는 메시지 전송 오류를 무시하고 가상 메시지를 생성합니다.');
+                
+                const currentUser = this.userService.getCurrentUser();
+                const mockMessage = {
+                    id: 'mock-' + Date.now(),
+                    speaker_id: 'global-chat',
+                    author_name: currentUser.name,
+                    author_email: currentUser.email,
+                    content: content,
+                    client_generated_id: Date.now().toString(),
+                    user_role: currentUser.role,
+                    language: currentUser.language,
+                    created_at: new Date().toISOString()
+                };
+                
+                // 가상 메시지를 로컬 메시지 목록에 추가
+                this.messages.push(mockMessage);
+                
+                // 메시지 전송 플래그 설정
+                this.hasSentMessagesFlag = true;
+                
+                // 메시지 전송 이벤트 발생
+                if (this.listeners.onNewMessage) {
+                    this.listeners.onNewMessage(mockMessage);
+                }
+                
+                this.logger.info('개발 환경에서 가상 메시지 생성 완료:', mockMessage);
+                return mockMessage;
+            }
+            
             throw error;
         }
     }
