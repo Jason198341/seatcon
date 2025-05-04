@@ -1,0 +1,65 @@
+/* 인증 관련 스타일 */
+
+#auth-container {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+}
+
+.auth-box {
+    background-color: white;
+    border-radius: 0.75rem;
+    box-shadow: var(--shadow-xl);
+    max-width: 28rem;
+    width: 100%;
+    padding: var(--spacing-8);
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: var(--spacing-8);
+}
+
+.auth-header h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--neutral-900);
+    margin-bottom: var(--spacing-2);
+}
+
+.auth-header p {
+    color: var(--neutral-600);
+}
+
+.form-group {
+    margin-bottom: var(--spacing-4);
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--neutral-700);
+    margin-bottom: var(--spacing-1);
+}
+
+#user-info-form button {
+    width: 100%;
+    padding: var(--spacing-3) var(--spacing-6);
+    margin-top: var(--spacing-6);
+    font-weight: 500;
+}
+
+/* 모바일 대응 */
+@media (max-width: 640px) {
+    .auth-box {
+        max-width: 90%;
+        padding: var(--spacing-6);
+    }
+}

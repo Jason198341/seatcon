@@ -1,0 +1,267 @@
+/* 메인 CSS 파일 */
+/* 기본 스타일 및 전체 레이아웃 */
+
+/* 기본 리셋 및 폰트 설정 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    /* 색상 변수 */
+    --primary-50: #f0f9ff;
+    --primary-100: #e0f2fe;
+    --primary-200: #bae6fd;
+    --primary-300: #7dd3fc;
+    --primary-400: #38bdf8;
+    --primary-500: #0ea5e9;
+    --primary-600: #0284c7;
+    --primary-700: #0369a1;
+    --primary-800: #075985;
+    --primary-900: #0c4a6e;
+    
+    --secondary-50: #f5f3ff;
+    --secondary-100: #ede9fe;
+    --secondary-200: #ddd6fe;
+    --secondary-300: #c4b5fd;
+    --secondary-400: #a78bfa;
+    --secondary-500: #8b5cf6;
+    --secondary-600: #7c3aed;
+    --secondary-700: #6d28d9;
+    --secondary-800: #5b21b6;
+    --secondary-900: #4c1d95;
+    
+    --neutral-50: #fafafa;
+    --neutral-100: #f5f5f5;
+    --neutral-200: #e5e5e5;
+    --neutral-300: #d4d4d4;
+    --neutral-400: #a3a3a3;
+    --neutral-500: #737373;
+    --neutral-600: #525252;
+    --neutral-700: #404040;
+    --neutral-800: #262626;
+    --neutral-900: #171717;
+    
+    /* 그림자 변수 */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    
+    /* 공통 간격 변수 */
+    --spacing-1: 0.25rem;
+    --spacing-2: 0.5rem;
+    --spacing-3: 0.75rem;
+    --spacing-4: 1rem;
+    --spacing-6: 1.5rem;
+    --spacing-8: 2rem;
+    --spacing-12: 3rem;
+    --spacing-16: 4rem;
+    
+    /* 테마 기본 설정 */
+    --background-color: var(--neutral-50);
+    --text-color: var(--neutral-800);
+    --border-color: var(--neutral-200);
+}
+
+/* 다크 모드 설정 */
+[data-theme="dark"] {
+    --background-color: var(--neutral-900);
+    --text-color: var(--neutral-100);
+    --border-color: var(--neutral-700);
+}
+
+html {
+    scroll-behavior: smooth;
+    font-size: 16px;
+}
+
+body {
+    font-family: 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
+    line-height: 1.5;
+    color: var(--text-color);
+    background-color: var(--background-color);
+    min-height: 100vh;
+}
+
+/* 컨테이너 설정 */
+#app {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    position: relative;
+}
+
+/* 공통 버튼 스타일 */
+.btn {
+    display: inline-block;
+    padding: var(--spacing-3) var(--spacing-6);
+    border-radius: 0.375rem;
+    font-weight: 500;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    outline: none;
+}
+
+.btn-primary {
+    background-color: var(--primary-600);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-700);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-secondary {
+    background-color: var(--neutral-200);
+    color: var(--neutral-800);
+}
+
+.btn-secondary:hover {
+    background-color: var(--neutral-300);
+}
+
+/* 공통 폼 요소 스타일 */
+input, select, textarea {
+    width: 100%;
+    padding: var(--spacing-2) var(--spacing-4);
+    border: 1px solid var(--neutral-300);
+    border-radius: 0.375rem;
+    background-color: white;
+    transition: all 0.2s ease;
+    font-size: 1rem;
+    outline: none;
+}
+
+input:focus, select:focus, textarea:focus {
+    border-color: var(--primary-500);
+    box-shadow: 0 0 0 2px var(--primary-100);
+}
+
+textarea {
+    resize: none;
+    min-height: 40px;
+    max-height: 150px;
+}
+
+/* 반응형 설정을 위한 미디어 쿼리 기본 형태 */
+@media (max-width: 768px) {
+    html {
+        font-size: 14px;
+    }
+}
+
+/* 애니메이션 효과 정의 */
+@keyframes fadeIn {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+}
+
+@keyframes slideUp {
+    0% { transform: translateY(10px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 애니메이션 클래스 */
+.animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+.animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+}
+
+/* 로딩 스피너 */
+#loading-spinner {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+}
+
+.spinner-content {
+    background-color: white;
+    border-radius: 0.5rem;
+    padding: var(--spacing-4);
+    display: flex;
+    align-items: center;
+    box-shadow: var(--shadow-lg);
+}
+
+.spinner {
+    width: 2rem;
+    height: 2rem;
+    border: 2px solid var(--primary-200);
+    border-top-color: var(--primary-600);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: var(--spacing-3);
+}
+
+/* 유틸리티 클래스 */
+.hidden {
+    display: none !important;
+}
+
+/* 모바일 내비게이션 */
+#mobile-nav {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: white;
+    border-top: 1px solid var(--neutral-200);
+    height: 4rem;
+    z-index: 100;
+}
+
+@media (max-width: 1024px) {
+    #mobile-nav {
+        display: flex;
+        justify-content: space-around;
+    }
+    
+    .main-content {
+        padding-bottom: 4rem;
+    }
+}
+
+#mobile-nav button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-2);
+    background: none;
+    border: none;
+    color: var(--neutral-500);
+    transition: color 0.2s ease;
+    cursor: pointer;
+    flex: 1;
+}
+
+#mobile-nav button.active {
+    color: var(--primary-600);
+}
+
+#mobile-nav button i {
+    font-size: 1.25rem;
+    margin-bottom: var(--spacing-1);
+}
+
+#mobile-nav button span {
+    font-size: 0.75rem;
+}
