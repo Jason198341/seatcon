@@ -39,6 +39,47 @@ class UserService {
     }
 
     /**
+     * 사용자 인증 처리
+     * @param {Object} userInfo - 사용자 정보
+     * @returns {Promise<boolean>} - 인증 성공 여부
+     */
+    async authenticate(userInfo) {
+        try {
+            if (!userInfo || !userInfo.name || !userInfo.email) {
+                this.logger.warn('유효하지 않은 사용자 정보');
+                return false;
+            }
+            
+            // 관리자 확인 (관리자 비밀번호: 9881)
+            if (userInfo.role === 'admin' && userInfo.password !== this.config.ADMIN.PASSWORD) {
+                this.logger.warn('관리자 비밀번호 오류');
+                return false;
+            }
+            
+            // 현재 사용자 정보 설정
+            this.currentUser = {
+                ...userInfo,
+                loginTime: new Date().toISOString()
+            };
+            
+            // 로컬 스토리지에 사용자 정보 저장
+            this.saveUserInfo(this.currentUser);
+            
+            // 성공 이벤트 발생
+            const loginEvent = new CustomEvent('auth:login-success', {
+                detail: { userInfo: this.currentUser }
+            });
+            document.dispatchEvent(loginEvent);
+            
+            this.logger.info('사용자 인증 성공:', this.currentUser);
+            return true;
+        } catch (error) {
+            this.logger.error('사용자 인증 중 오류 발생:', error);
+            return false;
+        }
+    }
+
+    /**
      * 현재 사용자 정보 설정
      * @param {Object} userInfo - 사용자 정보
      * @returns {boolean} - 성공 여부
@@ -64,6 +105,14 @@ class UserService {
     }
 
     /**
+     * 사용자가 관리자인지 확인
+     * @returns {boolean} - 관리자 여부
+     */
+    isAdmin() {
+        return this.currentUser && this.currentUser.role === 'admin';
+    }
+
+    /**
      * 사용자 정보 검증
      * @param {Object} userInfo - 사용자 정보
      * @returns {Object} - 검증 결과 (isValid, errors)
@@ -84,8 +133,15 @@ class UserService {
         }
         
         // 역할 검증
-        if (!userInfo.role || !['attendee', 'exhibitor', 'presenter', 'staff'].includes(userInfo.role)) {
+        const validRoles = ['attendee', 'exhibitor', 'presenter', 'staff', 'admin'];
+        if (!userInfo.role || !validRoles.includes(userInfo.role)) {
             errors.role = '올바른 역할을 선택해주세요.';
+        }
+        
+        // 관리자인 경우 비밀번호 확인
+        if (userInfo.role === 'admin' && 
+            (!userInfo.password || userInfo.password !== this.config.ADMIN.PASSWORD)) {
+            errors.password = '관리자 비밀번호가 올바르지 않습니다.';
         }
         
         // 언어 검증

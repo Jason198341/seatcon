@@ -20,6 +20,8 @@ class AuthComponent {
             emailInput: null,
             roleSelect: null,
             languageSelect: null,
+            passwordContainer: null,
+            passwordInput: null,
             submitButton: null,
         };
         
@@ -40,6 +42,8 @@ class AuthComponent {
             this.elements.emailInput = document.getElementById('email');
             this.elements.roleSelect = document.getElementById('role');
             this.elements.languageSelect = document.getElementById('language');
+            this.elements.passwordContainer = document.getElementById('password-container');
+            this.elements.passwordInput = document.getElementById('password');
             this.elements.submitButton = this.elements.form?.querySelector('button[type="submit"]');
             
             // 폼 제출 이벤트 리스너 설정
@@ -75,6 +79,29 @@ class AuthComponent {
         this.elements.nameInput?.addEventListener('input', this.validateField.bind(this, 'name'));
         this.elements.emailInput?.addEventListener('input', this.validateField.bind(this, 'email'));
         this.elements.roleSelect?.addEventListener('change', this.validateField.bind(this, 'role'));
+        this.elements.passwordInput?.addEventListener('input', this.validateField.bind(this, 'password'));
+        
+        // 역할 변경 시 비밀번호 필드 표시/숨김
+        this.elements.roleSelect?.addEventListener('change', this.handleRoleChange.bind(this));
+    }
+    
+    /**
+     * 역할 변경 처리
+     */
+    handleRoleChange() {
+        if (!this.elements.roleSelect || !this.elements.passwordContainer) return;
+        
+        const selectedRole = this.elements.roleSelect.value;
+        
+        // 관리자 역할 선택 시 비밀번호 필드 표시
+        if (selectedRole === 'admin') {
+            this.elements.passwordContainer.classList.remove('hidden');
+            this.elements.passwordInput.required = true;
+        } else {
+            this.elements.passwordContainer.classList.add('hidden');
+            this.elements.passwordInput.required = false;
+            this.elements.passwordInput.value = '';
+        }
     }
 
     /**
@@ -96,6 +123,11 @@ class AuthComponent {
                 language: this.elements.languageSelect.value,
             };
             
+            // 관리자 역할인 경우 비밀번호 추가
+            if (userInfo.role === 'admin') {
+                userInfo.password = this.elements.passwordInput.value;
+            }
+            
             // 사용자 정보 유효성 검사
             const validation = this.userService.validateUserInfo(userInfo);
             
@@ -106,17 +138,17 @@ class AuthComponent {
                 return;
             }
             
-            // 사용자 정보 설정
-            this.userService.setCurrentUser(userInfo);
+            // 사용자 인증 처리
+            const success = await this.userService.authenticate(userInfo);
+            
+            if (!success) {
+                this.showError('로그인에 실패했습니다. 다시 시도해주세요.');
+                this.setLoading(false);
+                return;
+            }
             
             // 참가자 목록에 추가
             this.dataManager.addParticipant(userInfo);
-            
-            // 성공 이벤트 발생
-            const event = new CustomEvent('auth:login-success', {
-                detail: { userInfo },
-            });
-            document.dispatchEvent(event);
             
             this.logger.info('로그인 성공:', userInfo);
             
@@ -162,6 +194,18 @@ class AuthComponent {
                 case 'role':
                     if (!value || value === '') {
                         error = '역할을 선택해주세요.';
+                    }
+                    
+                    // 역할이 변경되면 비밀번호 필드 표시/숨김 처리
+                    this.handleRoleChange();
+                    break;
+                    
+                case 'password':
+                    // 관리자 역할이고 비밀번호가 필요한 경우에만 검사
+                    if (this.elements.roleSelect.value === 'admin') {
+                        if (value.length === 0) {
+                            error = '관리자 비밀번호를 입력해주세요.';
+                        }
                     }
                     break;
             }
@@ -220,7 +264,13 @@ class AuthComponent {
         const isEmailValid = /^[\w.-]+@[\w.-]+\.\w+$/.test(this.elements.emailInput.value.trim());
         const isRoleValid = this.elements.roleSelect.value && this.elements.roleSelect.value !== '';
         
-        const isFormValid = isNameValid && isEmailValid && isRoleValid;
+        // 관리자 역할인 경우 비밀번호도 검사
+        let isPasswordValid = true;
+        if (this.elements.roleSelect.value === 'admin') {
+            isPasswordValid = this.elements.passwordInput.value.trim().length > 0;
+        }
+        
+        const isFormValid = isNameValid && isEmailValid && isRoleValid && isPasswordValid;
         
         this.elements.submitButton.disabled = !isFormValid;
     }
@@ -278,6 +328,11 @@ class AuthComponent {
         // 오류 스타일 제거
         const inputs = this.elements.form.querySelectorAll('input, select');
         inputs.forEach(input => input.classList.remove('error'));
+        
+        // 비밀번호 필드 숨기기
+        if (this.elements.passwordContainer) {
+            this.elements.passwordContainer.classList.add('hidden');
+        }
     }
 
     /**
@@ -292,6 +347,11 @@ class AuthComponent {
         if (userInfo.email) this.elements.emailInput.value = userInfo.email;
         if (userInfo.role) this.elements.roleSelect.value = userInfo.role;
         if (userInfo.language) this.elements.languageSelect.value = userInfo.language;
+        
+        // 관리자 역할인 경우 비밀번호 필드 표시
+        if (userInfo.role === 'admin' && this.elements.passwordContainer) {
+            this.elements.passwordContainer.classList.remove('hidden');
+        }
         
         // 제출 버튼 상태 업데이트
         this.updateSubmitButtonState();

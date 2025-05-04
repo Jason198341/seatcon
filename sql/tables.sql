@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS comments (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     client_generated_id TEXT,
     user_role TEXT,
-    language TEXT
+    language TEXT,
+    is_announcement BOOLEAN DEFAULT FALSE
 );
 
 -- 메시지 좋아요 테이블 (message_likes)

@@ -327,24 +327,56 @@ class ChatComponent {
      */
     handleNewMessage(message) {
         try {
-            this.logger.debug('새 메시지 수신:', message);
+            // 메시지 유효성 검사
+            if (!message) {
+                this.logger.warn('유효하지 않은 메시지 객체');
+                return;
+            }
             
-            // 메시지가 이미 표시되었는지 확인
-            const existingMessage = this.findMessageElement(message.id);
+            this.logger.debug('새 메시지 처리 시작:', message.id || message.client_generated_id || '아이디 없음');
+            
+            // 메시지 ID 및 클라이언트 생성 ID로 기존 메시지 확인
+            let existingMessage = null;
+            
+            if (message.id) {
+                existingMessage = this.findMessageElement(message.id);
+            }
+            
+            // ID로 찾지 못했는데 클라이언트 생성 ID가 있는 경우
+            if (!existingMessage && message.client_generated_id) {
+                existingMessage = this.findMessageElementByClientId(message.client_generated_id);
+            }
             
             if (existingMessage) {
+                this.logger.debug('기존 메시지 업데이트:', message.id || message.client_generated_id);
+                
                 // 이미 표시된 메시지인 경우 업데이트
                 this.updateMessageElement(existingMessage, message);
+                
+                // pending/sending 상태였다가 완료된 경우 클래스 업데이트
+                if (message.id && !existingMessage.dataset.id) {
+                    existingMessage.dataset.id = message.id;
+                    existingMessage.classList.remove('sending', 'failed');
+                }
             } else {
+                this.logger.debug('새 메시지 요소 생성:', message.id || message.client_generated_id);
+                
                 // 새 메시지 요소 생성
                 const messageElement = this.createMessageElement(message);
                 
                 // 메시지 컨테이너에 추가
-                this.elements.messagesContainer.appendChild(messageElement);
+                if (this.elements.messagesContainer) {
+                    this.elements.messagesContainer.appendChild(messageElement);
+                } else {
+                    this.logger.error('메시지 컨테이너를 찾을 수 없습니다');
+                    return;
+                }
                 
                 // 스크롤 아래로
                 this.scrollToBottom();
             }
+            
+            this.logger.debug('새 메시지 처리 완료:', message.id || message.client_generated_id);
         } catch (error) {
             this.logger.error('새 메시지 처리 중 오류 발생:', error);
         }
@@ -545,7 +577,18 @@ class ChatComponent {
      * @returns {HTMLElement|null} - 메시지 요소 또는 null
      */
     findMessageElement(messageId) {
+        if (!messageId || !this.elements.messagesContainer) return null;
         return this.elements.messagesContainer.querySelector(`.message[data-id="${messageId}"]`);
+    }
+    
+    /**
+     * 클라이언트 생성 ID로 메시지 요소 찾기
+     * @param {string} clientId - 클라이언트 생성 ID
+     * @returns {HTMLElement|null} - 메시지 요소 또는 null
+     */
+    findMessageElementByClientId(clientId) {
+        if (!clientId || !this.elements.messagesContainer) return null;
+        return this.elements.messagesContainer.querySelector(`.message[data-client-id="${clientId}"]`);
     }
 
     /**

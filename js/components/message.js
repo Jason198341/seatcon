@@ -103,6 +103,15 @@ class MessageComponent {
      */
     createMessageElement(message) {
         try {
+            // 유효성 검사 추가
+            if (!message) {
+                this.logger.error('유효하지 않은 메시지 객체');
+                throw new Error('유효하지 않은 메시지 객체');
+            }
+            
+            // 메시지 ID 로깅
+            this.logger.debug('메시지 요소 생성 중:', message.id || '임시 ID');
+            
             // 시스템 메시지인 경우
             if (message.system_message) {
                 return this.createSystemMessageElement(message);
@@ -114,7 +123,23 @@ class MessageComponent {
             // 메시지 요소 생성
             const messageElement = document.createElement('div');
             messageElement.className = `message ${isMyMessage ? 'mine' : 'others'}`;
-            messageElement.dataset.id = message.id;
+            
+            // 메시지 상태에 따른 추가 클래스
+            if (message.status === 'pending' || message.status === 'sending') {
+                messageElement.classList.add('sending');
+            } else if (message.status === 'failed') {
+                messageElement.classList.add('failed');
+            }
+            
+            // ID 설정 (로컬 메시지인 경우 client_generated_id 사용)
+            if (message.id) {
+                messageElement.dataset.id = message.id;
+            }
+            if (message.client_generated_id) {
+                messageElement.dataset.clientId = message.client_generated_id;
+            }
+            
+            // 템플릿 적용
             messageElement.innerHTML = isMyMessage 
                 ? this.messageTemplates.mine 
                 : this.messageTemplates.regular;
@@ -125,6 +150,7 @@ class MessageComponent {
             // 이벤트 리스너 등록
             this.attachEventListeners(messageElement, message);
             
+            this.logger.debug('메시지 요소 생성 완료:', message.id || '임시 ID');
             return messageElement;
         } catch (error) {
             this.logger.error('메시지 요소 생성 중 오류 발생:', error);

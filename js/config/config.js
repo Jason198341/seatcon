@@ -71,4 +71,10 @@ const CONFIG = {
         ENABLED: true,
         LOG_LEVEL: 'info', // debug, info, warn, error
     },
+    
+    // 관리자 설정
+    ADMIN: {
+        PASSWORD: '9881',
+        ANNOUNCEMENT_PREFIX: '📢 [공지]', // 확성기 이모지와 공지 접두사
+    }
 };

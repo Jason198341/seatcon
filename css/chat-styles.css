@@ -106,6 +106,7 @@
     max-width: 85%;
     position: relative;
     animation: slideUp 0.3s ease-out;
+    transition: all 0.3s ease;
 }
 
 .message.mine {
@@ -121,6 +122,7 @@
     border-width: 10px 0 10px 10px;
     border-color: transparent transparent transparent var(--primary-100);
     border-style: solid;
+    transition: border-color 0.3s ease;
 }
 
 .message.others {
@@ -137,6 +139,47 @@
     border-width: 10px 10px 10px 0;
     border-color: transparent white transparent transparent;
     border-style: solid;
+    transition: border-color 0.3s ease;
+}
+
+/* 메시지 상태 스타일 */
+.message.sending {
+    opacity: 0.7;
+}
+
+.message.sending::before {
+    content: '전송 중...';
+    position: absolute;
+    bottom: -20px;
+    right: 10px;
+    font-size: 0.75rem;
+    color: var(--neutral-500);
+    animation: pulse 1.5s infinite;
+}
+
+.message.failed {
+    border: 1px solid var(--error-300);
+    background-color: var(--error-100);
+}
+
+.message.mine.failed::after {
+    border-color: transparent transparent transparent var(--error-100);
+}
+
+.message.failed::before {
+    content: '전송 실패. 클릭하여 재시도';
+    position: absolute;
+    bottom: -20px;
+    right: 10px;
+    font-size: 0.75rem;
+    color: var(--error-500);
+    cursor: pointer;
+}
+
+@keyframes pulse {
+    0% { opacity: 0.5; }
+    50% { opacity: 1; }
+    100% { opacity: 0.5; }
 }
 
 .message-header {
