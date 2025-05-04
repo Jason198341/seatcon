@@ -68,8 +68,17 @@ class ConferenceChatApp {
             }
             
             // 다국어 지원 초기화
-            const savedLanguage = localStorage.getItem('preferredLanguage') || 'en';
-            i18nService.setLanguage(savedLanguage, false); // 이벤트 발생 없이 초기화
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const savedLanguage = localStorage.getItem('preferredLanguage');
+            
+            if (!savedLanguage && isMobile) {
+                // 모바일에서 처음 접속 시
+                i18nService.setLanguage('en', false);
+                supabaseClient.setPreferredLanguage('en');
+            } else {
+                const currentLanguage = savedLanguage || 'ko';
+                i18nService.setLanguage(currentLanguage, false); // 이벤트 발생 없이 초기화
+            }
             i18nService.updateAllTexts();
             
             // DOM 요소 참조 설정

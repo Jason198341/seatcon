@@ -379,9 +379,17 @@ class I18nService {
      * 저장된 언어 설정 불러오기
      */
     loadSavedLanguage() {
+        // 모바일 기기 여부 확인
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
         const savedLanguage = localStorage.getItem('preferredLanguage');
+        
         if (savedLanguage && this.isLanguageSupported(savedLanguage)) {
             this.currentLanguage = savedLanguage;
+        } else if (isMobile) {
+            // 모바일에서 처음 접속 시 기본 언어를 영어로 설정
+            this.currentLanguage = 'en';
+            localStorage.setItem('preferredLanguage', 'en');
         }
     }
     
