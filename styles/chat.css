@@ -650,17 +650,32 @@
 
 /* 스태프 비밀번호 필드 스타일 */
 #staffPasswordContainer {
-    transition: all 0.3s ease;
     overflow: hidden;
-    max-height: 0;
+    transition: all 0.3s ease;
     opacity: 0;
+    max-height: 0;
     margin-bottom: 0;
+    padding: 0;
+    transform: translateY(-10px);
 }
 
 #staffPasswordContainer.show {
-    max-height: 100px;
+    display: block;
     opacity: 1;
+    max-height: 150px; /* 최대 크기를 설정하여 애니메이션 효과 가능 */
     margin-bottom: 16px;
+    transform: translateY(0);
+}
+
+/* 비밀번호 오류 메시지 애니메이션 */
+.password-error-message {
+    animation: errorShake 0.4s ease-in-out;
+}
+
+@keyframes errorShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
 }
 
 /* 역할별 메시지 배경 변형 */

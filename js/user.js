@@ -167,11 +167,21 @@ class UserManager {
         this.staffPassword.id = 'staffPassword';
         this.staffPassword.name = 'staffPassword';
         this.staffPassword.placeholder = '스태프 비밀번호를 입력하세요';
-        this.staffPassword.required = true;
+        this.staffPassword.required = false;
+        
+        // 추가 정보 텍스트 생성
+        const helpText = document.createElement('small');
+        helpText.className = 'help-text';
+        helpText.style.color = '#666';
+        helpText.style.fontSize = '12px';
+        helpText.style.marginTop = '4px';
+        helpText.style.display = 'block';
+        helpText.textContent = '스태프로 로그인하려면 비밀번호가 필요합니다.';
         
         // 컨테이너에 요소 추가
         this.staffPasswordContainer.appendChild(passwordLabel);
         this.staffPasswordContainer.appendChild(this.staffPassword);
+        this.staffPasswordContainer.appendChild(helpText);
         
         // 사용자 정보 폼에 추가
         if (this.userInfoForm) {
@@ -223,9 +233,20 @@ class UserManager {
         if (selectedRole === 'staff') {
             this.staffPasswordContainer.style.display = 'block';
             this.staffPassword.required = true;
+            
+            // CSS 애니메이션을 위해 클래스 추가
+            setTimeout(() => {
+                this.staffPasswordContainer.classList.add('show');
+            }, 10);
         } else {
-            this.staffPasswordContainer.style.display = 'none';
+            // CSS 애니메이션을 위해 클래스 제거
+            this.staffPasswordContainer.classList.remove('show');
             this.staffPassword.required = false;
+            
+            // 애니메이션 후 숨김 처리
+            setTimeout(() => {
+                this.staffPasswordContainer.style.display = 'none';
+            }, 300);
         }
     }
 
@@ -294,10 +315,44 @@ class UserManager {
         if (role === 'staff') {
             const staffPassword = this.staffPassword ? this.staffPassword.value : '';
             
-            // 비밀번호 검증
+            // 비밀번호 검증 강화
             if (staffPassword !== '9881') {
-                alert('스태프 비밀번호가 올바르지 않습니다.');
+                // 비밀번호 입력 필드 하이라이트 및 오류 표시
+                this.staffPassword.classList.add('error');
+                this.staffPassword.style.borderColor = 'var(--error)';
+                this.staffPassword.style.boxShadow = '0 0 0 3px rgba(231, 76, 60, 0.15)';
+                
+                // 오류 메시지 표시
+                const errorMessage = document.createElement('div');
+                errorMessage.className = 'password-error-message';
+                errorMessage.textContent = '스태프 비밀번호가 올바르지 않습니다.';
+                errorMessage.style.color = 'var(--error)';
+                errorMessage.style.fontSize = '12px';
+                errorMessage.style.marginTop = '5px';
+                
+                // 기존 오류 메시지 제거
+                const existingError = this.staffPasswordContainer.querySelector('.password-error-message');
+                if (existingError) {
+                    existingError.remove();
+                }
+                
+                // 오류 메시지 추가
+                this.staffPasswordContainer.appendChild(errorMessage);
+                
+                // 비밀번호 필드에 포커스
+                this.staffPassword.focus();
+                
                 return;
+            } else {
+                // 성공 시 오류 표시 제거
+                this.staffPassword.classList.remove('error');
+                this.staffPassword.style.borderColor = '';
+                this.staffPassword.style.boxShadow = '';
+                
+                const existingError = this.staffPasswordContainer.querySelector('.password-error-message');
+                if (existingError) {
+                    existingError.remove();
+                }
             }
         }
         

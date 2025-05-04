@@ -234,6 +234,17 @@ input:focus, textarea:focus, select:focus {
     box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15);
 }
 
+/* 오류 상태 스타일 */
+input.error, textarea.error, select.error {
+    border-color: var(--error);
+    box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.15);
+}
+
+input.error:focus, textarea.error:focus, select.error:focus {
+    border-color: var(--error);
+    box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.25);
+}
+
 textarea {
     resize: vertical;
     min-height: 2.5rem;
