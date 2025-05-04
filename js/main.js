@@ -48,36 +48,20 @@ async function applyLocale(lang) {
 window.addEventListener('DOMContentLoaded', () => {
     const langKey = 'premium-chat-language';
     const modal = document.getElementById('language-modal');
-    const selector = document.getElementById('modal-language-selector');
-    const confirmBtn = document.getElementById('confirm-language-btn');
-    let lang = localStorage.getItem(langKey) || 'en';
-    applyLocale(lang);
-    // 인증 폼 언어 select 동기화 및 disabled 처리
-    const languageSelect = document.querySelector('select#language[data-sync-language]');
-    if (languageSelect) {
-        languageSelect.value = lang;
-        languageSelect.disabled = true;
-    }
-    if (!localStorage.getItem(langKey)) {
-        modal.style.display = 'flex';
-        confirmBtn.onclick = () => {
-            lang = selector.value || 'en';
-            localStorage.setItem(langKey, lang);
-            // 언어 선택 모달 완전히 숨기고 인증 폼만 보이게
-            modal.style.display = 'none';
-            applyLocale(lang);
-            // 인증 폼 언어 select 동기화
-            if (languageSelect) {
-                languageSelect.value = lang;
-                languageSelect.disabled = true;
-            }
-            // 인증 폼 표시 (startAppInit에서 보장)
-            startAppInit();
-        };
+    let lang = localStorage.getItem(langKey);
+    if (!lang) {
+        showLanguageModal();
     } else {
         modal.style.display = 'none';
-        // 인증 폼 표시 (startAppInit에서 보장)
-        startAppInit();
+        applyLocale(lang);
+        // 인증 폼 언어 select 동기화
+        const languageSelect = document.querySelector('select#language[data-sync-language]');
+        if (languageSelect) {
+            languageSelect.value = lang;
+            languageSelect.disabled = true;
+        }
+        // 인증 폼 표시
+        showAuthInterface();
     }
 });
 
@@ -559,27 +543,32 @@ function hideLoadingSpinner() {
  * 로그아웃 처리
  */
 function logout() {
-    try {
-        logger.info('로그아웃 중...');
-        
-        // 사용자 로그아웃
-        userService.logout();
-        
-        // Supabase 구독 해제
-        supabaseClient.unsubscribeAll();
-        
-        // 인증 화면 표시
-        showAuthInterface();
-        
-        // 메시지 목록 초기화
-        const messagesContainer = document.getElementById('messages-container');
-        if (messagesContainer) {
-            messagesContainer.innerHTML = '<div class="system-message">채팅을 시작합니다</div>';
+    // 사용자 정보 모두 삭제, 선호 언어만 남김
+    const langKey = 'premium-chat-language';
+    const lang = localStorage.getItem(langKey);
+    localStorage.clear();
+    if (lang) localStorage.setItem(langKey, lang);
+    // 언어 선택 모달부터 다시 시작
+    showLanguageModal();
+}
+
+function showLanguageModal() {
+    const modal = document.getElementById('language-modal');
+    const selector = document.getElementById('modal-language-selector');
+    const confirmBtn = document.getElementById('confirm-language-btn');
+    modal.style.display = 'flex';
+    confirmBtn.onclick = () => {
+        const lang = selector.value || 'en';
+        localStorage.setItem('premium-chat-language', lang);
+        modal.style.display = 'none';
+        applyLocale(lang);
+        // 인증 폼 언어 select 동기화
+        const languageSelect = document.querySelector('select#language[data-sync-language]');
+        if (languageSelect) {
+            languageSelect.value = lang;
+            languageSelect.disabled = true;
         }
-        
-        logger.info('로그아웃 완료');
-    } catch (error) {
-        logger.error('로그아웃 중 오류 발생:', error);
-        showErrorMessage('로그아웃 중 오류가 발생했습니다.');
-    }
+        // 인증 폼 표시
+        showAuthInterface();
+    };
 }

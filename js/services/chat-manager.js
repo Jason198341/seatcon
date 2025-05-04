@@ -331,24 +331,29 @@ class ChatManager {
         try {
             const user = this.userService.getCurrentUser();
             if (!user) throw new Error('로그인 필요');
+            if (!content.trim()) {
+                this.logger.warn('빈 메시지는 전송할 수 없습니다.');
+                return null;
+            }
+            if (content.length > this.config.CHAT.MAX_MESSAGE_LENGTH) {
+                this.logger.warn(`메시지 길이가 최대 길이(${this.config.CHAT.MAX_MESSAGE_LENGTH}자)를 초과합니다.`);
+                throw new Error(`메시지 길이가 최대 길이(${this.config.CHAT.MAX_MESSAGE_LENGTH}자)를 초과합니다.`);
+            }
+            // 입력한 텍스트의 실제 언어 감지
+            let detectedLanguage = user.language;
+            try {
+                detectedLanguage = await this.translationService.detectLanguage(content);
+            } catch (e) {
+                this.logger.warn('언어 감지 실패, 사용자 언어로 대체:', e);
+            }
             const message = {
                 content,
                 author_name: user.name,
                 author_email: user.email,
                 user_role: user.role, // 역할 정보 항상 포함
-                language: user.language,
+                language: detectedLanguage,
                 created_at: new Date().toISOString(),
             };
-            
-            if (!content.trim()) {
-                this.logger.warn('빈 메시지는 전송할 수 없습니다.');
-                return null;
-            }
-            
-            if (content.length > this.config.CHAT.MAX_MESSAGE_LENGTH) {
-                this.logger.warn(`메시지 길이가 최대 길이(${this.config.CHAT.MAX_MESSAGE_LENGTH}자)를 초과합니다.`);
-                throw new Error(`메시지 길이가 최대 길이(${this.config.CHAT.MAX_MESSAGE_LENGTH}자)를 초과합니다.`);
-            }
             
             // 메시지 전송 시작 이벤트 발생
             if (this.listeners.onMessageSendStart) {
