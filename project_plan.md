@@ -296,3 +296,38 @@
 - 사용자 피드백 기반 반복 개발의 중요성
 - 확장 가능한 아키텍처 설계의 필요성
 - 기능 추가 시 관련 모듈 간 일관성 유지의 중요성
+
+## 프론트엔드 상세 구조 분석 (2025-05-04)
+
+### main.js (573줄, 19KB)
+- 애플리케이션 진입점: 언어 선택 → 서비스/컴포넌트 초기화 → 전역 이벤트 리스너 등록
+- 실시간/다국어/역할 기반/반응형 UI를 위한 모든 초기화 및 상태 관리
+- 유저 경험(UX) 최적화: 토스트, 로딩, 에러, 모바일 대응, 이니셜, 자동 UI 전환 등
+- 외부 의존성: Supabase, Google 번역, 각종 서비스/컴포넌트와 강하게 연결
+- 주요 함수: applyLocale, startAppInit, initializeServices, initializeComponents, setupGlobalEventListeners, initializeChatManager, showAuthInterface, showChatInterface, updateUserInfo, getInitials, showMobileView, handleWindowResize, createToast, showErrorMessage, showLoadingSpinner, hideLoadingSpinner, logout 등
+
+### sidebar.js (950줄, 36KB)
+- SidebarComponent 클래스: 전시업체, 일정, 참가자 등 컨퍼런스 정보의 실시간/동적 표시와 검색/필터/탭/뷰 모드/상세/연락 등 다양한 인터랙션 담당
+- Supabase 실시간 구독으로 참가자 상태가 즉시 반영됨
+- 모바일/데스크톱 대응 및 유틸리티 함수로 UX 일관성 유지
+- 커스텀 이벤트로 상위 앱과 유연하게 연동
+- 주요 함수: init, setupEventListeners, addExhibitorTabControls, changeExhibitorDisplayMode, updateExhibitorsByCategory, updateExhibitorsByCompany, handleTabClick, handleExhibitorSearch, handleScheduleSearch, handleParticipantSearch, handleParticipantFilter, updateExhibitorsList, createExhibitorCard, showExhibitorDetail, contactExhibitor, updateScheduleList, createScheduleCard, showScheduleDetail, updateParticipantsList, getInitials, getRoleDisplayName, formatDate, loadData, show, hide, subscribeParticipantsRealtime 등
+
+### chat.js (875줄, 34KB)
+- ChatComponent 클래스: 메시지 표시, 입력, 이모지, 첨부, 공지, 번역, 좋아요, 타이핑 등 채팅 UI의 모든 실시간 상호작용과 데이터 표시 담당
+- 실시간 이벤트(onNewMessage, onMessageTranslated, onUserTyping, onLikeUpdate)로 메시지, 번역, 타이핑, 좋아요 등 즉시 UI 반영
+- 공지사항, 번역, 좋아요, 타이핑, 원문/번역 토글 등 실전 컨퍼런스 채팅에 필요한 고급 UX 완비
+- 주요 함수: init, setupEventListeners, registerChatEvents, handleMessageSubmit, handleMessageInput, toggleEmojiPicker, loadEmojis, insertEmoji, handleAttachmentClick, handleOutsideClick, handleKeyDown, handleNewMessage, handleMessageTranslated, handleUserTyping, handleLikeUpdate, toggleMessageLike, findMessageElement, findMessageElementByClientId, createMessageElement, updateMessageElement, formatTime, getRoleDisplayName, scrollToBottom, renderMessages, show, hide 등
+
+### message.js (613줄, 24KB)
+- MessageComponent 클래스: 메시지 단위의 템플릿/생성/상태/이벤트/데이터/번역/좋아요/재전송/하이라이트 등 실전 컨퍼런스 채팅의 메시지 UX 완성도를 좌우하는 핵심
+- 역할별(내/타인/공지/통역/시스템) UI 분리, 상태별(전송중/실패) 표시, 번역/좋아요/재전송/하이라이트 등 고급 상호작용 완비
+- 주요 함수: prepareTemplates, createMessageElement, createSystemMessageElement, createTypingIndicator, populateMessageData, attachEventListeners, toggleTranslation, updateLikeStatus, formatTime, getRoleDisplayName, updateMessageElement, findMessageElement, highlightKeyword 등
+
+### auth.js (394줄, 14KB)
+- AuthComponent 클래스: 로그인/회원가입/역할선택/언어선택 등 인증 및 진입 UI, 상태 관리, 이벤트 처리 담당
+- 역할별(관리자/통역사) 비밀번호 처리, 실시간 에러/로딩 UX, 저장된 정보 자동 채움 등 실전 컨퍼런스 채팅의 진입/인증 UX 완성도를 좌우하는 핵심
+- 주요 함수: init, setupEventListeners, handleRoleChange, handleFormSubmit, validateField, setFieldError, updateSubmitButtonState, showError, showErrors, resetForm, populateForm, setLoading, show, hide 등
+
+#### 다음 분석 대상
+- components/settings.js (262줄, 8.5KB): 사용자 설정(프로필, 언어, 테마 등) 관리 UI/로직, 모달, 상태 관리, 이벤트 처리 등 분석 예정

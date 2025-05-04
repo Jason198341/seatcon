@@ -18,25 +18,52 @@ let messageComponent;
 let sidebarComponent;
 let settingsComponent;
 
-// 최초 진입 시 선호 언어 선택 모달 표시 및 처리 (서비스 초기화보다 먼저!)
+// 다국어 리소스 적용 함수
+async function applyLocale(lang) {
+    try {
+        const res = await fetch(`js/locales/${lang}.json`);
+        const dict = await res.json();
+        // 로그인/회원가입 폼 라벨/플레이스홀더/버튼/역할 옵션 등 적용
+        document.querySelector('.auth-header h2').textContent = dict.title;
+        document.querySelector('.auth-header p').textContent = dict.subtitle;
+        document.querySelector('label[for="name"]').textContent = dict.name;
+        document.getElementById('name').placeholder = dict.name_placeholder;
+        document.querySelector('label[for="email"]').textContent = dict.email;
+        document.getElementById('email').placeholder = dict.email_placeholder;
+        document.querySelector('label[for="role"]').textContent = dict.role;
+        document.getElementById('role').options[0].textContent = dict.role_placeholder;
+        document.querySelector('label[for="language"]').textContent = dict.language;
+        document.querySelector('.btn.btn-primary').textContent = dict.enter;
+        // 역할 옵션
+        const roleMap = [null, 'attendee', 'exhibitor', 'presenter', 'staff', 'admin', 'interpreter'];
+        for (let i = 1; i < roleMap.length; i++) {
+            document.getElementById('role').options[i].textContent = dict[roleMap[i]];
+        }
+    } catch (e) {
+        console.warn('다국어 리소스 적용 오류:', e);
+    }
+}
+
+// 언어 선택 모달/로그인 폼에 다국어 적용
 window.addEventListener('DOMContentLoaded', () => {
     const langKey = 'premium-chat-language';
     const modal = document.getElementById('language-modal');
     const selector = document.getElementById('modal-language-selector');
     const confirmBtn = document.getElementById('confirm-language-btn');
+    let lang = localStorage.getItem(langKey) || 'en';
+    applyLocale(lang);
     if (!localStorage.getItem(langKey)) {
-        // 언어 선택 전에는 아무것도 초기화하지 않음
         modal.style.display = 'flex';
         confirmBtn.onclick = () => {
-            const lang = selector.value || 'en';
+            lang = selector.value || 'en';
             localStorage.setItem(langKey, lang);
             modal.style.display = 'none';
-            // 언어 선택 후에만 서비스/컴포넌트 초기화 시작
+            applyLocale(lang);
             startAppInit();
         };
     } else {
         modal.style.display = 'none';
-        // 이미 언어가 설정되어 있으면 바로 초기화
+        applyLocale(lang);
         startAppInit();
     }
 });

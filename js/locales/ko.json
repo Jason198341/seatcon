@@ -1,0 +1,19 @@
+{
+  "title": "컨퍼런스 채팅 시스템",
+  "subtitle": "계속하려면 정보를 입력해주세요",
+  "name": "이름",
+  "name_placeholder": "이름을 입력하세요",
+  "email": "이메일",
+  "email_placeholder": "이메일을 입력하세요",
+  "role": "역할",
+  "role_placeholder": "역할을 선택하세요",
+  "language": "선호 언어",
+  "enter": "입장하기",
+  "logout": "로그아웃",
+  "attendee": "참가자",
+  "exhibitor": "전시자",
+  "presenter": "발표자",
+  "staff": "스태프",
+  "admin": "관리자",
+  "interpreter": "통역사"
+}

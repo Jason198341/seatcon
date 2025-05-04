@@ -1,0 +1,19 @@
+{
+  "title": "Conference Chat System",
+  "subtitle": "Please enter your information to continue.",
+  "name": "Name",
+  "name_placeholder": "Enter your name",
+  "email": "Email",
+  "email_placeholder": "Enter your email",
+  "role": "Role",
+  "role_placeholder": "Select your role",
+  "language": "Preferred Language",
+  "enter": "Enter",
+  "logout": "Logout",
+  "attendee": "Attendee",
+  "exhibitor": "Exhibitor",
+  "presenter": "Presenter",
+  "staff": "Staff",
+  "admin": "Admin",
+  "interpreter": "Interpreter"
+}
