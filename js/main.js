@@ -88,23 +88,18 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // 서비스/컴포넌트 초기화 진입점 함수로 분리
-function startAppInit() {
+async function startAppInit() {
     // 언어 선택 후 인증 폼 표시
     const authContainer = document.getElementById('auth-container');
     if (authContainer) authContainer.classList.remove('hidden');
     try {
         console.log('프리미엄 컨퍼런스 채팅 애플리케이션 초기화 중...');
         showLoadingSpinner();
-        initializeServices().then(() => {
-            initializeComponents();
-            setupGlobalEventListeners();
-            hideLoadingSpinner();
-            console.log('애플리케이션 초기화 완료');
-        }).catch(error => {
-            console.error('애플리케이션 초기화 중 오류 발생:', error);
-            showErrorMessage('애플리케이션을 초기화하는 중 오류가 발생했습니다. 페이지를 새로고침해주세요.');
-            hideLoadingSpinner();
-        });
+        await initializeServices(); // 반드시 await로 서비스(특히 supabaseClient) 완전 초기화
+        initializeComponents(); // supabaseClient가 준비된 후에만 컴포넌트 초기화
+        setupGlobalEventListeners();
+        hideLoadingSpinner();
+        console.log('애플리케이션 초기화 완료');
     } catch (error) {
         console.error('애플리케이션 초기화 중 오류 발생:', error);
         showErrorMessage('애플리케이션을 초기화하는 중 오류가 발생했습니다. 페이지를 새로고침해주세요.');
