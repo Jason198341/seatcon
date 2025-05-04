@@ -43,6 +43,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // 서비스/컴포넌트 초기화 진입점 함수로 분리
 function startAppInit() {
+    // 언어 선택 후 인증 폼 표시
+    const authContainer = document.getElementById('auth-container');
+    if (authContainer) authContainer.classList.remove('hidden');
     try {
         console.log('프리미엄 컨퍼런스 채팅 애플리케이션 초기화 중...');
         showLoadingSpinner();
