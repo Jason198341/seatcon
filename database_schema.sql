@@ -52,7 +52,15 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.message_likes;
 -- 예: 30일 이후 자동 삭제
 -- COMMENT ON TABLE public.comments IS '{"retentionPeriod": "30 days"}';
 
--- 기본 화자 정보 (옵션)
+-- 기본 화자 정보 테이블 생성 (옵션)
+CREATE TABLE IF NOT EXISTS public.speakers (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 기본 화자 정보 삽입 (옵션)
 INSERT INTO public.speakers (id, name, role, created_at)
 VALUES 
     ('global-chat', '전체 채팅', 'global', NOW())
