@@ -13,6 +13,8 @@ import chatManager from './chat.js';
 import mobileUI from './mobile-ui.js';
 import i18nService from './i18n.js';
 import * as utils from './utils.js';
+import pwaManager from './pwa.js';
+import searchManager from './search.js';
 
 /**
  * 애플리케이션 클래스
@@ -31,6 +33,10 @@ class ConferenceChatApp {
         // DOM 요소 참조
         this.themeToggle = null;
         this.currentSpeakerId = 'global-chat';
+        
+        // 기능 관리자
+        this.pwaManager = pwaManager;
+        this.searchManager = searchManager;
     }
 
     /**
@@ -99,6 +105,12 @@ class ConferenceChatApp {
             // 모바일 UI 초기화
             this.initMobileUI();
             
+            // PWA 관리자 초기화
+            // (PWA 매니저는 자체적으로 초기화)
+            
+            // URL 파라미터 처리
+            this.handleURLParameters();
+            
             // 초기화 완료
             this.isInitialized = true;
             
@@ -108,6 +120,61 @@ class ConferenceChatApp {
             utils.logError('Application initialization failed', error);
             this.showErrorDialog('애플리케이션 초기화 실패', '애플리케이션을 초기화하는 중 오류가 발생했습니다. 페이지를 새로고침하거나 나중에 다시 시도해주세요.');
         }
+    }
+
+    /**
+     * URL 파라미터 처리
+     */
+    handleURLParameters() {
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // 모드 파라미터 처리
+        const mode = urlParams.get('mode');
+        if (mode === 'offline') {
+            // 오프라인 모드 처리
+            this.showOfflineWarning();
+        }
+        
+        // 뷰 파라미터 처리
+        const view = urlParams.get('view');
+        if (view === 'chat') {
+            // 채팅 뷰 활성화
+            const chatNav = document.getElementById('chatNav');
+            if (chatNav) {
+                chatNav.click();
+            }
+        }
+        
+        // 메시지 ID 파라미터 처리
+        const messageId = urlParams.get('messageId');
+        if (messageId && chatManager) {
+            // 특정 메시지로 스크롤
+            chatManager.focusMessage(messageId);
+        }
+    }
+
+    /**
+     * 오프라인 경고 표시
+     */
+    showOfflineWarning() {
+        const toast = document.createElement('div');
+        toast.className = 'toast warning';
+        toast.innerHTML = '<i class="fas fa-wifi-slash"></i> 오프라인 모드입니다. 캐시된 내용만 볼 수 있습니다.';
+        
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    document.body.removeChild(toast);
+                }
+            }, 300);
+        }, 5000);
     }
 
     /**
@@ -147,6 +214,199 @@ class ConferenceChatApp {
         window.addEventListener('resize', utils.throttle(() => {
             this.handleResize();
         }, 200));
+        
+        // 오프라인/온라인 상태 변경 감지
+        window.addEventListener('online', () => {
+            this.handleOnlineStatus(true);
+        });
+        
+        window.addEventListener('offline', () => {
+            this.handleOnlineStatus(false);
+        });
+        
+        // 전시물 정보 버튼 클릭 이벤트
+        const exhibitionButton = document.getElementById('exhibitionButton');
+        if (exhibitionButton) {
+            exhibitionButton.addEventListener('click', () => {
+                this.toggleExhibitionInfo();
+            });
+        }
+        
+        // 전시물 정보 닫기 버튼 클릭 이벤트
+        const closeExhibitionButton = document.getElementById('closeExhibitionButton');
+        if (closeExhibitionButton) {
+            closeExhibitionButton.addEventListener('click', () => {
+                this.hideExhibitionInfo();
+            });
+        }
+    }
+
+    /**
+     * 전시물 정보 토글
+     */
+    toggleExhibitionInfo() {
+        const exhibitionContainer = document.getElementById('exhibitionContainer');
+        const chatContainer = document.getElementById('chatContainer');
+        
+        if (exhibitionContainer && chatContainer) {
+            if (exhibitionContainer.style.display === 'none' || exhibitionContainer.style.display === '') {
+                // 전시물 정보 표시
+                exhibitionContainer.style.display = 'flex';
+                chatContainer.style.display = 'none';
+                
+                // 전시물 정보 로드 (첫 표시 시)
+                this.loadExhibitionData();
+            } else {
+                // 전시물 정보 숨기기
+                exhibitionContainer.style.display = 'none';
+                chatContainer.style.display = 'flex';
+            }
+        }
+    }
+
+    /**
+     * 전시물 정보 숨기기
+     */
+    hideExhibitionInfo() {
+        const exhibitionContainer = document.getElementById('exhibitionContainer');
+        const chatContainer = document.getElementById('chatContainer');
+        
+        if (exhibitionContainer && chatContainer) {
+            exhibitionContainer.style.display = 'none';
+            chatContainer.style.display = 'flex';
+        }
+    }
+
+    /**
+     * 전시물 데이터 로드
+     */
+    loadExhibitionData() {
+        const exhibitionList = document.getElementById('exhibitionList');
+        
+        if (!exhibitionList) return;
+        
+        // 데이터 로드 중 표시
+        exhibitionList.innerHTML = '<tr><td colspan="4" class="loading-text">로딩 중...</td></tr>';
+        
+        // 전시물 데이터
+        const exhibitionData = [
+            { no: 1, name: "차세대 코어 메커니즘 개발", company: "대원정밀공업", contact: "진우재 팀장" },
+            { no: 2, name: "LCD 터치 디스플레이 백 시트 공기 청정기", company: "대유에이텍", contact: "김상현 매니저" },
+            { no: 3, name: "후석 공압식 시트", company: "대유에이텍", contact: "문지환 매니저" },
+            { no: 4, name: "후석 공압식 시트_발판", company: "대유에이텍", contact: "문지환 매니저" },
+            { no: 5, name: "롤러식 마사지 모듈적용 라운지 릴렉스 시트", company: "대원산업", contact: "신재광 책임" },
+            { no: 16, name: "롤러 마사지 시트", company: "디에스시동탄", contact: "최민식 책임" },
+            { no: 17, name: "파워스트라이크 적용시트", company: "디에스시동탄", contact: "황인창 책임" },
+            { no: 18, name: "개인특화 엔터테인먼트 시트", company: "디에스시동탄", contact: "박문수 매니저" },
+            { no: 19, name: "파워롱레일+파워스위블 적용 시트", company: "다스", contact: "이재갑 책임" },
+            { no: 20, name: "매뉴얼 릴렉션 시트#1 - 레버타입", company: "다스", contact: "이재갑 책임" }
+        ];
+        
+        // 전시물 목록 표시
+        setTimeout(() => {
+            // 로딩 지연 시뮬레이션 (0.5초)
+            exhibitionList.innerHTML = '';
+            
+            exhibitionData.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.no}</td>
+                    <td>${item.name}</td>
+                    <td>${item.company}</td>
+                    <td>${item.contact}</td>
+                `;
+                
+                // 상세 정보 표시 이벤트
+                row.addEventListener('click', () => {
+                    this.showExhibitionDetail(item);
+                });
+                
+                exhibitionList.appendChild(row);
+            });
+        }, 500);
+    }
+
+    /**
+     * 전시물 상세 정보 표시
+     * @param {Object} item - 전시물 정보
+     */
+    showExhibitionDetail(item) {
+        const detailModal = document.getElementById('detailModal');
+        const detailTitle = document.getElementById('detailTitle');
+        const detailContent = document.getElementById('detailContent');
+        
+        if (!detailModal || !detailTitle || !detailContent) return;
+        
+        // 제목 설정
+        detailTitle.textContent = item.name;
+        
+        // 내용 설정
+        detailContent.innerHTML = `
+            <div class="detail-item">
+                <div class="detail-label">전시 번호</div>
+                <div class="detail-value">${item.no}</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">회사</div>
+                <div class="detail-value">${item.company}</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">담당자</div>
+                <div class="detail-value">${item.contact}</div>
+            </div>
+        `;
+        
+        // 모달 표시
+        detailModal.classList.add('show');
+        
+        // 모달 외부 클릭 시 닫기
+        detailModal.addEventListener('click', (e) => {
+            if (e.target === detailModal) {
+                detailModal.classList.remove('show');
+            }
+        });
+        
+        // 닫기 버튼 클릭 시 닫기
+        const closeDetailButton = document.getElementById('closeDetailButton');
+        if (closeDetailButton) {
+            closeDetailButton.addEventListener('click', () => {
+                detailModal.classList.remove('show');
+            });
+        }
+    }
+
+    /**
+     * 온라인/오프라인 상태 처리
+     * @param {boolean} isOnline - 온라인 상태 여부
+     */
+    handleOnlineStatus(isOnline) {
+        // PWA 매니저가 자동으로 처리
+        
+        // 추가 처리 (필요한 경우)
+        if (isOnline) {
+            // 온라인 상태일 때 추가 처리
+            utils.log('Device is online');
+            
+            // 오프라인 시 저장된 메시지가 있으면 동기화
+            if (this.offlineMessages && this.offlineMessages.length > 0) {
+                this.syncOfflineMessages();
+            }
+        } else {
+            // 오프라인 상태일 때 추가 처리
+            utils.log('Device is offline');
+        }
+    }
+
+    /**
+     * 오프라인 메시지 동기화
+     */
+    syncOfflineMessages() {
+        if (!this.offlineMessages || this.offlineMessages.length === 0) return;
+        
+        utils.log('Syncing offline messages...');
+        
+        // 동기화 로직 구현 (필요한 경우)
+        // PWA 매니저에서 처리하므로 여기서는 생략
     }
 
     /**
@@ -356,6 +616,16 @@ class ConferenceChatApp {
         
         // 채팅 관리자 초기화
         this.initChatManager();
+        
+        // 알림 권한 요청 (로그인 후 5초 후)
+        setTimeout(() => {
+            if ('Notification' in window && Notification.permission === 'default') {
+                const notificationPrompt = document.getElementById('notificationPrompt');
+                if (notificationPrompt) {
+                    notificationPrompt.classList.add('show');
+                }
+            }
+        }, 5000);
         
         utils.log('User logged in', user);
     }

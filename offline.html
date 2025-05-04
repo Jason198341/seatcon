@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>오프라인 - 컨퍼런스 채팅</title>
+    <meta name="description" content="2025 글로벌 시트 컨퍼런스 실시간 다국어 번역 채팅 시스템">
+    
+    <!-- 파비콘 -->
+    <link rel="icon" href="assets/icons/favicon.ico" type="image/x-icon">
+    
+    <!-- 스타일시트 -->
+    <style>
+        :root {
+            --primary: #4361ee;
+            --primary-dark: #3f37c9;
+            --background: #f8f9fa;
+            --foreground: #212529;
+            --border: #dee2e6;
+        }
+        
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: var(--background);
+            color: var(--foreground);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .offline-container {
+            max-width: 500px;
+            padding: 2rem;
+            border-radius: 12px;
+            background-color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            animation: fade-in 0.5s ease-out;
+        }
+        
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .offline-icon {
+            width: 120px;
+            height: 120px;
+            margin-bottom: 1.5rem;
+            opacity: 0.8;
+        }
+        
+        h1 {
+            color: var(--primary);
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        p {
+            color: #555;
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+        
+        .button {
+            display: inline-block;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.25rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+        
+        .button:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .cached-content {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+        
+        .cached-content h2 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            color: #555;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 1rem;
+            font-size: 0.875rem;
+            color: #777;
+        }
+        
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #dc3545;
+            margin-right: 8px;
+        }
+        
+        @media (max-width: 480px) {
+            .offline-container {
+                padding: 1.5rem;
+            }
+            
+            .offline-icon {
+                width: 80px;
+                height: 80px;
+            }
+            
+            h1 {
+                font-size: 1.3rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-container">
+        <img src="assets/images/offline.svg" alt="오프라인 상태" class="offline-icon">
+        <h1>인터넷 연결이 끊겼습니다</h1>
+        <p>현재 오프라인 상태입니다. 인터넷 연결을 확인한 후 다시 시도해주세요. 연결이 복구되면 자동으로 다시 연결됩니다.</p>
+        
+        <button id="retryButton" class="button">다시 시도하기</button>
+        
+        <div id="cachedContent" class="cached-content" style="display: none;">
+            <h2>캐시된 콘텐츠</h2>
+            <div id="cachedMessages">
+                <p>오프라인 상태에서도 이전에 로드한 메시지를 볼 수 있습니다.</p>
+                <button id="viewCachedButton" class="button">캐시된 메시지 보기</button>
+            </div>
+        </div>
+        
+        <div class="status-indicator">
+            <span class="status-dot"></span>
+            <span>오프라인 상태</span>
+        </div>
+    </div>
+    
+    <script>
+        // 네트워크 상태 확인
+        function checkNetwork() {
+            return navigator.onLine;
+        }
+        
+        // 캐시된 콘텐츠 확인
+        async function checkCachedContent() {
+            if ('caches' in window) {
+                try {
+                    const cache = await caches.open('conference-chat-dynamic-v1');
+                    const cachedMessages = await cache.match('/cached-messages');
+                    
+                    if (cachedMessages) {
+                        document.getElementById('cachedContent').style.display = 'block';
+                    }
+                } catch (error) {
+                    console.error('캐시 확인 오류:', error);
+                }
+            }
+        }
+        
+        // 다시 시도 버튼 클릭 이벤트
+        document.getElementById('retryButton').addEventListener('click', function() {
+            if (checkNetwork()) {
+                window.location.reload();
+            } else {
+                alert('여전히 오프라인 상태입니다. 인터넷 연결을 확인해주세요.');
+            }
+        });
+        
+        // 캐시된 메시지 보기 버튼 클릭 이벤트
+        document.getElementById('viewCachedButton').addEventListener('click', function() {
+            window.location.href = '/index.html?mode=offline';
+        });
+        
+        // 온라인 상태 변경 감지
+        window.addEventListener('online', function() {
+            window.location.reload();
+        });
+        
+        // 페이지 로드 시 캐시 확인
+        window.addEventListener('DOMContentLoaded', function() {
+            checkCachedContent();
+        });
+    </script>
+</body>
+</html>
