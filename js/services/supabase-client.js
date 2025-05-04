@@ -1480,3 +1480,7 @@ class SupabaseClient {
         }
     }
 }
+
+if (typeof window !== 'undefined') {
+    window.supabaseClient = new SupabaseClient(CONFIG, window.logger);
+}

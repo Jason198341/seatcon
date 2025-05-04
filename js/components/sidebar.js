@@ -743,7 +743,7 @@ class SidebarComponent {
     }
 
     /**
-     * 통역가 메시지 리스트를 참가자 패널에 표시
+     * 통역가 메시지 리스트를 패널에 표시 (참가자 관련 코드 완전 제거)
      */
     async updateInterpreterMessagesList() {
         const list = this.elements.participantsList;
@@ -761,16 +761,16 @@ class SidebarComponent {
                 item.className = 'interpreter-message-item';
                 item.innerHTML = `
                     <div class="interpreter-message-meta">
-                        <span class="interpreter-name">${msg.author_name || '통역가'}</span>
-                        <span class="interpreter-time">${this.formatDate(msg.created_at)}</span>
+                        <span class="interpreter-message-author">${msg.author_name || '통역가'}</span>
+                        <span class="interpreter-message-time">${new Date(msg.created_at).toLocaleString()}</span>
                     </div>
                     <div class="interpreter-message-content">${msg.content}</div>
                 `;
                 list.appendChild(item);
             }
         } catch (error) {
-            list.innerHTML = '<div class="placeholder-item">통역가 메시지 불러오기 실패</div>';
-            this.logger.error('통역가 메시지 표시 중 오류:', error);
+            list.innerHTML = '<div class="interpreter-message-item error">통역가 메시지 불러오기 실패</div>';
+            if (window.logger) window.logger.error('통역가 메시지 불러오기 실패:', error);
         }
     }
 
