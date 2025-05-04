@@ -110,11 +110,9 @@ class AuthComponent {
      */
     async handleFormSubmit(event) {
         event.preventDefault();
-        
         try {
             // 로딩 표시
             this.setLoading(true);
-            
             // 폼 데이터 가져오기
             const userInfo = {
                 name: this.elements.nameInput.value.trim(),
@@ -122,36 +120,36 @@ class AuthComponent {
                 role: this.elements.roleSelect.value,
                 language: localStorage.getItem('premium-chat-language') || this.elements.languageSelect.value,
             };
-            
             // 관리자 또는 통역사 역할인 경우 비밀번호 추가
             if (userInfo.role === 'admin' || userInfo.role === 'interpreter') {
                 userInfo.password = this.elements.passwordInput.value;
             }
-            
             // 사용자 정보 유효성 검사
             const validation = this.userService.validateUserInfo(userInfo);
-            
             if (!validation.isValid) {
-                // 유효성 검사 실패
-                this.showErrors(validation.errors);
+                // 구체적 비밀번호 오류 메시지 우선 표시
+                if (validation.errors.password) {
+                    this.showError(validation.errors.password);
+                } else {
+                    this.showErrors(validation.errors);
+                }
                 this.setLoading(false);
+                // 폼 제출 후 비밀번호 입력란 초기화
+                if (this.elements.passwordInput) this.elements.passwordInput.value = '';
                 return;
             }
-            
             // 사용자 인증 처리
             const success = await this.userService.authenticate(userInfo);
-            
             if (!success) {
                 this.showError('로그인에 실패했습니다. 다시 시도해주세요.');
                 this.setLoading(false);
+                // 폼 제출 후 비밀번호 입력란 초기화
+                if (this.elements.passwordInput) this.elements.passwordInput.value = '';
                 return;
             }
-            
             // 참가자 목록에 추가
             this.dataManager.addParticipant(userInfo);
-            
             this.logger.info('로그인 성공:', userInfo);
-            
             // 인증 컨테이너 숨기기
             this.hide();
         } catch (error) {
@@ -160,6 +158,8 @@ class AuthComponent {
         } finally {
             // 로딩 해제
             this.setLoading(false);
+            // 폼 제출 후 비밀번호 입력란 초기화
+            if (this.elements.passwordInput) this.elements.passwordInput.value = '';
         }
     }
 
