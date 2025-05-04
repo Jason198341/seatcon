@@ -384,6 +384,25 @@ class UserService {
         if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
         return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
     }
+
+    /**
+     * 실시간 참가자 상태 동기화 (입장/로그아웃/브라우저 종료)
+     */
+    async setParticipantOnlineStatus(isOnline) {
+        const user = this.getCurrentUser && this.getCurrentUser();
+        if (!user || !user.email) return;
+        const now = new Date().toISOString();
+        await this.supabase
+            .from('participants')
+            .upsert({
+                email: user.email,
+                name: user.name,
+                role: user.role,
+                language: user.language,
+                is_online: isOnline,
+                last_active_at: now
+            }, { onConflict: ['email'] });
+    }
 }
 
 // 브라우저 종료/새로고침 시 참가자 오프라인 처리
@@ -391,7 +410,7 @@ if (typeof window !== 'undefined') {
     window.addEventListener('beforeunload', () => {
         const userService = window.userService;
         if (userService && userService.currentUser && window.supabaseClient) {
-            window.supabaseClient.setParticipantOffline(userService.currentUser.email);
+            userService.setParticipantOnlineStatus(false);
         }
     });
 }

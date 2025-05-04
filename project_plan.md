@@ -395,3 +395,19 @@
     ```
   - main.js의 전역 이벤트 리스너가 정상적으로 showChatInterface()를 호출하여, 채팅 UI가 100% 전환됨
   - 실전 QA 기준으로 인증 → 채팅방 UI 전환 플로우 완전 보장
+
+### [2025-05-04] 실시간 접속자(참가자) 표시 기능 반영
+
+- **Supabase participants 테이블**
+  - id, name, email, role, language, is_online, last_active_at 필드 활용
+- **user-service.js**
+  - 로그인/입장 시: participants 테이블에 upsert (is_online=true, last_active_at=NOW)
+  - 로그아웃/브라우저 종료 시: is_online=false, last_active_at=NOW로 업데이트
+- **sidebar.js**
+  - Supabase 실시간 구독으로 participants 테이블 변화 감지
+  - is_online=true, last_active_at 2분 이내인 참가자만 "접속중"으로 표시
+  - updateParticipantListUI 함수로 UI 실시간 갱신
+- **실전 QA 기준**
+  - 여러 브라우저/기기에서 동시 접속 시 실시간 반영
+  - 새로고침/브라우저 종료/로그아웃 시 즉시 목록에서 사라짐
+  - 참가자 수, 역할, 언어 등 정보가 정확히 표시됨

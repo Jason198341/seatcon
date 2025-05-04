@@ -947,3 +947,37 @@ class SidebarComponent {
         }
     }
 }
+
+// === 실시간 참가자 목록 구독 및 UI 갱신 ===
+const ONLINE_TIMEOUT_MS = 2 * 60 * 1000; // 2분
+let participantSubscription = null;
+
+async function updateParticipantListUI() {
+    const now = Date.now();
+    const { data, error } = await window.supabaseClient
+        .from('participants')
+        .select('*');
+    if (error) {
+        console.error('[참가자 목록 로드 오류]', error);
+        return;
+    }
+    // 2분 이내 + is_online=true만 표시
+    const onlineParticipants = (data || []).filter(p => p.is_online && (now - new Date(p.last_active_at).getTime() < ONLINE_TIMEOUT_MS));
+    // UI에 onlineParticipants를 표시하는 코드 (예시)
+    const listEl = document.getElementById('participant-list');
+    if (listEl) {
+        listEl.innerHTML = onlineParticipants.map(p => `<li>${p.name} (${p.role}, ${p.language})</li>`).join('');
+    }
+}
+
+function subscribeParticipantsRealtime() {
+    if (participantSubscription) return;
+    participantSubscription = window.supabaseClient
+        .from('participants')
+        .on('*', payload => {
+            updateParticipantListUI();
+        })
+        .subscribe();
+    // 최초 1회 로드
+    updateParticipantListUI();
+}
