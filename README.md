@@ -95,3 +95,12 @@ conference-chat/
 - **번역이 작동하지 않는 경우**:
   - `config.js`에서 Google Cloud Translation API 키가 올바른지 확인합니다.
   - API 사용량 및 할당량을 확인합니다.
+
+- **언어 변경 시 UI가 멈추거나 응답하지 않는 경우**:
+  - 브라우저 콘솔에서 오류 메시지를 확인합니다.
+  - 브라우저 캐시를 새로고침하거나 사용 중인 이전 버전의 캐시를 지워봅니다.
+  - `chat.js` 파일의 `handleLanguageChange` 함수에서 `isChangingLanguage` 플래그가 올바르게 설정되었는지 확인합니다.
+
+- **스태프 비밀번호 입력 처리 문제**:
+  - 스태프 역할 접근 비밀번호는 '9881'입니다.
+  - 스태프 비밀번호 필드가 표시되지 않는 경우 `user.js` 파일의 `setupStaffPasswordField` 함수를 확인합니다.

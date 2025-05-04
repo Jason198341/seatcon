@@ -444,7 +444,7 @@ class UserManager {
      * 로그아웃 처리
      */
     handleLogout() {
-        const confirmLogout = confirm('정말 로그아웃하시겠습니까?');
+        const confirmLogout = confirm(i18nService.get('logoutConfirmation'));
         
         if (!confirmLogout) {
             return;
@@ -504,7 +504,7 @@ class UserManager {
         // 토스트 메시지 생성
         const toast = document.createElement('div');
         toast.className = 'toast success';
-        toast.textContent = '로그아웃이 완료되었습니다.';
+        toast.textContent = i18nService.get('logoutSuccess');
         
         document.body.appendChild(toast);
         

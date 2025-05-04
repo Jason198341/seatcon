@@ -9,6 +9,7 @@ import CONFIG from './config.js';
 import supabaseClient from './supabase-client.js';
 import translationService from './translation.js';
 import userManager from './user.js';
+import i18nService from './i18n.js';
 
 class ChatManager {
     constructor() {
@@ -778,7 +779,7 @@ class ChatManager {
         if (message.user_role === 'staff') {
             const roleTag = document.createElement('span');
             roleTag.className = 'role-tag';
-            roleTag.textContent = '스태프';
+            roleTag.textContent = i18nService.get('staffLabel');
             roleTag.style.backgroundColor = '#2ecc71';
             roleTag.style.color = 'white';
             roleTag.style.padding = '2px 5px';
@@ -977,7 +978,7 @@ class ChatManager {
     }
 
     /**
-     * 타임스탬프 포맷팅
+     * 타임스탬프 포맷팅 - 다국어 지원 버전
      * @param {string} timestamp - ISO 형식 타임스탬프
      * @returns {string} - 포맷팅된 타임스탬프
      */
@@ -987,18 +988,52 @@ class ChatManager {
         const date = new Date(timestamp);
         const now = new Date();
         
+        // 현재 선택된 언어 코드 가져오기
+        const currentLanguage = supabaseClient.getPreferredLanguage() || 'ko';
+        
+        // 언어별 로케일 매핑
+        const localeMap = {
+            'ko': 'ko-KR',
+            'en': 'en-US',
+            'hi': 'hi-IN',
+            'zh': 'zh-CN'
+        };
+        
+        // 현재 언어에 해당하는 로케일 설정
+        const locale = localeMap[currentLanguage] || 'en-US';
+        
         // 당일 메시지는 시간만 표시
         if (date.toDateString() === now.toDateString()) {
-            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            // 각 언어별 표현 설정
+            if (currentLanguage === 'ko') {
+                const hours = date.getHours();
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                const ampm = hours >= 12 ? i18nService.get('afternoonLabel') : i18nService.get('morningLabel');
+                const displayHours = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
+                return `${ampm} ${displayHours}:${minutes}`;
+            } else {
+                return date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+            }
         }
         
         // 당일이 아닌 메시지는 날짜와 시간 모두 표시
-        return date.toLocaleString([], {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+        try {
+            return date.toLocaleString(locale, {
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit'
+            });
+        } catch (error) {
+            // 로케일 오류 시 기본 형식으로 출력
+            console.error('Timestamp formatting error:', error);
+            return date.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
     }
 
     /**

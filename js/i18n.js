@@ -21,6 +21,10 @@ const translations = {
         'startChatButton': 'Start Chat',
         'loadMoreButton': 'Load More Messages',
         'sendButton': 'Send',
+        'cancelButton': 'Cancel',
+        'saveButton': 'Save',
+        'closeButton': 'Close',
+        'confirmButton': 'Confirm',
         
         // 사용자 정보 폼
         'startChatHeading': 'Start Chatting',
@@ -44,10 +48,35 @@ const translations = {
         'emptyStateTitle': 'No messages yet',
         'emptyStateText': 'Be the first to send a message!',
         'newMessageNotification': 'New message',
+        'staffLabel': 'Staff',
+        'attendeeLabel': 'Attendee',
+        'morningLabel': 'AM',
+        'afternoonLabel': 'PM',
         
         // 역할
         'role_attendee': 'Attendee',
         'role_staff': 'Staff',
+        
+        // 로그아웃 확인
+        'logoutConfirmation': 'Are you sure you want to logout?',
+        'logoutSuccess': 'Successfully logged out',
+        
+        // 언어 설정
+        'languageSettingsTitle': 'Language Settings',
+        'languageSettingsDescription': 'Messages will be automatically translated to your selected language.',
+        
+        // 사용자 정보 탭
+        'profileTabTitle': 'My Profile',
+        'profileName': 'Name',
+        'profileEmail': 'Email',
+        'profileRole': 'Role',
+        'profileLanguage': 'Preferred Language',
+        
+        // 컨퍼런스 정보
+        'conferenceInfoTitle': 'Conference Information',
+        'conferenceInfoDescription': 'The Global Seat Conference 2025 brings together industry leaders, researchers, and innovators to discuss the future of automotive seating technology.',
+        'conferenceVenue': 'Venue',
+        'conferenceSchedule': 'Schedule',
         
         // 에러 메시지
         'errorNameRequired': 'Name is required (minimum 2 characters).',
@@ -60,7 +89,7 @@ const translations = {
         
         // 하단 네비게이션
         'navChat': 'Chat',
-        'navProfile': 'Profile',
+        'navProfile': 'My Profile',
         'navLanguage': 'Language',
         'navInfo': 'Info'
     },
@@ -77,6 +106,10 @@ const translations = {
         'startChatButton': '채팅 시작하기',
         'loadMoreButton': '이전 메시지 더 보기',
         'sendButton': '전송',
+        'cancelButton': '취소',
+        'saveButton': '저장',
+        'closeButton': '닫기',
+        'confirmButton': '확인',
         
         // 사용자 정보 폼
         'startChatHeading': '채팅 시작하기',
@@ -100,10 +133,35 @@ const translations = {
         'emptyStateTitle': '아직 메시지가 없습니다',
         'emptyStateText': '첫 메시지를 작성해보세요!',
         'newMessageNotification': '새 메시지',
+        'staffLabel': '스태프',
+        'attendeeLabel': '참가자',
+        'morningLabel': '오전',
+        'afternoonLabel': '오후',
         
         // 역할
         'role_attendee': '참가자',
         'role_staff': '스태프',
+        
+        // 로그아웃 확인
+        'logoutConfirmation': '정말 로그아웃하시겠습니까?',
+        'logoutSuccess': '로그아웃이 완료되었습니다',
+        
+        // 언어 설정
+        'languageSettingsTitle': '언어 설정',
+        'languageSettingsDescription': '메시지가 자동으로 선택한 언어로 번역됩니다.',
+        
+        // 사용자 정보 탭
+        'profileTabTitle': '내 정보',
+        'profileName': '이름',
+        'profileEmail': '이메일',
+        'profileRole': '역할',
+        'profileLanguage': '선호 언어',
+        
+        // 컨퍼런스 정보
+        'conferenceInfoTitle': '컨퍼런스 정보',
+        'conferenceInfoDescription': '2025 글로벌 시트 컨퍼런스는 자동차 시트 기술의 미래를 논의하기 위해 산업 지도자, 연구원, 혁신가들을 하나로 모으는 행사입니다.',
+        'conferenceVenue': '행사장',
+        'conferenceSchedule': '일정',
         
         // 에러 메시지
         'errorNameRequired': '이름은 2자 이상 입력해주세요.',
@@ -133,6 +191,10 @@ const translations = {
         'startChatButton': 'चैट शुरू करें',
         'loadMoreButton': 'अधिक संदेश लोड करें',
         'sendButton': 'भेजें',
+        'cancelButton': 'रद्द करें',
+        'saveButton': 'सहेजें',
+        'closeButton': 'बंद करें',
+        'confirmButton': 'पुष्टि करें',
         
         // 사용자 정보 폼
         'startChatHeading': 'चैटिंग शुरू करें',
@@ -156,10 +218,35 @@ const translations = {
         'emptyStateTitle': 'अभी तक कोई संदेश नहीं',
         'emptyStateText': 'पहला संदेश भेजने वाले बनें!',
         'newMessageNotification': 'नया संदेश',
+        'staffLabel': 'स्टाफ',
+        'attendeeLabel': 'प्रतिभागी',
+        'morningLabel': 'पूर्वाह्न',
+        'afternoonLabel': 'अपराह्न',
         
         // 역할
         'role_attendee': 'प्रतिभागी',
         'role_staff': 'स्टाफ',
+        
+        // 로그아웃 확인
+        'logoutConfirmation': 'क्या आप वाकई लॉगआउट करना चाहते हैं?',
+        'logoutSuccess': 'सफलतापूर्वक लॉगआउट किया गया',
+        
+        // 언어 설정
+        'languageSettingsTitle': 'भाषा सेटिंग्स',
+        'languageSettingsDescription': 'संदेश आपकी चुनी हुई भाषा में स्वचालित रूप से अनुवादित हो जाएंगे।',
+        
+        // 사용자 정보 탭
+        'profileTabTitle': 'मेरी प्रोफाइल',
+        'profileName': 'नाम',
+        'profileEmail': 'ईमेल',
+        'profileRole': 'भूमिका',
+        'profileLanguage': 'पसंदीदा भाषा',
+        
+        // 컨퍼런스 정보
+        'conferenceInfoTitle': 'सम्मेलन जानकारी',
+        'conferenceInfoDescription': 'वैश्विक सीट सम्मेलन 2025 ऑटोमोटिव सीटिंग तकनीक के भविष्य पर चर्चा करने के लिए उद्योग के नेताओं, शोधकर्ताओं और नवोन्मेषकों को एक साथ लाता है।',
+        'conferenceVenue': 'स्थान',
+        'conferenceSchedule': 'कार्यक्रम',
         
         // 에러 메시지
         'errorNameRequired': 'नाम आवश्यक है (कम से कम 2 अक्षर)।',
@@ -172,7 +259,7 @@ const translations = {
         
         // 하단 네비게이션
         'navChat': 'चैट',
-        'navProfile': 'प्रोफ़ाइल',
+        'navProfile': 'मेरी प्रोफाइल',
         'navLanguage': 'भाषा',
         'navInfo': 'जानकारी'
     },
@@ -189,6 +276,10 @@ const translations = {
         'startChatButton': '开始聊天',
         'loadMoreButton': '加载更多消息',
         'sendButton': '发送',
+        'cancelButton': '取消',
+        'saveButton': '保存',
+        'closeButton': '关闭',
+        'confirmButton': '确认',
         
         // 사용자 정보 폼
         'startChatHeading': '开始聊天',
@@ -212,10 +303,35 @@ const translations = {
         'emptyStateTitle': '暂无消息',
         'emptyStateText': '成为第一个发送消息的人！',
         'newMessageNotification': '新消息',
+        'staffLabel': '工作人员',
+        'attendeeLabel': '参与者',
+        'morningLabel': '上午',
+        'afternoonLabel': '下午',
         
         // 역할
         'role_attendee': '参与者',
         'role_staff': '工作人员',
+        
+        // 로그아웃 확인
+        'logoutConfirmation': '您确定要登出吗？',
+        'logoutSuccess': '已成功登出',
+        
+        // 언어 설정
+        'languageSettingsTitle': '语言设置',
+        'languageSettingsDescription': '消息将自动翻译为您选择的语言。',
+        
+        // 사용자 정보 탭
+        'profileTabTitle': '我的个人资料',
+        'profileName': '姓名',
+        'profileEmail': '电子邮件',
+        'profileRole': '角色',
+        'profileLanguage': '首选语言',
+        
+        // 컨퍼런스 정보
+        'conferenceInfoTitle': '会议信息',
+        'conferenceInfoDescription': '2025全球座椅会议汇集了行业领导者、研究人员和创新者，共同探讨汽车座椅技术的未来。',
+        'conferenceVenue': '会场',
+        'conferenceSchedule': '日程',
         
         // 에러 메시지
         'errorNameRequired': '需要姓名（至少2个字符）。',
@@ -228,7 +344,7 @@ const translations = {
         
         // 하단 네비게이션
         'navChat': '聊天',
-        'navProfile': '个人资料',
+        'navProfile': '我的资料',
         'navLanguage': '语言',
         'navInfo': '信息'
     }
