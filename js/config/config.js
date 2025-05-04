@@ -13,13 +13,11 @@ const CONFIG = {
         API_KEY: 'AIzaSyC8ugZVxiEk26iwvUnIQCzNcTUiYpxkigs',
         CACHE_EXPIRY: 3600000, // 캐시 만료 시간(ms): 1시간
         SUPPORTED_LANGUAGES: [
-            { code: 'ko', name: '한국어' },
             { code: 'en', name: '영어' },
-            { code: 'ja', name: '일본어' },
+            { code: 'ko', name: '한국어' },
+            { code: 'hi', name: '힌디어' },
+            { code: 'te', name: '텔루구' },
             { code: 'zh', name: '중국어' },
-            { code: 'es', name: '스페인어' },
-            { code: 'fr', name: '프랑스어' },
-            { code: 'de', name: '독일어' },
         ],
         DEFAULT_LANGUAGE: 'ko',
     },

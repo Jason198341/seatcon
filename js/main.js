@@ -525,3 +525,22 @@ function logout() {
         showErrorMessage('로그아웃 중 오류가 발생했습니다.');
     }
 }
+
+// 최초 진입 시 선호 언어 선택 모달 표시 및 처리
+window.addEventListener('DOMContentLoaded', () => {
+    const langKey = 'premium-chat-language';
+    const modal = document.getElementById('language-modal');
+    const selector = document.getElementById('modal-language-selector');
+    const confirmBtn = document.getElementById('confirm-language-btn');
+    if (!localStorage.getItem(langKey)) {
+        modal.style.display = 'flex';
+        confirmBtn.onclick = () => {
+            const lang = selector.value || 'en';
+            localStorage.setItem(langKey, lang);
+            modal.style.display = 'none';
+            location.reload();
+        };
+    } else {
+        modal.style.display = 'none';
+    }
+});
