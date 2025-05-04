@@ -27,7 +27,7 @@
     <!-- 헤더 -->
     <header class="header">
         <div class="header-brand">
-            <span id="conferenceTitle">2025 글로벌 시트 컨퍼런스</span>
+            <span id="conferenceTitle" data-i18n="conferenceTitle">2025 Global Seat Conference</span>
         </div>
         
         <div class="header-nav">
@@ -40,8 +40,8 @@
             
             <!-- 로그아웃 버튼 -->
             <div class="header-nav-item">
-                <button id="logoutButton" class="button secondary" style="display: none;">
-                    <i class="fas fa-sign-out-alt mr-1"></i> 로그아웃
+                <button id="logoutButton" class="button secondary" style="display: none;" data-i18n="logoutButton">
+                    <i class="fas fa-sign-out-alt mr-1"></i> Logout
                 </button>
             </div>
         </div>
@@ -52,37 +52,37 @@
         <div class="content">
             <!-- 사용자 정보 입력 폼 -->
             <div id="userInfoFormContainer" class="card user-info-form">
-                <h2>채팅 시작하기</h2>
-                <p class="mb-4">채팅에 참여하기 위해 아래 정보를 입력해주세요.</p>
+                <h2 data-i18n="startChatHeading">Start Chatting</h2>
+                <p class="mb-4" data-i18n="startChatSubtext">Please enter your information to join the chat.</p>
                 
                 <form id="userInfoForm">
                     <div class="form-group">
-                        <label for="userName">이름</label>
-                        <input type="text" id="userName" name="userName" required placeholder="이름을 입력하세요">
+                        <label for="userName" data-i18n="nameLabel">Name</label>
+                        <input type="text" id="userName" name="userName" required data-i18n-placeholder="namePlaceholder" placeholder="Enter your name">
                     </div>
                     
                     <div class="form-group">
-                        <label for="userEmail">이메일</label>
-                        <input type="email" id="userEmail" name="userEmail" required placeholder="이메일을 입력하세요">
+                        <label for="userEmail" data-i18n="emailLabel">Email</label>
+                        <input type="email" id="userEmail" name="userEmail" required data-i18n-placeholder="emailPlaceholder" placeholder="Enter your email">
                     </div>
                     
                     <div class="form-group">
-                        <label for="roleSelector">역할</label>
-                        <select id="roleSelector" name="roleSelector" required>
-                            <option value="" disabled selected>역할을 선택하세요</option>
+                        <label for="roleSelector" data-i18n="roleLabel">Role</label>
+                        <select id="roleSelector" name="roleSelector" required data-i18n-placeholder="rolePlaceholder">
+                            <option value="" disabled selected data-i18n="rolePlaceholder">Select your role</option>
                             <!-- JS에서 동적으로 추가됨 -->
                         </select>
                     </div>
                     
                     <div class="form-group">
-                        <label for="languageSelector">선호 언어</label>
-                        <select id="languageSelector" name="languageSelector" required>
-                            <option value="" disabled selected>언어를 선택하세요</option>
+                        <label for="languageSelector" data-i18n="languageLabel">Preferred Language</label>
+                        <select id="languageSelector" name="languageSelector" required data-i18n-placeholder="languagePlaceholder">
+                            <option value="" disabled selected data-i18n="languagePlaceholder">Select language</option>
                             <!-- JS에서 동적으로 추가됨 -->
                         </select>
                     </div>
                     
-                    <button type="submit" id="loginButton" class="button mt-4 w-100">채팅 시작하기</button>
+                    <button type="submit" id="loginButton" class="button mt-4 w-100" data-i18n="startChatButton">Start Chat</button>
                 </form>
             </div>
             
@@ -90,13 +90,13 @@
             <div id="chatContainer" class="chat-container" style="display: none;">
                 <div class="chat-header">
                     <div>
-                        <h2 class="chat-title">실시간 채팅</h2>
+                        <h2 class="chat-title" data-i18n="chatTitle">Live Chat</h2>
                         <div class="chat-subtitle">
-                            <span id="conferenceDate">2025년 6월 16일~19일</span> | <span id="conferenceLocation">인도 하이데라바드 인도기술연구소</span>
+                            <span id="conferenceDate" data-i18n="conferenceDate">June 16-19, 2025</span> | <span id="conferenceLocation" data-i18n="conferenceLocation">Indian Institute of Technology, Hyderabad</span>
                         </div>
                     </div>
                     <div class="chat-actions">
-                        <button id="scrollToBottom" class="icon-button" aria-label="하단으로 스크롤">
+                        <button id="scrollToBottom" class="icon-button" aria-label="Scroll to bottom">
                             <i class="fas fa-arrow-down"></i>
                         </button>
                     </div>
@@ -106,15 +106,15 @@
                     <!-- 메시지 목록이 동적으로 추가됨 -->
                 </div>
                 
-                <button id="loadMoreButton" class="load-more-button" style="display: none;">
-                    이전 메시지 더 보기
+                <button id="loadMoreButton" class="load-more-button" style="display: none;" data-i18n="loadMoreButton">
+                    Load More Messages
                 </button>
                 
                 <form id="messageForm" class="message-form">
                     <div class="message-input-container">
-                        <textarea id="messageInput" class="message-input" placeholder="메시지를 입력하세요..." maxlength="1000"></textarea>
+                        <textarea id="messageInput" class="message-input" data-i18n-placeholder="messagePlaceholder" placeholder="Type your message..." maxlength="1000"></textarea>
                     </div>
-                    <button type="submit" id="sendButton" class="send-button">
+                    <button type="submit" id="sendButton" class="send-button" aria-label="Send message">
                         <i class="fas fa-paper-plane"></i>
                     </button>
                 </form>
@@ -126,19 +126,19 @@
     <nav class="bottom-nav">
         <a href="#" class="bottom-nav-item active" id="chatNav">
             <div class="bottom-nav-icon"><i class="fas fa-comments"></i></div>
-            <span>채팅</span>
+            <span data-i18n="navChat">Chat</span>
         </a>
         <a href="#" class="bottom-nav-item" id="userInfoNav">
             <div class="bottom-nav-icon"><i class="fas fa-user"></i></div>
-            <span>내 정보</span>
+            <span data-i18n="navProfile">Profile</span>
         </a>
         <a href="#" class="bottom-nav-item" id="languageNav">
             <div class="bottom-nav-icon"><i class="fas fa-language"></i></div>
-            <span>언어</span>
+            <span data-i18n="navLanguage">Language</span>
         </a>
         <a href="#" class="bottom-nav-item" id="infoNav">
             <div class="bottom-nav-icon"><i class="fas fa-info-circle"></i></div>
-            <span>정보</span>
+            <span data-i18n="navInfo">Info</span>
         </a>
     </nav>
     

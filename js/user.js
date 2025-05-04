@@ -8,6 +8,7 @@
 import CONFIG from './config.js';
 import supabaseClient from './supabase-client.js';
 import translationService from './translation.js';
+import i18nService from './i18n.js';
 
 class UserManager {
     constructor() {
@@ -89,6 +90,14 @@ class UserManager {
         // 기존 옵션 제거
         this.languageSelector.innerHTML = '';
         
+        // 초기 옵션 추가
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.disabled = true;
+        defaultOption.selected = true;
+        defaultOption.textContent = i18nService.get('languagePlaceholder');
+        this.languageSelector.appendChild(defaultOption);
+        
         // 언어 옵션 추가
         CONFIG.LANGUAGES.forEach(lang => {
             const option = document.createElement('option');
@@ -97,8 +106,19 @@ class UserManager {
             this.languageSelector.appendChild(option);
         });
         
-        // 현재 선호 언어 선택
-        this.languageSelector.value = supabaseClient.getPreferredLanguage();
+        // 현재 선호 언어 설정
+        const savedLanguage = supabaseClient.getPreferredLanguage();
+        if (savedLanguage && this.languageSelector.querySelector(`option[value="${savedLanguage}"]`)) {
+            this.languageSelector.value = savedLanguage;
+        } else {
+            // 기본값은 비어있음
+            this.languageSelector.value = '';
+        }
+        
+        // 언어 변경 이벤트 처리
+        this.languageSelector.addEventListener('change', () => {
+            this.handleLanguageChange();
+        });
     }
 
     /**
@@ -112,9 +132,17 @@ class UserManager {
         
         // 역할 옵션 간소화 (참가자/스태프만 표시)
         const simplifiedRoles = [
-            { id: 'attendee', name: '참가자' },
-            { id: 'staff', name: '스태프' }
+            { id: 'attendee', name: i18nService.get('role_attendee') },
+            { id: 'staff', name: i18nService.get('role_staff') }
         ];
+        
+        // 초기 옵션 추가
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.disabled = true;
+        defaultOption.selected = true;
+        defaultOption.textContent = i18nService.get('rolePlaceholder');
+        this.roleSelector.appendChild(defaultOption);
         
         // 역할 옵션 추가
         simplifiedRoles.forEach(role => {
@@ -126,7 +154,8 @@ class UserManager {
         
         // 기본 역할 선택 (첫 번째 역할)
         if (simplifiedRoles.length > 0) {
-            this.roleSelector.value = simplifiedRoles[0].id;
+            // 초기 옵션이 선택되게
+            this.roleSelector.value = '';
         }
         
         // 현재 사용자가 있으면 해당 역할 선택
@@ -159,14 +188,14 @@ class UserManager {
         // 레이블 생성
         const passwordLabel = document.createElement('label');
         passwordLabel.htmlFor = 'staffPassword';
-        passwordLabel.textContent = '스태프 비밀번호';
+        passwordLabel.textContent = i18nService.get('staffPasswordLabel');
         
         // 비밀번호 입력 필드 생성
         this.staffPassword = document.createElement('input');
         this.staffPassword.type = 'password';
         this.staffPassword.id = 'staffPassword';
         this.staffPassword.name = 'staffPassword';
-        this.staffPassword.placeholder = '스태프 비밀번호를 입력하세요';
+        this.staffPassword.placeholder = i18nService.get('staffPasswordPlaceholder');
         this.staffPassword.required = false;
         
         // 추가 정보 텍스트 생성
@@ -176,7 +205,7 @@ class UserManager {
         helpText.style.fontSize = '12px';
         helpText.style.marginTop = '4px';
         helpText.style.display = 'block';
-        helpText.textContent = '스태프로 로그인하려면 비밀번호가 필요합니다.';
+        helpText.textContent = i18nService.get('staffPasswordHelp');
         
         // 컨테이너에 요소 추가
         this.staffPasswordContainer.appendChild(passwordLabel);
@@ -325,7 +354,7 @@ class UserManager {
                 // 오류 메시지 표시
                 const errorMessage = document.createElement('div');
                 errorMessage.className = 'password-error-message';
-                errorMessage.textContent = '스태프 비밀번호가 올바르지 않습니다.';
+                errorMessage.textContent = i18nService.get('staffPasswordError');
                 errorMessage.style.color = 'var(--error)';
                 errorMessage.style.fontSize = '12px';
                 errorMessage.style.marginTop = '5px';
@@ -498,6 +527,18 @@ class UserManager {
         
         // 선호 언어 변경
         supabaseClient.setPreferredLanguage(newLanguage);
+        
+        // i18n 언어 변경
+        i18nService.setLanguage(newLanguage);
+        
+        // 모든 UI 텍스트 업데이트
+        i18nService.updateAllTexts();
+        
+        // 역할 선택지 업데이트
+        this.setupRoleOptions();
+        
+        // 비밀번호 필드 업데이트
+        this.setupStaffPasswordField();
         
         // 언어 변경 이벤트 콜백 호출
         if (typeof this.onLanguageChange === 'function') {

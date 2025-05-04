@@ -33,14 +33,10 @@ const CONFIG = {
     
     // 지원 언어 설정
     LANGUAGES: [
-        { code: 'ko', name: '한국어', flag: '🇰🇷' },
         { code: 'en', name: 'English', flag: '🇺🇸' },
-        { code: 'ja', name: '日本語', flag: '🇯🇵' },
+        { code: 'ko', name: '한국어', flag: '🇰🇷' },
+        { code: 'hi', name: 'Hindi', flag: '🇮🇳' },
         { code: 'zh', name: '中文', flag: '🇨🇳' },
-        { code: 'es', name: 'Español', flag: '🇪🇸' },
-        { code: 'fr', name: 'Français', flag: '🇫🇷' },
-        { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
-        // 필요에 따라 더 많은 언어 추가 가능
     ],
     
     // 사용자 역할 설정

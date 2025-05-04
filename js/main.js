@@ -11,6 +11,7 @@ import translationService from './translation.js';
 import userManager from './user.js';
 import chatManager from './chat.js';
 import mobileUI from './mobile-ui.js';
+import i18nService from './i18n.js';
 import * as utils from './utils.js';
 
 /**
@@ -65,6 +66,11 @@ class ConferenceChatApp {
             } catch (realtimeError) {
                 console.warn('실시간 구독 테스트 오류:', realtimeError);
             }
+            
+            // 다국어 지원 초기화
+            const savedLanguage = localStorage.getItem('preferredLanguage') || 'en';
+            i18nService.setLanguage(savedLanguage);
+            i18nService.updateAllTexts();
             
             // DOM 요소 참조 설정
             this.setupDOMReferences();
@@ -194,23 +200,8 @@ class ConferenceChatApp {
     updateConferenceInfo() {
         if (!this.conferenceData) return;
         
-        // 컨퍼런스 제목 업데이트
-        const titleElement = document.getElementById('conferenceTitle');
-        if (titleElement) {
-            titleElement.textContent = this.conferenceData.title;
-        }
-        
-        // 컨퍼런스 날짜 업데이트
-        const dateElement = document.getElementById('conferenceDate');
-        if (dateElement) {
-            dateElement.textContent = this.conferenceData.date;
-        }
-        
-        // 컨퍼런스 장소 업데이트
-        const locationElement = document.getElementById('conferenceLocation');
-        if (locationElement) {
-            locationElement.textContent = this.conferenceData.location;
-        }
+        // 모든 i18n 태그가 있는 요소는 i18nService에서 자동으로 업데이트
+        i18nService.updateAllTexts();
     }
 
     /**
@@ -398,6 +389,13 @@ class ConferenceChatApp {
             utils.logWarning('Unsupported language', language);
             return;
         }
+        
+        // i18n 언어 변경
+        i18nService.setLanguage(language);
+        i18nService.updateAllTexts();
+        
+        // 컬퍼런스 정보 다국어 처리
+        this.updateConferenceInfo();
         
         // 채팅 관리자에 언어 변경 알림
         if (chatManager) {
