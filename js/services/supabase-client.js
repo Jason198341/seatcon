@@ -1436,6 +1436,7 @@ class SupabaseClient {
         if (this.participantsSubscription) {
             try { this.participantsSubscription.unsubscribe(); } catch (e) {}
         }
+        const ONLINE_TIMEOUT_MS = 2 * 60 * 1000; // 2분
         this.participantsSubscription = this.supabase
             .channel('participants-realtime')
             .on('postgres_changes', {
@@ -1443,10 +1444,13 @@ class SupabaseClient {
                 schema: 'public',
                 table: 'participants',
             }, async () => {
+                const now = Date.now();
                 const { data } = await this.supabase
                     .from('participants')
                     .select('*');
-                callback(data || []);
+                // is_online=true && last_active_at 2분 이내만 필터링
+                const onlineParticipants = (data || []).filter(p => p.is_online && (now - new Date(p.last_active_at).getTime() < ONLINE_TIMEOUT_MS));
+                callback(onlineParticipants);
             })
             .subscribe();
     }
