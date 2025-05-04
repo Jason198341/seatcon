@@ -110,6 +110,28 @@ class MessageComponent {
             </div>
         `;
         
+        // Interpreter 메시지 템플릿 (강조 박스, 파란/보라색, Interpreter 뱃지)
+        this.messageTemplates.interpreter = `
+            <div class="message-header">
+                <span class="sender"></span>
+                <span class="role-badge interpreter">Interpreter</span>
+                <span class="time"></span>
+            </div>
+            <div class="message-content"></div>
+            <div class="message-footer">
+                <div class="translation-info hidden">
+                    <span class="translation-toggle">원문 보기</span>
+                    <span class="translation-language"></span>
+                </div>
+                <div class="message-actions">
+                    <div class="like-button">
+                        <i class="far fa-heart"></i>
+                        <span class="like-count"></span>
+                    </div>
+                </div>
+            </div>
+        `;
+        
         // 타이핑 인디케이터 템플릿
         this.messageTemplates.typing = `
             <div class="typing-text"></div>
@@ -147,12 +169,17 @@ class MessageComponent {
             const isAnnouncement = message.is_announcement || 
                                    (message.content && message.content.startsWith('📢 [공지]'));
             
+            // Interpreter 메시지인지 확인
+            const isInterpreterMsg = message.user_role === 'interpreter';
+            
             // 메시지 요소 생성
             const messageElement = document.createElement('div');
             
             // 메시지 클래스 설정
             if (isAnnouncement) {
                 messageElement.className = 'message announcement';
+            } else if (isInterpreterMsg) {
+                messageElement.className = 'message interpreter';
             } else {
                 messageElement.className = `message ${isMyMessage ? 'mine' : 'others'}`;
             }
@@ -175,6 +202,8 @@ class MessageComponent {
             // 템플릿 적용
             if (isAnnouncement) {
                 messageElement.innerHTML = this.messageTemplates.announcement;
+            } else if (isInterpreterMsg) {
+                messageElement.innerHTML = this.messageTemplates.interpreter;
             } else if (isMyMessage) {
                 messageElement.innerHTML = this.messageTemplates.mine;
             } else {
@@ -272,8 +301,13 @@ class MessageComponent {
                 }
                 const roleBadgeElement = element.querySelector('.role-badge');
                 if (roleBadgeElement && message.user_role && !isAnnouncement) {
-                    roleBadgeElement.textContent = this.getRoleDisplayName(message.user_role);
-                    roleBadgeElement.classList.add(message.user_role);
+                    if (message.user_role === 'interpreter') {
+                        roleBadgeElement.textContent = 'Interpreter';
+                        roleBadgeElement.classList.add('interpreter');
+                    } else {
+                        roleBadgeElement.textContent = this.getRoleDisplayName(message.user_role);
+                        roleBadgeElement.classList.add(message.user_role);
+                    }
                 }
             }
             const timeElement = element.querySelector('.time');

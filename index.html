@@ -45,8 +45,14 @@
                             <option value="exhibitor">전시자</option>
                             <option value="presenter">발표자</option>
                             <option value="staff">스태프</option>
-                        <option value="admin">관리자</option>
+                            <option value="admin">관리자</option>
+                            <option value="interpreter">통역사</option>
                         </select>
+                    </div>
+
+                    <div id="password-container" class="form-group hidden">
+                        <label for="password">비밀번호</label>
+                        <input type="password" id="password" name="password" placeholder="비밀번호를 입력하세요">
                     </div>
 
                     <div class="form-group">
@@ -142,6 +148,7 @@
                 <!-- 채팅 영역 (중앙) -->
                 <section id="chat-area">
                     <!-- 채팅 메시지 표시 영역 -->
+                    <div id="announcement-bar" class="announcement-bar hidden"></div>
                     <div id="messages-container">
                         <!-- 메시지들이 여기에 동적으로 로드됩니다 -->
                         <div class="system-message">채팅을 시작합니다</div>
@@ -149,6 +156,10 @@
 
                     <!-- 메시지 입력 영역 -->
                     <div id="chat-input-area">
+                        <div id="announcement-form" class="hidden">
+                            <textarea id="announcement-input" placeholder="공지사항을 입력하세요..." rows="1"></textarea>
+                            <button id="send-announcement-btn" type="button">공지사항 전송</button>
+                        </div>
                         <form id="message-form">
                             <div class="message-input-wrapper">
                                 <textarea id="message-input" placeholder="메시지를 입력하세요..." rows="1"></textarea>

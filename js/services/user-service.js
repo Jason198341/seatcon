@@ -113,6 +113,14 @@ class UserService {
     }
 
     /**
+     * 사용자가 통역사(interpreter)인지 확인
+     * @returns {boolean} - 통역사 여부
+     */
+    isInterpreter() {
+        return this.currentUser && this.currentUser.role === 'interpreter';
+    }
+
+    /**
      * 사용자 정보 검증
      * @param {Object} userInfo - 사용자 정보
      * @returns {Object} - 검증 결과 (isValid, errors)
@@ -133,7 +141,7 @@ class UserService {
         }
         
         // 역할 검증
-        const validRoles = ['attendee', 'exhibitor', 'presenter', 'staff', 'admin'];
+        const validRoles = ['attendee', 'exhibitor', 'presenter', 'staff', 'admin', 'interpreter'];
         if (!userInfo.role || !validRoles.includes(userInfo.role)) {
             errors.role = '올바른 역할을 선택해주세요.';
         }
@@ -142,6 +150,10 @@ class UserService {
         if (userInfo.role === 'admin' && 
             (!userInfo.password || userInfo.password !== this.config.ADMIN.PASSWORD)) {
             errors.password = '관리자 비밀번호가 올바르지 않습니다.';
+        }
+        if (userInfo.role === 'interpreter' && 
+            (!userInfo.password || userInfo.password !== this.config.INTERPRETER.PASSWORD)) {
+            errors.password = '통역사 비밀번호가 올바르지 않습니다.';
         }
         
         // 언어 검증

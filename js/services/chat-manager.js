@@ -329,6 +329,17 @@ class ChatManager {
      */
     async sendMessage(content) {
         try {
+            const user = this.userService.getCurrentUser();
+            if (!user) throw new Error('로그인 필요');
+            const message = {
+                content,
+                author_name: user.name,
+                author_email: user.email,
+                user_role: user.role, // 역할 정보 항상 포함
+                language: user.language,
+                created_at: new Date().toISOString(),
+            };
+            
             if (!content.trim()) {
                 this.logger.warn('빈 메시지는 전송할 수 없습니다.');
                 return null;
@@ -339,22 +350,11 @@ class ChatManager {
                 throw new Error(`메시지 길이가 최대 길이(${this.config.CHAT.MAX_MESSAGE_LENGTH}자)를 초과합니다.`);
             }
             
-            const currentUser = this.userService.getCurrentUser();
-            
-            if (!currentUser) {
-                this.logger.warn('로그인한 사용자 정보가 없어 메시지를 전송할 수 없습니다.');
-                throw new Error('로그인이 필요합니다.');
-            }
-            
-            // 메시지 언어 감지
-            const language = await this.translationService.detectLanguage(content);
-            this.logger.debug(`감지된 메시지 언어: ${language || '감지 실패'}`);
-            
             // 메시지 전송 시작 이벤트 발생
             if (this.listeners.onMessageSendStart) {
                 this.listeners.onMessageSendStart({
                     content,
-                    language: language || currentUser.language
+                    language: message.language
                 });
             }
             
@@ -369,12 +369,12 @@ class ChatManager {
                 const offlineMessage = {
                     id: 'offline-' + clientGeneratedId,
                     speaker_id: 'global-chat',
-                    author_name: currentUser.name,
-                    author_email: currentUser.email,
+                    author_name: user.name,
+                    author_email: user.email,
                     content: content,
                     client_generated_id: clientGeneratedId,
-                    user_role: currentUser.role,
-                    language: language || currentUser.language,
+                    user_role: user.role,
+                    language: message.language,
                     created_at: new Date().toISOString(),
                     status: 'pending',
                     isOffline: true
@@ -407,25 +407,25 @@ class ChatManager {
             }
             
             // Supabase에 메시지 전송
-            const message = await this.supabaseClient.sendMessage(content);
+            const sentMessage = await this.supabaseClient.sendMessage(content);
             
-            if (message) {
+            if (sentMessage) {
                 // 처리된 메시지 ID 추적
-                this.processedMessageIds.add(message.id);
-                if (message.client_generated_id) {
-                    this.processedMessageIds.add(message.client_generated_id);
+                this.processedMessageIds.add(sentMessage.id);
+                if (sentMessage.client_generated_id) {
+                    this.processedMessageIds.add(sentMessage.client_generated_id);
                 }
                 
                 // 전송된 메시지를 로컬 메시지 목록에 추가
-                const existingIndex = this.findMessageIndexById(message.id) || 
-                    (message.client_generated_id && this.findMessageIndexByClientId(message.client_generated_id));
+                const existingIndex = this.findMessageIndexById(sentMessage.id) || 
+                    (sentMessage.client_generated_id && this.findMessageIndexByClientId(sentMessage.client_generated_id));
                 
                 if (existingIndex !== -1) {
                     // 기존 메시지 업데이트
-                    this.messages[existingIndex] = message;
+                    this.messages[existingIndex] = sentMessage;
                 } else {
                     // 새 메시지 추가
-                    this.messages.push(message);
+                    this.messages.push(sentMessage);
                 }
                 
                 // 메시지 전송 플래그 설정
@@ -433,20 +433,21 @@ class ChatManager {
                 
                 // 메시지 전송 이벤트 발생
                 if (this.listeners.onNewMessage) {
-                    this.listeners.onNewMessage(message);
+                    this.listeners.onNewMessage(sentMessage);
                 }
                 
                 // 메시지 전송 성공 이벤트 발생
                 if (this.listeners.onMessageSendSuccess) {
                     this.listeners.onMessageSendSuccess({
-                        message
+                        message: sentMessage,
+                        wasBuffered: false
                     });
                 }
                 
-                this.logger.info('메시지 전송 완료:', message);
+                this.logger.info('메시지 전송 완료:', sentMessage);
             }
             
-            return message;
+            return sentMessage;
         } catch (error) {
             this.logger.error('메시지 전송 중 오류 발생:', error);
             
@@ -1292,7 +1293,7 @@ class ChatManager {
                 const delay = this.reconnectInterval * Math.pow(2, this.reconnectAttempts - 1);
                 this.logger.info(`${delay}ms 후 재연결 시도 예정...`);
             } else {
-                this.logger.error(`최대 재연결 시도 회수(${this.maxReconnectAttempts}회)를 초과했습니다.`);
+                this.logger.error(`최대 재연결 시도 횟수(${this.maxReconnectAttempts}회)를 초과했습니다.`);
                 
                 // 재연결 회수 초기화 (다시 시도할 수 있도록)
                 setTimeout(() => {

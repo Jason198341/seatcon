@@ -45,6 +45,28 @@ class ChatComponent {
             this.elements.emojiPickerBtn = document.getElementById('emoji-picker-btn');
             this.elements.attachmentBtn = document.getElementById('attachment-btn');
             
+            // 공지사항 작성 폼 표시/숨김 (관리자만)
+            this.announcementForm = document.getElementById('announcement-form');
+            this.announcementInput = document.getElementById('announcement-input');
+            this.sendAnnouncementBtn = document.getElementById('send-announcement-btn');
+            if (this.announcementForm && this.userService.isAdmin && this.userService.isAdmin()) {
+                this.announcementForm.classList.remove('hidden');
+                this.sendAnnouncementBtn?.addEventListener('click', async () => {
+                    const content = this.announcementInput.value.trim();
+                    if (!content) return;
+                    try {
+                        await this.chatManager.sendAnnouncement(content);
+                        this.announcementInput.value = '';
+                        this.logger.info('공지사항 전송 성공');
+                    } catch (e) {
+                        this.logger.error('공지사항 전송 실패:', e);
+                        alert('공지사항 전송에 실패했습니다.');
+                    }
+                });
+            } else if (this.announcementForm) {
+                this.announcementForm.classList.add('hidden');
+            }
+            
             // 이벤트 리스너 설정
             this.setupEventListeners();
             
@@ -338,6 +360,18 @@ class ChatComponent {
             }
             if (!existingMessage && message.client_generated_id) {
                 existingMessage = this.findMessageElementByClientId(message.client_generated_id);
+            }
+            // 공지사항 메시지는 announcement-bar에 상단 고정
+            const isAnnouncement = message.is_announcement || (message.content && message.content.startsWith('📢 [공지]'));
+            if (isAnnouncement) {
+                const announcementBar = document.getElementById('announcement-bar');
+                if (announcementBar) {
+                    announcementBar.innerHTML = '';
+                    const announcementElement = this.createMessageElement(message);
+                    announcementBar.appendChild(announcementElement);
+                    announcementBar.classList.remove('hidden');
+                }
+                return;
             }
             if (existingMessage) {
                 this.logger.debug('기존 메시지 업데이트:', message.id || message.client_generated_id);

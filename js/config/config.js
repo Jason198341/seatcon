@@ -76,5 +76,10 @@ const CONFIG = {
     ADMIN: {
         PASSWORD: '9881',
         ANNOUNCEMENT_PREFIX: '📢 [공지]', // 확성기 이모지와 공지 접두사
-    }
+    },
+    
+    // 통역사(Interpreter) 설정
+    INTERPRETER: {
+        PASSWORD: '9882',
+    },
 };

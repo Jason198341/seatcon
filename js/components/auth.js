@@ -93,8 +93,8 @@ class AuthComponent {
         
         const selectedRole = this.elements.roleSelect.value;
         
-        // 관리자 역할 선택 시 비밀번호 필드 표시
-        if (selectedRole === 'admin') {
+        // 관리자 또는 통역사 역할 선택 시 비밀번호 필드 표시
+        if (selectedRole === 'admin' || selectedRole === 'interpreter') {
             this.elements.passwordContainer.classList.remove('hidden');
             this.elements.passwordInput.required = true;
         } else {
@@ -123,8 +123,8 @@ class AuthComponent {
                 language: this.elements.languageSelect.value,
             };
             
-            // 관리자 역할인 경우 비밀번호 추가
-            if (userInfo.role === 'admin') {
+            // 관리자 또는 통역사 역할인 경우 비밀번호 추가
+            if (userInfo.role === 'admin' || userInfo.role === 'interpreter') {
                 userInfo.password = this.elements.passwordInput.value;
             }
             
