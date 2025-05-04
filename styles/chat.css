@@ -19,28 +19,28 @@
     border: 1px solid var(--border);
 }
 
-/* 채팅 상단 바 - Figma 스타일로 업데이트 */
+/* 채팅 상단 바 - 더 얇게 수정 */
 .chat-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
+    padding: 5px 12px;
     background-color: var(--background);
     border-bottom: 1px solid var(--border);
     transition: all 200ms ease;
+    height: 35px;
+}
+
+.chat-title-container {
+    display: flex;
+    align-items: center;
 }
 
 .chat-title {
     font-weight: 600;
-    font-size: 16px;
+    font-size: 14px;
     color: var(--foreground);
     margin: 0;
-}
-
-.chat-subtitle {
-    font-size: 12px;
-    color: var(--foreground-alt);
-    margin-top: 4px;
 }
 
 .chat-actions {

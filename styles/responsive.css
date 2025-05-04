@@ -10,6 +10,16 @@
     --bottom-nav-height: 56px;
 }
 
+/* 모든 화면 크기에서 채팅 헤더 얇게 유지 */
+.chat-header {
+    padding: 5px 10px;
+    height: 35px;
+}
+    
+.chat-title {
+    font-size: 14px;
+}
+
 /* 모바일 디바이스 (세로 화면) */
 @media (max-width: 767px) {
     body {
