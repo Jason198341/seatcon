@@ -78,7 +78,10 @@ class AuthComponent {
         // 실시간 유효성 검사
         this.elements.nameInput?.addEventListener('input', this.validateField.bind(this, 'name'));
         this.elements.emailInput?.addEventListener('input', this.validateField.bind(this, 'email'));
-        this.elements.roleSelect?.addEventListener('change', this.validateField.bind(this, 'role'));
+        this.elements.roleSelect?.addEventListener('change', (e) => {
+            console.log('[DEBUG] 역할 변경:', e.target.value);
+            this.validateField('role', e);
+        });
         this.elements.passwordInput?.addEventListener('input', this.validateField.bind(this, 'password'));
         
         // 역할 변경 시 비밀번호 필드 표시/숨김
@@ -379,8 +382,13 @@ class AuthComponent {
     show() {
         if (!this.elements.authContainer) return;
         this.elements.authContainer.classList.remove('hidden');
-        // 역할에 따라 비밀번호 필드 동기화
+        // 역할에 따라 비밀번호 필드 동기화 (강제)
         this.handleRoleChange();
+        // 디버깅: 현재 역할/비밀번호 컨테이너 상태 출력
+        if (this.elements.roleSelect && this.elements.passwordContainer) {
+            console.log('[DEBUG] show() - 현재 역할:', this.elements.roleSelect.value);
+            console.log('[DEBUG] show() - passwordContainer.hidden:', this.elements.passwordContainer.classList.contains('hidden'));
+        }
     }
 
     /**
