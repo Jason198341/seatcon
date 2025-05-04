@@ -79,6 +79,9 @@ class UserManager {
         
         // 현재 상태에 따라 UI 업데이트
         this.updateUI();
+        
+        // 현재 언어에 맞게 UI 업데이트
+        i18nService.updateAllTexts();
     }
 
     /**
@@ -244,9 +247,18 @@ class UserManager {
         
         // 언어 변경 이벤트
         if (this.languageSelector) {
-            this.languageSelector.addEventListener('change', () => {
+            // 기존 이벤트 리스너 제거
+            const oldHandler = this.languageSelector._changeHandler;
+            if (oldHandler) {
+                this.languageSelector.removeEventListener('change', oldHandler);
+            }
+            
+            // 새 이벤트 리스너 저장 및 추가
+            const newHandler = () => {
                 this.handleLanguageChange();
-            });
+            };
+            this.languageSelector._changeHandler = newHandler;
+            this.languageSelector.addEventListener('change', newHandler);
         }
     }
     
@@ -528,8 +540,9 @@ class UserManager {
         // 선호 언어 변경
         supabaseClient.setPreferredLanguage(newLanguage);
         
-        // i18n 언어 변경
-        i18nService.setLanguage(newLanguage);
+        // i18n 언어 변경 - 이벤트 발생 없이 조용히 변경
+        i18nService.currentLanguage = newLanguage;
+        localStorage.setItem('preferredLanguage', newLanguage);
         
         // 모든 UI 텍스트 업데이트
         i18nService.updateAllTexts();
@@ -540,7 +553,7 @@ class UserManager {
         // 비밀번호 필드 업데이트
         this.setupStaffPasswordField();
         
-        // 언어 변경 이벤트 콜백 호출
+        // 언어 변경 이벤트 콜백 호출 - 특별히 이벤트 발생 없이
         if (typeof this.onLanguageChange === 'function') {
             this.onLanguageChange(newLanguage);
         }

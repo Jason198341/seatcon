@@ -69,7 +69,7 @@ class ConferenceChatApp {
             
             // 다국어 지원 초기화
             const savedLanguage = localStorage.getItem('preferredLanguage') || 'en';
-            i18nService.setLanguage(savedLanguage);
+            i18nService.setLanguage(savedLanguage, false); // 이벤트 발생 없이 초기화
             i18nService.updateAllTexts();
             
             // DOM 요소 참조 설정
@@ -133,11 +133,6 @@ class ConferenceChatApp {
                 this.toggleTheme();
             });
         }
-        
-        // 언어 변경 이벤트 등록
-        window.addEventListener('language-changed', (e) => {
-            this.handleLanguageChange(e.detail.language);
-        });
         
         // 화면 크기 변경 감지
         window.addEventListener('resize', utils.throttle(() => {
@@ -390,8 +385,9 @@ class ConferenceChatApp {
             return;
         }
         
-        // i18n 언어 변경
-        i18nService.setLanguage(language);
+        // i18n 언어 변경 - 이벤트 발생 없이 바로 변경
+        i18nService.currentLanguage = language;
+        localStorage.setItem('preferredLanguage', language);
         i18nService.updateAllTexts();
         
         // 컬퍼런스 정보 다국어 처리
@@ -401,11 +397,6 @@ class ConferenceChatApp {
         if (chatManager) {
             chatManager.handleLanguageChange(language);
         }
-        
-        // 언어 변경 이벤트 발생
-        window.dispatchEvent(new CustomEvent('language-changed', { 
-            detail: { language } 
-        }));
         
         utils.log('Language changed', language);
     }

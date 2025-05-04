@@ -256,9 +256,10 @@ class I18nService {
     /**
      * 언어 설정
      * @param {string} languageCode - 언어 코드
+     * @param {boolean} triggerEvent - 이벤트 발생 여부 (기본값: false)
      * @returns {boolean} - 성공 여부
      */
-    setLanguage(languageCode) {
+    setLanguage(languageCode, triggerEvent = false) {
         if (!this.isLanguageSupported(languageCode)) {
             console.error(`Unsupported language: ${languageCode}`);
             return false;
@@ -267,10 +268,13 @@ class I18nService {
         this.currentLanguage = languageCode;
         localStorage.setItem('preferredLanguage', languageCode);
         
-        // 언어 변경 이벤트 발생
-        window.dispatchEvent(new CustomEvent('language-changed', {
-            detail: { language: languageCode }
-        }));
+        // 이벤트 발생 여부 확인
+        if (triggerEvent) {
+            // 언어 변경 이벤트 발생
+            window.dispatchEvent(new CustomEvent('language-changed', {
+                detail: { language: languageCode }
+            }));
+        }
         
         return true;
     }
