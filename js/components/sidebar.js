@@ -35,7 +35,7 @@ class SidebarComponent {
         
         this.init();
         // 참가자 실시간 구독 시작 (supabaseClient는 window에서 참조)
-        if (window.supabaseClient) {
+        if (window.supabaseClient && window.supabaseClient.supabase) {
             this.subscribeParticipantsRealtime(window.supabaseClient);
         }
     }

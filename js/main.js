@@ -117,6 +117,7 @@ async function initializeServices() {
     // Supabase 클라이언트 초기화
     supabaseClient = new SupabaseClient(CONFIG, logger);
     await supabaseClient.init();
+    window.supabaseClient = supabaseClient;
     
     // 사용자 서비스 초기화
     userService = new UserService(CONFIG, logger);
