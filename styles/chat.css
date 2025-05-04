@@ -86,7 +86,7 @@
 .message {
     display: flex;
     flex-direction: column;
-    max-width: 82%; /* 모바일에서 너비 감소 */
+    max-width: 85%; /* 너비 다시 원복하여 키움 */
     padding: 8px 10px;
     border-radius: 12px;
     background-color: #F0F2F5;

@@ -1,9 +1,21 @@
+/* 메시지 폰트 크기 증가 */
+.original-content {
+    font-size: 16px !important; /* 폰트 크기 증가 */
+    line-height: 1.4;
+    margin-bottom: 5px;
+}
+
+.translated-content {
+    font-size: 14px !important; /* 번역 메시지 폰트 크기 증가 */
+    line-height: 1.4;
+}
+
 /* 입력창 문제 해결을 위한 추가 수정사항 */
 
 /* 메시지를 가리지 않도록 추가 여백 */
 @media (max-width: 767px) {
     .message-list {
-        padding-bottom: 100px !important; /* 더 큰 여백 적용 */
+        padding-bottom: 120px !important; /* 더 큰 여백 적용 */
     }
     
     /* 입력폼 배경 강화 */
@@ -31,27 +43,28 @@
 
 /* 메시지 최적화 */
 .message {
+    max-width: 90%; /* 더 크게 조정 */
     overflow: hidden; /* 오버플로우 방지 */
+    padding: 10px 12px !important; /* 패딩 증가 */
 }
 
 /* iOS에서 좌우 여백 계산 방식 변경 */
 .message.own-message {
-    margin-left: 20%;
+    margin-left: 10%;
     margin-right: 2px;
 }
 
 /* 기본 메시지는 왼쪽 정렬 */
 .message:not(.own-message) {
-    margin-right: 20%;
+    margin-right: 10%;
     margin-left: 2px;
 }
 
 /* 작은 디바이스에서 메시지 크기 추가 조정 */
 @media (max-width: 375px) {
     .message {
-        max-width: 78%; /* 더 작은 기기에서는 너비 추가 제한 */
-        padding: 6px 8px; /* 패딩 더 감소 */
-        font-size: 13px; /* 글자 크기 감소 */
+        max-width: 90%; /* 너비 동일하게 유지 */
+        padding: 10px 12px !important; /* 패딩 유지 */
     }
     
     .message-meta {
