@@ -65,6 +65,17 @@ class UserService {
             // 로컬 스토리지에 사용자 정보 저장
             this.saveUserInfo(this.currentUser);
             
+            // 참가자 온라인 상태 upsert (supabaseClient 필요)
+            if (window.supabaseClient) {
+                window.supabaseClient.upsertParticipantStatus({
+                    email: userInfo.email,
+                    name: userInfo.name,
+                    role: userInfo.role,
+                    language: userInfo.language,
+                    isOnline: true
+                });
+            }
+            
             // 성공 이벤트 발생
             const loginEvent = new CustomEvent('auth:login-success', {
                 detail: { userInfo: this.currentUser }
@@ -341,6 +352,10 @@ class UserService {
      */
     logout() {
         try {
+            // 참가자 오프라인 처리 (supabaseClient 필요)
+            if (this.currentUser && window.supabaseClient) {
+                window.supabaseClient.setParticipantOffline(this.currentUser.email);
+            }
             this.currentUser = null;
             localStorage.removeItem(this.config.STORAGE.USER_INFO);
             this.logger.info('사용자 로그아웃 완료');
@@ -369,4 +384,14 @@ class UserService {
         if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
         return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
     }
+}
+
+// 브라우저 종료/새로고침 시 참가자 오프라인 처리
+if (typeof window !== 'undefined') {
+    window.addEventListener('beforeunload', () => {
+        const userService = window.userService;
+        if (userService && userService.currentUser && window.supabaseClient) {
+            window.supabaseClient.setParticipantOffline(userService.currentUser.email);
+        }
+    });
 }

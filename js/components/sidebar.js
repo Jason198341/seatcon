@@ -884,14 +884,15 @@ class SidebarComponent {
      * @returns {string} - 역할 표시 이름
      */
     getRoleDisplayName(role) {
-        const roleMap = {
-            'attendee': '참가자',
-            'exhibitor': '전시자',
-            'presenter': '발표자',
-            'staff': '스태프',
+        const map = {
+            attendee: '참가자',
+            exhibitor: '전시자',
+            presenter: '발표자',
+            staff: '스태프',
+            admin: '관리자',
+            interpreter: '통역사',
         };
-        
-        return roleMap[role] || role;
+        return map[role] || role;
     }
 
     /**
@@ -1006,11 +1007,33 @@ class SidebarComponent {
      * @param {SupabaseClient} supabaseClient
      */
     subscribeParticipantsRealtime(supabaseClient) {
-        if (!supabaseClient || typeof supabaseClient.subscribeToParticipants !== 'function') return;
+        if (!supabaseClient) return;
         supabaseClient.subscribeToParticipants((participants) => {
-            this.dataManager.participants = participants;
-            this.updateParticipantsList(this.dataManager.getParticipantsByRole(this.currentFilter));
-            this.logger.info('실시간 참가자 목록 동기화 완료:', participants.length);
+            // is_online: true인 참가자만 필터링
+            const onlineParticipants = (participants || []).filter(p => p.is_online);
+            this.dataManager.participants = onlineParticipants;
+            this.updateParticipantsList();
         });
+    }
+
+    updateParticipantsList() {
+        const list = this.elements.participantsList;
+        if (!list) return;
+        list.innerHTML = '';
+        const participants = this.dataManager.participants || [];
+        if (participants.length === 0) {
+            list.innerHTML = '<div class="placeholder-item">현재 접속 중인 참가자가 없습니다.</div>';
+            return;
+        }
+        for (const p of participants) {
+            const item = document.createElement('div');
+            item.className = 'participant-item';
+            item.innerHTML = `
+                <span class="participant-name">${p.name}</span>
+                <span class="participant-role">${this.getRoleDisplayName(p.role)}</span>
+                <span class="online-badge">● 접속 중</span>
+            `;
+            list.appendChild(item);
+        }
     }
 }

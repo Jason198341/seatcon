@@ -1395,11 +1395,44 @@ class SupabaseClient {
     }
 
     /**
-     * 참가자 테이블 실시간 구독
-     * @param {function} callback - 참가자 목록 변경 시 호출될 콜백
+     * 참가자 온라인 상태 upsert
+     */
+    async upsertParticipantStatus({ email, name, role, language, isOnline }) {
+        if (!email) return;
+        const { data, error } = await this.supabase
+            .from('participants')
+            .upsert({
+                email,
+                name,
+                role,
+                language,
+                is_online: isOnline,
+                last_active_at: new Date().toISOString(),
+            }, { onConflict: ['email'] });
+        if (error) {
+            this.logger?.error('참가자 상태 upsert 오류:', error);
+        }
+        return data;
+    }
+
+    /**
+     * 참가자 오프라인 처리
+     */
+    async setParticipantOffline(email) {
+        if (!email) return;
+        const { error } = await this.supabase
+            .from('participants')
+            .update({ is_online: false, last_active_at: new Date().toISOString() })
+            .eq('email', email);
+        if (error) {
+            this.logger?.error('참가자 오프라인 처리 오류:', error);
+        }
+    }
+
+    /**
+     * participants 테이블 실시간 구독
      */
     subscribeToParticipants(callback) {
-        if (!this.supabase) return;
         if (this.participantsSubscription) {
             try { this.participantsSubscription.unsubscribe(); } catch (e) {}
         }
@@ -1409,14 +1442,11 @@ class SupabaseClient {
                 event: '*',
                 schema: 'public',
                 table: 'participants',
-            }, async (payload) => {
-                // 변경 발생 시 전체 참가자 목록을 다시 조회하여 콜백에 전달
-                const { data, error } = await this.supabase
+            }, async () => {
+                const { data } = await this.supabase
                     .from('participants')
                     .select('*');
-                if (!error && data) {
-                    callback(data);
-                }
+                callback(data || []);
             })
             .subscribe();
     }
