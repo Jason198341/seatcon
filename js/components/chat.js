@@ -327,55 +327,51 @@ class ChatComponent {
      */
     handleNewMessage(message) {
         try {
-            // 메시지 유효성 검사
             if (!message) {
                 this.logger.warn('유효하지 않은 메시지 객체');
                 return;
             }
-            
             this.logger.debug('새 메시지 처리 시작:', message.id || message.client_generated_id || '아이디 없음');
-            
-            // 메시지 ID 및 클라이언트 생성 ID로 기존 메시지 확인
             let existingMessage = null;
-            
             if (message.id) {
                 existingMessage = this.findMessageElement(message.id);
             }
-            
-            // ID로 찾지 못했는데 클라이언트 생성 ID가 있는 경우
             if (!existingMessage && message.client_generated_id) {
                 existingMessage = this.findMessageElementByClientId(message.client_generated_id);
             }
-            
             if (existingMessage) {
                 this.logger.debug('기존 메시지 업데이트:', message.id || message.client_generated_id);
-                
-                // 이미 표시된 메시지인 경우 업데이트
                 this.updateMessageElement(existingMessage, message);
-                
-                // pending/sending 상태였다가 완료된 경우 클래스 업데이트
                 if (message.id && !existingMessage.dataset.id) {
                     existingMessage.dataset.id = message.id;
                     existingMessage.classList.remove('sending', 'failed');
                 }
             } else {
                 this.logger.debug('새 메시지 요소 생성:', message.id || message.client_generated_id);
-                
-                // 새 메시지 요소 생성
                 const messageElement = this.createMessageElement(message);
-                
-                // 메시지 컨테이너에 추가
+                // 번역이 필요한 경우 "번역 중..." 표시
+                if (
+                    message.language &&
+                    this.userService.getCurrentUser() &&
+                    message.language !== this.userService.getCurrentUser().language &&
+                    !message.translatedContent
+                ) {
+                    const footer = messageElement.querySelector('.message-footer');
+                    if (footer && !footer.querySelector('.translation-info')) {
+                        const translationInfo = document.createElement('div');
+                        translationInfo.className = 'translation-info';
+                        translationInfo.innerHTML = `<span class="translation-language">번역 중...</span>`;
+                        footer.prepend(translationInfo);
+                    }
+                }
                 if (this.elements.messagesContainer) {
                     this.elements.messagesContainer.appendChild(messageElement);
                 } else {
                     this.logger.error('메시지 컨테이너를 찾을 수 없습니다');
                     return;
                 }
-                
-                // 스크롤 아래로
                 this.scrollToBottom();
             }
-            
             this.logger.debug('새 메시지 처리 완료:', message.id || message.client_generated_id);
         } catch (error) {
             this.logger.error('새 메시지 처리 중 오류 발생:', error);
@@ -389,50 +385,43 @@ class ChatComponent {
     handleMessageTranslated(message) {
         try {
             this.logger.debug('메시지 번역 완료:', message);
-            
-            // 메시지 요소 찾기
             const messageElement = this.findMessageElement(message.id);
-            
             if (messageElement) {
-                // 메시지 내용 업데이트
                 const contentElement = messageElement.querySelector('.message-content');
-                
                 if (contentElement) {
-                    // 번역된 내용으로 업데이트
-                    contentElement.textContent = message.translatedContent;
-                    
-                    // 번역 정보 추가
-                    if (!messageElement.querySelector('.translation-info')) {
-                        const translationInfo = document.createElement('div');
-                        translationInfo.className = 'translation-info';
+                    if (message.translatedContent && message.translatedLanguage) {
+                        contentElement.textContent = message.translatedContent;
+                        // 번역 정보 추가/갱신
+                        let translationInfo = messageElement.querySelector('.translation-info');
+                        if (!translationInfo) {
+                            translationInfo = document.createElement('div');
+                            translationInfo.className = 'translation-info';
+                            messageElement.querySelector('.message-footer')?.prepend(translationInfo);
+                        }
                         translationInfo.innerHTML = `
                             <span class="translation-toggle">원문 보기</span>
                             <span class="translation-language">${this.translationService.getLanguageName(message.translatedLanguage)}로 번역됨</span>
                         `;
-                        
-                        // 원문/번역 토글 이벤트
                         const toggleBtn = translationInfo.querySelector('.translation-toggle');
                         toggleBtn.addEventListener('click', () => {
                             const isShowingOriginal = toggleBtn.textContent === '번역 보기';
-                            
                             if (isShowingOriginal) {
-                                // 번역본으로 전환
                                 contentElement.textContent = message.translatedContent;
                                 toggleBtn.textContent = '원문 보기';
                             } else {
-                                // 원문으로 전환
                                 contentElement.textContent = message.content;
                                 toggleBtn.textContent = '번역 보기';
                             }
                         });
-                        
-                        // 메시지 푸터에 추가
-                        const footer = messageElement.querySelector('.message-footer');
-                        if (footer) {
-                            footer.prepend(translationInfo);
-                        } else {
-                            messageElement.appendChild(translationInfo);
+                    } else {
+                        // 번역 실패 시 안내
+                        let translationInfo = messageElement.querySelector('.translation-info');
+                        if (!translationInfo) {
+                            translationInfo = document.createElement('div');
+                            translationInfo.className = 'translation-info';
+                            messageElement.querySelector('.message-footer')?.prepend(translationInfo);
                         }
+                        translationInfo.innerHTML = `<span class="translation-language">번역 실패</span>`;
                     }
                 }
             }

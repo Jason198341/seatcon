@@ -1393,4 +1393,31 @@ class SupabaseClient {
             return false;
         }
     }
+
+    /**
+     * 참가자 테이블 실시간 구독
+     * @param {function} callback - 참가자 목록 변경 시 호출될 콜백
+     */
+    subscribeToParticipants(callback) {
+        if (!this.supabase) return;
+        if (this.participantsSubscription) {
+            try { this.participantsSubscription.unsubscribe(); } catch (e) {}
+        }
+        this.participantsSubscription = this.supabase
+            .channel('participants-realtime')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'participants',
+            }, async (payload) => {
+                // 변경 발생 시 전체 참가자 목록을 다시 조회하여 콜백에 전달
+                const { data, error } = await this.supabase
+                    .from('participants')
+                    .select('*');
+                if (!error && data) {
+                    callback(data);
+                }
+            })
+            .subscribe();
+    }
 }

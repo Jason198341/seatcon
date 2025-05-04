@@ -99,6 +99,11 @@ function initializeComponents() {
     // 사이드바 컴포넌트 초기화
     sidebarComponent = new SidebarComponent(dataManager, userService, logger);
     
+    // 참가자 실시간 구독 보장 (supabaseClient가 준비된 후에도)
+    if (typeof sidebarComponent.subscribeParticipantsRealtime === 'function' && window.supabaseClient) {
+        sidebarComponent.subscribeParticipantsRealtime(window.supabaseClient);
+    }
+    
     // 설정 컴포넌트 초기화
     settingsComponent = new SettingsComponent(userService, chatManager, logger);
     
@@ -224,6 +229,11 @@ function setupGlobalEventListeners() {
     
     // 초기 창 크기 처리
     handleWindowResize();
+    
+    // 로그아웃 버튼 클릭 이벤트
+    document.getElementById('logout-btn')?.addEventListener('click', () => {
+        logout();
+    });
     
     logger.info('전역 이벤트 리스너 설정 완료');
 }

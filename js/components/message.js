@@ -264,60 +264,78 @@ class MessageComponent {
             if (!isMyMessage || isAnnouncement) {
                 const senderElement = element.querySelector('.sender');
                 if (senderElement) {
-                    // 공지사항인 경우 "공지사항" 텍스트 추가
                     if (isAnnouncement) {
                         senderElement.textContent = `${message.author_name} (공지사항)`;
                     } else {
                         senderElement.textContent = message.author_name;
                     }
                 }
-                
-                // 역할 배지
                 const roleBadgeElement = element.querySelector('.role-badge');
                 if (roleBadgeElement && message.user_role && !isAnnouncement) {
                     roleBadgeElement.textContent = this.getRoleDisplayName(message.user_role);
                     roleBadgeElement.classList.add(message.user_role);
                 }
             }
-            
-            // 시간
             const timeElement = element.querySelector('.time');
             if (timeElement) {
                 timeElement.textContent = this.formatTime(message.created_at);
             }
-            
-            // 메시지 내용
             const contentElement = element.querySelector('.message-content');
             if (contentElement) {
-                // 공지사항인 경우 접두사 제거 (이미 UI에 표시되었으므로)
                 let content = message.translatedContent || message.content;
-                
                 if (isAnnouncement && content.startsWith('📢 [공지]')) {
                     content = content.replace('📢 [공지]', '').trim();
                 }
-                
                 contentElement.textContent = content;
-                
-                // 공지사항인 경우 강조 스타일 추가
                 if (isAnnouncement) {
                     contentElement.classList.add('announcement-content');
                 }
             }
-            
             // 번역 정보
+            const translationInfoElement = element.querySelector('.translation-info');
             if (message.translatedContent && message.translatedLanguage) {
-                const translationInfoElement = element.querySelector('.translation-info');
                 if (translationInfoElement) {
                     translationInfoElement.classList.remove('hidden');
-                    
                     const languageElement = translationInfoElement.querySelector('.translation-language');
                     if (languageElement) {
                         languageElement.textContent = `${this.translationService.getLanguageName(message.translatedLanguage)}로 번역됨`;
                     }
                 }
+            } else if (
+                message.language &&
+                this.translationService &&
+                this.translationService.defaultLanguage &&
+                message.language !== this.translationService.defaultLanguage &&
+                !message.translatedContent
+            ) {
+                // 번역 중 표시
+                if (translationInfoElement) {
+                    translationInfoElement.classList.remove('hidden');
+                    const languageElement = translationInfoElement.querySelector('.translation-language');
+                    if (languageElement) {
+                        languageElement.textContent = '번역 중...';
+                    }
+                } else if (element.querySelector('.message-footer')) {
+                    const info = document.createElement('div');
+                    info.className = 'translation-info';
+                    info.innerHTML = '<span class="translation-language">번역 중...</span>';
+                    element.querySelector('.message-footer').prepend(info);
+                }
+            } else if (message.translatedContent === null) {
+                // 번역 실패 표시
+                if (translationInfoElement) {
+                    translationInfoElement.classList.remove('hidden');
+                    const languageElement = translationInfoElement.querySelector('.translation-language');
+                    if (languageElement) {
+                        languageElement.textContent = '번역 실패';
+                    }
+                } else if (element.querySelector('.message-footer')) {
+                    const info = document.createElement('div');
+                    info.className = 'translation-info';
+                    info.innerHTML = '<span class="translation-language">번역 실패</span>';
+                    element.querySelector('.message-footer').prepend(info);
+                }
             }
-            
-            // 공지사항인 경우 추가 스타일링
             if (isAnnouncement) {
                 element.style.borderLeft = '4px solid #ff9800';
                 element.style.backgroundColor = 'rgba(255, 152, 0, 0.05)';

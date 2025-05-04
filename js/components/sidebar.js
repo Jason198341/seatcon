@@ -34,6 +34,10 @@ class SidebarComponent {
         this.exhibitorDisplayMode = 'list'; // 'list' 또는 'category'
         
         this.init();
+        // 참가자 실시간 구독 시작 (supabaseClient는 window에서 참조)
+        if (window.supabaseClient) {
+            this.subscribeParticipantsRealtime(window.supabaseClient);
+        }
     }
 
     /**
@@ -995,5 +999,18 @@ class SidebarComponent {
         } catch (error) {
             this.logger.error('사이드바 숨기기 중 오류 발생:', error);
         }
+    }
+
+    /**
+     * 참가자 실시간 구독 시작
+     * @param {SupabaseClient} supabaseClient
+     */
+    subscribeParticipantsRealtime(supabaseClient) {
+        if (!supabaseClient || typeof supabaseClient.subscribeToParticipants !== 'function') return;
+        supabaseClient.subscribeToParticipants((participants) => {
+            this.dataManager.participants = participants;
+            this.updateParticipantsList(this.dataManager.getParticipantsByRole(this.currentFilter));
+            this.logger.info('실시간 참가자 목록 동기화 완료:', participants.length);
+        });
     }
 }

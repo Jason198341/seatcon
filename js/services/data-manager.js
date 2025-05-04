@@ -405,4 +405,28 @@ class DataManager {
             return 0;
         }
     }
+
+    /**
+     * Supabase에서 참가자 목록을 받아와 갱신
+     * @param {SupabaseClient} supabaseClient - Supabase 클라이언트 인스턴스
+     * @returns {Promise<Array>} - 참가자 목록
+     */
+    async fetchParticipantsFromDB(supabaseClient) {
+        if (!supabaseClient || !supabaseClient.supabase) return [];
+        try {
+            const { data, error } = await supabaseClient.supabase
+                .from('participants')
+                .select('*');
+            if (!error && data) {
+                this.participants = data;
+                this.logger.info('DB에서 참가자 목록 갱신:', data.length);
+                return data;
+            }
+            this.logger.error('DB 참가자 목록 조회 오류:', error);
+            return [];
+        } catch (err) {
+            this.logger.error('DB 참가자 목록 조회 중 예외:', err);
+            return [];
+        }
+    }
 }
