@@ -1,7 +1,7 @@
 # 프리미엄 컨퍼런스 채팅 시스템 프로젝트 계획
 
 ## 프로젝트 개요
-본 프로젝트는 컨퍼런스를 위한 세계 최고 수준의 프리미엄 채팅 시스템을 만드는 것을 목표로 합니다. 이 시스템은 실시간 번역 기능을 포함한 최신 웹 기술을 활용하여 컨퍼런스 참가자, 전시자, 발표자 간의 원활한 소통을 지원합니다.
+본 프로젝트는 컨퍼런스를 위한 세계 최고 수준의 프리미엄 채팅 시스템을 만드는 것을 목표로 합니다. 이 시스템은 실시간 번역 기능을 포함한 최신 웹 기술을 활용하여 컨퍼런스 참가자, 전시자, 발표자 간의 원활한 소통을 지원합니다. 특히 제공된 전시물 리스트와 컨퍼런스 발표자 정보를 통합하여 참가자들에게 풍부한 컨텍스트를 제공합니다.
 
 ## 핵심 기능
 1. **다국어 실시간 번역** - Google Cloud Translation API 활용
@@ -47,18 +47,29 @@
 - [x] 모바일 반응형 디자인 구현
 - [x] 고급 애니메이션 및 전환 효과 추가
 
-### 4단계: 통합 및 테스트
-- [x] 백엔드와 프론트엔드 통합
-- [x] 오류 처리 및 로깅 구현
-- [x] 단위 테스트 수행
+### 4단계: 데이터 통합 및 기능 추가
+- [x] 전시물 리스트 데이터 통합
+- [x] 컨퍼런스 발표자 정보 통합
+- [x] 전시물 검색 및 필터링 기능 구현
+- [x] 전시업체 카테고리별/회사별 보기 기능 구현
+- [x] 일정별 발표자 프로필 연결
+- [ ] 메시지 우선순위 기능 추가
+- [ ] 채팅방 내 공지사항 기능 구현
+- [ ] 다국어 인터페이스 완성
+
+### 5단계: 테스트 및 최적화
+- [x] 주요 기능 단위 테스트 구현
 - [x] 통합 테스트 수행
-- [ ] 사용자 수용성 테스트 수행
+- [x] Supabase 테이블 생성 및 SQL 스크립트 작성
+- [x] 문제 해결 가이드 작성
+- [ ] 사용자 수용성 테스트
 - [ ] 성능 최적화
 - [ ] 보안 취약점 점검 및 수정
+- [ ] 로깅 및 모니터링 구현
 
-### 5단계: 배포 및 문서화
+### 6단계: 배포 및 문서화
 - [ ] 애플리케이션 배포 설정
-- [x] 사용자 매뉴얼 작성
+- [ ] 사용자 매뉴얼 작성
 - [x] 개발자 문서 작성
 - [ ] 성능 모니터링 도구 설정
 - [ ] 피드백 수집 시스템 구현
@@ -67,56 +78,103 @@
 
 ### 백엔드
 - **Supabase**: 실시간 데이터베이스 및 인증
-- **Node.js**: 서버 측 로직
-- **Express.js**: API 엔드포인트 관리
 - **Google Cloud Translation API**: 다국어 번역
 
 ### 프론트엔드
 - **HTML5/CSS3**: 기본 마크업 및 스타일링
-- **JavaScript/TypeScript**: 프로그래밍 언어
-- **React**: UI 컴포넌트 구축
-- **TailwindCSS**: 고급 스타일링
+- **JavaScript**: 프로그래밍 언어
+- **FontAwesome**: 아이콘
+- **Google Fonts & Pretendard**: 폰트
 
-### 도구 및 유틸리티
-- **Git**: 버전 관리
-- **Jest**: 테스트 프레임워크
-- **ESLint/Prettier**: 코드 품질 및 스타일 관리
-- **Webpack**: 모듈 번들링
+### 데이터 관리
+- **LocalStorage**: 클라이언트 측 데이터 캐싱
+- **JSON**: 데이터 포맷
 
-## 현재 진행 상황
+## 문제 해결 및 개선사항
 
-현재 프로젝트는 대부분의 기능이 구현되었으며, 최종 테스트와 배포만 남아있습니다. 다음은 완료된 파일 목록입니다:
+### 로그인 문제 해결
+- [x] Supabase 스크립트 미로드 문제 해결 - index.html에 스크립트 추가
+- [x] 데이터베이스 테이블 생성 SQL 스크립트 작성
+- [x] Supabase 데이터베이스 연결 설정 정리
+
+### 데이터 통합 개선
+- [x] 전시업체 데이터 모델 설계 및 구현
+- [x] 발표자 및 일정 데이터 모델 설계 및 구현
+- [x] 카테고리별 전시업체 그룹화 기능 추가
+- [x] 회사별 전시업체 그룹화 기능 추가
+- [x] 날짜별 일정 그룹화 기능 추가
+
+### UI/UX 개선
+- [x] 전시업체 카드 디자인 개선
+- [x] 일정 카드 디자인 개선
+- [x] 참가자 목록 디자인 개선
+- [x] 전시업체 보기 모드 전환 버튼 추가 (목록/카테고리/회사별)
+- [x] 모바일 대응 개선
+
+## 현재 구현된 파일 목록
 
 ### 기본 구조 파일
-- index.html
-- project_plan.md
+- [x] index.html
+- [x] project_plan.md
+- [x] README.md
+- [x] README_TROUBLESHOOTING.md
+
+### SQL 파일
+- [x] sql/tables.sql
+
+### 데이터 파일
+- [x] js/data/exhibitors.js
+- [x] js/data/presenters.js
 
 ### CSS 파일
-- css/main.css
-- css/auth-styles.css
-- css/chat-styles.css
-- css/sidebar-styles.css
-- css/utils.css
+- [x] css/main.css
+- [x] css/auth-styles.css
+- [x] css/chat-styles.css
+- [x] css/sidebar-styles.css
+- [x] css/utils.css
 
 ### JavaScript 파일
-- js/main.js
-- js/config/config.js
-- js/utils/logger.js
-- js/utils/helpers.js
-- js/utils/toast.js
-- js/services/supabase-client.js
-- js/services/translation-service.js
-- js/services/data-manager.js
-- js/services/user-service.js
-- js/services/chat-manager.js
-- js/components/auth.js
-- js/components/chat.js
-- js/components/message.js
-- js/components/sidebar.js
-- js/components/settings.js
+- [x] js/main.js
+- [x] js/config/config.js
+- [x] js/utils/logger.js
+- [x] js/utils/helpers.js
+- [x] js/utils/toast.js
+- [x] js/services/supabase-client.js
+- [x] js/services/translation-service.js
+- [x] js/services/data-manager.js
+- [x] js/services/user-service.js
+- [x] js/services/chat-manager.js
+- [x] js/components/auth.js
+- [x] js/components/chat.js
+- [x] js/components/message.js
+- [x] js/components/sidebar.js
+- [x] js/components/settings.js
 
-### 남은 작업
-- 사용자 수용성 테스트 수행
-- 성능 최적화
-- 보안 취약점 검사
-- 배포 환경 설정
+## 추가 개발 필요사항
+
+### 데이터 모델 및 통합
+- [x] 전시업체 데이터 모델 설계
+- [x] 발표자 및 일정 데이터 모델 설계
+- [x] 데이터 변환 및 매핑 로직 구현
+
+### 사용자 인터페이스 개선
+- [ ] 전시물 상세 정보 모달 구현
+- [ ] 발표자 프로필 상세 정보 페이지 구현
+- [ ] 알림 시스템 개선
+- [ ] 메시지 검색 기능 추가
+- [ ] 다크 모드 완성
+
+### 성능 및 보안
+- [ ] 번역 API 호출 최적화
+- [ ] 이미지 및 첨부파일 지원 추가
+- [ ] 입력 검증 및 보안 강화
+- [ ] 오류 처리 메커니즘 개선
+
+## 마일스톤 일정
+
+1. **데이터 통합 완료**: 완료 (2025-05-04)
+2. **기능 추가 및 UI 개선**: 진행 중 (예상: 2025-05-11)
+3. **테스트 및 최적화**: 예정 (예상: 2025-05-16)
+4. **배포 준비 및 문서화**: 예정 (예상: 2025-05-19)
+
+최종 목표는 2025년 5월 20일까지 완전한 프로덕션 레디 시스템을 구축하는 것입니다.

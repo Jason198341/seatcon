@@ -14,6 +14,8 @@ class DataManager {
         this.exhibitors = [];
         this.schedule = [];
         this.participants = [];
+        this.categories = [];
+        this.companies = [];
     }
 
     /**
@@ -44,102 +46,40 @@ class DataManager {
      */
     async loadExhibitors() {
         try {
-            // 실제 구현에서는 API 또는 Supabase에서 데이터를 가져올 수 있음
-            // 예시 데이터
-            this.exhibitors = [
-                {
-                    id: 1,
-                    name: '대원정밀공업',
-                    description: '차세대 코어 메커니즘 개발 (트랙, 리클라이너, 기어박스, 펌핑디바이스, 랫치)',
-                    contactPerson: '진우재 팀장',
-                    contactPhone: '010 8761 5269',
-                    contactEmail: 'woojae_jin@dwjm.co.kr',
-                    boothNumber: 'A-01',
-                },
-                {
-                    id: 2,
-                    name: '대유에이텍',
-                    description: 'LCD 터치 디스플레이 백 시트 공기 청정기',
-                    contactPerson: '김상현 매니저',
-                    contactPhone: '010 9463 3658',
-                    contactEmail: 'shkim@dayou.co.kr',
-                    boothNumber: 'A-02',
-                },
-                {
-                    id: 3,
-                    name: '대유에이텍',
-                    description: '후석 공압식 시트',
-                    contactPerson: '문지환 매니저',
-                    contactPhone: '010 3123 6929',
-                    contactEmail: 'mason@dayou.co.kr',
-                    boothNumber: 'A-03',
-                },
-                {
-                    id: 4,
-                    name: '대유에이텍',
-                    description: '후석 공압식 시트_발판',
-                    contactPerson: '문지환 매니저',
-                    contactPhone: '010 3123 6929',
-                    contactEmail: 'mason@dayou.co.kr',
-                    boothNumber: 'A-04',
-                },
-                {
-                    id: 5,
-                    name: '대원산업',
-                    description: '롤러식 마사지 모듈적용 라운지 릴렉스 시트',
-                    contactPerson: '신재광 책임',
-                    contactPhone: '010 8720 4434',
-                    contactEmail: 'jkshin@dwsu.co.kr',
-                    boothNumber: 'A-05',
-                },
-                {
-                    id: 6,
-                    name: 'Brose India',
-                    description: 'Seat Components: Cushion Extension (Manual)',
-                    contactPerson: 'Pradnyesh Patil',
-                    contactPhone: '+91 9552537275',
-                    contactEmail: 'Pradnyesh.patil@brose.com',
-                    boothNumber: 'B-01',
-                },
-                {
-                    id: 7,
-                    name: 'Brose India',
-                    description: 'Seat Components: Calf Rest (Legrest)',
-                    contactPerson: 'Jeong, Gwang-Ho',
-                    contactPhone: '+91 7720095473',
-                    contactEmail: 'Gwang-Ho.Jeong@brose.com',
-                    boothNumber: 'B-02',
-                },
-                {
-                    id: 8,
-                    name: '디에스시동탄',
-                    description: '롤러 마사지 시트',
-                    contactPerson: '최민식 책임',
-                    contactPhone: '010-4582-4830',
-                    contactEmail: 'mschoi2@godsc.co.kr',
-                    boothNumber: 'B-03',
-                },
-                {
-                    id: 9,
-                    name: '디에스시동탄',
-                    description: '파워스트라이크 적용시트',
-                    contactPerson: '황인창 책임',
-                    contactPhone: '010-2547-7249',
-                    contactEmail: 'ichwang@godsc.co.kr',
-                    boothNumber: 'B-04',
-                },
-                {
-                    id: 10,
-                    name: '다스',
-                    description: '파워롱레일+파워스위블 적용 시트 (스위블 브레이크 모듈 별도 전시)',
-                    contactPerson: '이재갑 책임',
-                    contactPhone: '010 9681 4567',
-                    contactEmail: 'LJG4444@i-das.com',
-                    boothNumber: 'C-01',
-                },
-            ];
-            
-            this.logger.info(`${this.exhibitors.length}개 전시업체 데이터를 로드했습니다.`);
+            // exhibitors.js에서 정의된 EXHIBITORS_DATA 가져오기
+            if (typeof EXHIBITORS_DATA !== 'undefined') {
+                this.exhibitors = EXHIBITORS_DATA;
+                this.categories = EXHIBITOR_CATEGORIES || [];
+                this.companies = EXHIBITOR_COMPANIES || [];
+                this.logger.info(`${this.exhibitors.length}개 전시업체 데이터를 로드했습니다.`);
+                this.logger.info(`${this.categories.length}개 카테고리를 로드했습니다.`);
+                this.logger.info(`${this.companies.length}개 회사를 로드했습니다.`);
+            } else {
+                // 예시 데이터 (EXHIBITORS_DATA가 정의되지 않은 경우)
+                this.exhibitors = [
+                    {
+                        id: 1,
+                        name: '대원정밀공업',
+                        description: '차세대 코어 메커니즘 개발 (트랙, 리클라이너, 기어박스, 펌핑디바이스, 랫치)',
+                        contactPerson: '진우재 팀장',
+                        contactPhone: '010 8761 5269',
+                        contactEmail: 'woojae_jin@dwjm.co.kr',
+                        boothNumber: 'A-01',
+                        category: '시트 메커니즘'
+                    },
+                    {
+                        id: 2,
+                        name: '대유에이텍',
+                        description: 'LCD 터치 디스플레이 백 시트 공기 청정기',
+                        contactPerson: '김상현 매니저',
+                        contactPhone: '010 9463 3658',
+                        contactEmail: 'shkim@dayou.co.kr',
+                        boothNumber: 'A-02',
+                        category: '시트 기술'
+                    }
+                ];
+                this.logger.warn('EXHIBITORS_DATA가 정의되지 않아 예시 데이터를 사용합니다.');
+            }
         } catch (error) {
             this.logger.error('전시업체 데이터 로드 중 오류 발생:', error);
             throw new Error('전시업체 데이터 로드에 실패했습니다.');
@@ -152,75 +92,36 @@ class DataManager {
      */
     async loadSchedule() {
         try {
-            // 실제 구현에서는 API 또는 Supabase에서 데이터를 가져올 수 있음
-            // 예시 데이터
-            this.schedule = [
-                {
-                    id: 1,
-                    title: '24~25년 시트 TRM 기술 트랜드 분석',
-                    presenter: '나선채 책임',
-                    department: 'MLV내장설계1팀',
-                    time: '09:30 - 10:15',
-                    date: '2023-05-15',
-                    location: '메인 홀',
-                },
-                {
-                    id: 2,
-                    title: 'Feature 기반 시트 중장기 개발 전략',
-                    presenter: '이상학 책임',
-                    department: '바디선행개발팀',
-                    time: '10:30 - 11:15',
-                    date: '2023-05-15',
-                    location: '메인 홀',
-                },
-                {
-                    id: 3,
-                    title: '바디 아키텍처 운영 전략',
-                    presenter: '백설 책임',
-                    department: '아키텍처시스템기획팀',
-                    time: '11:30 - 12:15',
-                    date: '2023-05-15',
-                    location: '메인 홀',
-                },
-                {
-                    id: 4,
-                    title: 'SDV 개발전략과 바디부문 대응방안',
-                    presenter: '이상현 책임',
-                    department: '바디융합선행개발팀',
-                    time: '13:30 - 14:15',
-                    date: '2023-05-15',
-                    location: '메인 홀',
-                },
-                {
-                    id: 5,
-                    title: '현대내장디자인 미래 운영전략',
-                    presenter: '하성동',
-                    department: '현대내장디자인실',
-                    time: '14:30 - 15:15',
-                    date: '2023-05-15',
-                    location: '메인 홀',
-                },
-                {
-                    id: 6,
-                    title: '기아 시트 미래 운영전력',
-                    presenter: '노태형 책임',
-                    department: '기아넥스트내장DeX팀',
-                    time: '15:30 - 16:15',
-                    date: '2023-05-15',
-                    location: '메인 홀',
-                },
-                {
-                    id: 7,
-                    title: '시트관련 미래 재료운영전략',
-                    presenter: '서원진 책임',
-                    department: '내외장재료개발팀',
-                    time: '16:30 - 17:15',
-                    date: '2023-05-15',
-                    location: '메인 홀',
-                },
-            ];
-            
-            this.logger.info(`${this.schedule.length}개 일정 데이터를 로드했습니다.`);
+            // presenters.js에서 정의된 SCHEDULE_DATA와 PRESENTER_DATA 가져오기
+            if (typeof SCHEDULE_DATA !== 'undefined' && typeof PRESENTER_DATA !== 'undefined') {
+                this.schedule = SCHEDULE_DATA;
+                this.presenters = PRESENTER_DATA;
+                this.logger.info(`${this.schedule.length}개 일정 데이터를 로드했습니다.`);
+                this.logger.info(`${this.presenters.length}개 발표자 데이터를 로드했습니다.`);
+            } else {
+                // 예시 데이터 (SCHEDULE_DATA가 정의되지 않은 경우)
+                this.schedule = [
+                    {
+                        id: 1,
+                        title: '24~25년 시트 TRM 기술 트랜드 분석',
+                        presenter: '나선채 책임',
+                        department: 'MLV내장설계1팀',
+                        time: '09:30 - 10:15',
+                        date: '2023-05-15',
+                        location: '메인 홀',
+                    },
+                    {
+                        id: 2,
+                        title: 'Feature 기반 시트 중장기 개발 전략',
+                        presenter: '이상학 책임',
+                        department: '바디선행개발팀',
+                        time: '10:30 - 11:15',
+                        date: '2023-05-15',
+                        location: '메인 홀',
+                    }
+                ];
+                this.logger.warn('SCHEDULE_DATA가 정의되지 않아 예시 데이터를 사용합니다.');
+            }
         } catch (error) {
             this.logger.error('일정 데이터 로드 중 오류 발생:', error);
             throw new Error('일정 데이터 로드에 실패했습니다.');
@@ -306,6 +207,34 @@ class DataManager {
     }
 
     /**
+     * 전시업체 카테고리별 그룹화
+     * @returns {Object} - 카테고리별 전시업체 그룹
+     */
+    getExhibitorsByCategory() {
+        const result = {};
+        
+        this.categories.forEach(category => {
+            result[category] = this.exhibitors.filter(exhibitor => exhibitor.category === category);
+        });
+        
+        return result;
+    }
+
+    /**
+     * 전시업체 회사별 그룹화
+     * @returns {Object} - 회사별 전시업체 그룹
+     */
+    getExhibitorsByCompany() {
+        const result = {};
+        
+        this.companies.forEach(company => {
+            result[company] = this.exhibitors.filter(exhibitor => exhibitor.name === company);
+        });
+        
+        return result;
+    }
+
+    /**
      * 전시업체 검색
      * @param {string} query - 검색어
      * @returns {Array} - 검색 결과
@@ -318,7 +247,8 @@ class DataManager {
         return this.exhibitors.filter(exhibitor => 
             exhibitor.name.toLowerCase().includes(searchTerm) ||
             exhibitor.description.toLowerCase().includes(searchTerm) ||
-            exhibitor.contactPerson.toLowerCase().includes(searchTerm)
+            exhibitor.contactPerson.toLowerCase().includes(searchTerm) ||
+            exhibitor.category.toLowerCase().includes(searchTerm)
         );
     }
 
@@ -340,6 +270,16 @@ class DataManager {
     }
 
     /**
+     * 특정 발표자 정보 가져오기
+     * @param {number} id - 발표자 ID
+     * @returns {Object|null} - 발표자 정보 또는 null
+     */
+    getPresenterById(id) {
+        if (!this.presenters) return null;
+        return this.presenters.find(presenter => presenter.id === id) || null;
+    }
+
+    /**
      * 일정 검색
      * @param {string} query - 검색어
      * @returns {Array} - 검색 결과
@@ -352,8 +292,36 @@ class DataManager {
         return this.schedule.filter(item => 
             item.title.toLowerCase().includes(searchTerm) ||
             item.presenter.toLowerCase().includes(searchTerm) ||
-            item.department.toLowerCase().includes(searchTerm)
+            item.department.toLowerCase().includes(searchTerm) ||
+            (item.tags && item.tags.some(tag => tag.toLowerCase().includes(searchTerm)))
         );
+    }
+
+    /**
+     * 날짜별 일정 그룹화
+     * @returns {Object} - 날짜별 일정 그룹
+     */
+    getScheduleByDate() {
+        const result = {};
+        
+        this.schedule.forEach(item => {
+            if (!result[item.date]) {
+                result[item.date] = [];
+            }
+            
+            result[item.date].push(item);
+        });
+        
+        // 각 날짜별 시간순 정렬
+        for (const date in result) {
+            result[date].sort((a, b) => {
+                const timeA = a.time.split(' - ')[0];
+                const timeB = b.time.split(' - ')[0];
+                return timeA.localeCompare(timeB);
+            });
+        }
+        
+        return result;
     }
 
     /**

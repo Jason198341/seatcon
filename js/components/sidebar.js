@@ -31,6 +31,7 @@ class SidebarComponent {
         };
         this.currentTab = 'exhibitors';
         this.currentFilter = 'all';
+        this.exhibitorDisplayMode = 'list'; // 'list' 또는 'category'
         
         this.init();
     }
@@ -84,8 +85,218 @@ class SidebarComponent {
             this.elements.participantFilters?.forEach(filter => {
                 filter.addEventListener('click', this.handleParticipantFilter.bind(this));
             });
+            
+            // 전시업체 탭에 헤더 메뉴 추가
+            this.addExhibitorTabControls();
         } catch (error) {
             this.logger.error('이벤트 리스너 설정 중 오류 발생:', error);
+        }
+    }
+
+    /**
+     * 전시업체 탭 컨트롤 추가
+     */
+    addExhibitorTabControls() {
+        if (!this.elements.exhibitorsTab) return;
+        
+        // 이미 헤더 메뉴가 있는지 확인
+        const existingControls = this.elements.exhibitorsTab.querySelector('.exhibitor-view-controls');
+        if (existingControls) return;
+        
+        // 헤더 메뉴 생성
+        const controls = document.createElement('div');
+        controls.className = 'exhibitor-view-controls';
+        controls.innerHTML = `
+            <div class="view-mode-buttons">
+                <button class="view-mode-btn active" data-mode="list" title="목록 보기">
+                    <i class="fas fa-list"></i>
+                </button>
+                <button class="view-mode-btn" data-mode="category" title="카테고리별 보기">
+                    <i class="fas fa-th-large"></i>
+                </button>
+                <button class="view-mode-btn" data-mode="company" title="회사별 보기">
+                    <i class="fas fa-building"></i>
+                </button>
+            </div>
+        `;
+        
+        // 검색 바 뒤에 추가
+        const searchBar = this.elements.exhibitorsTab.querySelector('.search-bar');
+        if (searchBar) {
+            searchBar.after(controls);
+            
+            // 뷰 모드 버튼 이벤트 리스너 추가
+            controls.querySelectorAll('.view-mode-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const mode = e.currentTarget.dataset.mode;
+                    this.changeExhibitorDisplayMode(mode);
+                    
+                    // 버튼 활성화 상태 변경
+                    controls.querySelectorAll('.view-mode-btn').forEach(b => {
+                        b.classList.remove('active');
+                    });
+                    e.currentTarget.classList.add('active');
+                });
+            });
+        }
+    }
+
+    /**
+     * 전시업체 표시 모드 변경
+     * @param {string} mode - 표시 모드 ('list', 'category', 'company')
+     */
+    changeExhibitorDisplayMode(mode) {
+        if (mode === this.exhibitorDisplayMode) return;
+        
+        this.exhibitorDisplayMode = mode;
+        this.logger.debug(`전시업체 표시 모드 변경: ${mode}`);
+        
+        // 검색창 값 초기화
+        if (this.elements.exhibitorSearch) {
+            this.elements.exhibitorSearch.value = '';
+        }
+        
+        // 모드에 따라 전시업체 목록 업데이트
+        switch (mode) {
+            case 'list':
+                this.updateExhibitorsList(this.dataManager.getExhibitors());
+                break;
+            case 'category':
+                this.updateExhibitorsByCategory();
+                break;
+            case 'company':
+                this.updateExhibitorsByCompany();
+                break;
+        }
+    }
+
+    /**
+     * 카테고리별 전시업체 목록 업데이트
+     */
+    updateExhibitorsByCategory() {
+        try {
+            if (!this.elements.exhibitorsList) return;
+            
+            // 목록 비우기
+            this.elements.exhibitorsList.innerHTML = '';
+            
+            // 카테고리별 그룹화된 데이터 가져오기
+            const categorizedExhibitors = this.dataManager.getExhibitorsByCategory();
+            const categories = this.dataManager.categories;
+            
+            if (!categories || categories.length === 0) {
+                this.elements.exhibitorsList.innerHTML = `
+                    <div class="empty-result">
+                        <p>카테고리 정보가 없습니다.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // 각 카테고리별 섹션 생성
+            categories.forEach(category => {
+                const exhibitors = categorizedExhibitors[category] || [];
+                
+                if (exhibitors.length === 0) return; // 해당 카테고리에 전시업체가 없으면 건너뜀
+                
+                // 카테고리 섹션 생성
+                const section = document.createElement('div');
+                section.className = 'category-section';
+                
+                // 카테고리 헤더
+                const header = document.createElement('div');
+                header.className = 'category-header';
+                header.innerHTML = `
+                    <h3 class="category-title">${category}</h3>
+                    <span class="category-count">${exhibitors.length}</span>
+                `;
+                
+                // 카테고리 콘텐츠
+                const content = document.createElement('div');
+                content.className = 'category-content';
+                
+                // 전시업체 카드 추가
+                exhibitors.forEach(exhibitor => {
+                    const card = this.createExhibitorCard(exhibitor);
+                    content.appendChild(card);
+                });
+                
+                // 섹션에 헤더와 콘텐츠 추가
+                section.appendChild(header);
+                section.appendChild(content);
+                
+                // 목록에 섹션 추가
+                this.elements.exhibitorsList.appendChild(section);
+            });
+            
+            this.logger.debug(`카테고리별 전시업체 목록 업데이트: ${categories.length}개 카테고리`);
+        } catch (error) {
+            this.logger.error('카테고리별 전시업체 목록 업데이트 중 오류 발생:', error);
+        }
+    }
+
+    /**
+     * 회사별 전시업체 목록 업데이트
+     */
+    updateExhibitorsByCompany() {
+        try {
+            if (!this.elements.exhibitorsList) return;
+            
+            // 목록 비우기
+            this.elements.exhibitorsList.innerHTML = '';
+            
+            // 회사별 그룹화된 데이터 가져오기
+            const companyExhibitors = this.dataManager.getExhibitorsByCompany();
+            const companies = this.dataManager.companies;
+            
+            if (!companies || companies.length === 0) {
+                this.elements.exhibitorsList.innerHTML = `
+                    <div class="empty-result">
+                        <p>회사 정보가 없습니다.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // 각 회사별 섹션 생성
+            companies.forEach(company => {
+                const exhibitors = companyExhibitors[company] || [];
+                
+                if (exhibitors.length === 0) return; // 해당 회사에 전시업체가 없으면 건너뜀
+                
+                // 회사 섹션 생성
+                const section = document.createElement('div');
+                section.className = 'company-section';
+                
+                // 회사 헤더
+                const header = document.createElement('div');
+                header.className = 'company-header';
+                header.innerHTML = `
+                    <h3 class="company-title">${company}</h3>
+                    <span class="company-count">${exhibitors.length}</span>
+                `;
+                
+                // 회사 콘텐츠
+                const content = document.createElement('div');
+                content.className = 'company-content';
+                
+                // 전시업체 카드 추가
+                exhibitors.forEach(exhibitor => {
+                    const card = this.createExhibitorCard(exhibitor);
+                    content.appendChild(card);
+                });
+                
+                // 섹션에 헤더와 콘텐츠 추가
+                section.appendChild(header);
+                section.appendChild(content);
+                
+                // 목록에 섹션 추가
+                this.elements.exhibitorsList.appendChild(section);
+            });
+            
+            this.logger.debug(`회사별 전시업체 목록 업데이트: ${companies.length}개 회사`);
+        } catch (error) {
+            this.logger.error('회사별 전시업체 목록 업데이트 중 오류 발생:', error);
         }
     }
 
@@ -133,6 +344,22 @@ class SidebarComponent {
     handleExhibitorSearch(event) {
         try {
             const query = event.target.value.trim().toLowerCase();
+            
+            // 모드를 목록 보기로 변경
+            if (this.exhibitorDisplayMode !== 'list') {
+                this.exhibitorDisplayMode = 'list';
+                
+                // 버튼 활성화 상태 변경
+                const controls = this.elements.exhibitorsTab.querySelector('.exhibitor-view-controls');
+                if (controls) {
+                    controls.querySelectorAll('.view-mode-btn').forEach(btn => {
+                        btn.classList.remove('active');
+                        if (btn.dataset.mode === 'list') {
+                            btn.classList.add('active');
+                        }
+                    });
+                }
+            }
             
             // 검색 결과에 맞는 전시업체 목록 업데이트
             this.updateExhibitorsList(this.dataManager.searchExhibitors(query));
@@ -252,10 +479,20 @@ class SidebarComponent {
             card.className = 'exhibitor-card';
             card.dataset.id = exhibitor.id;
             
+            // 카테고리 라벨
+            const categoryLabel = exhibitor.category ? 
+                `<span class="category-label">${exhibitor.category}</span>` : '';
+            
             card.innerHTML = `
-                <div class="exhibitor-name">${exhibitor.name}</div>
+                <div class="exhibitor-header">
+                    <div class="exhibitor-name">${exhibitor.name}</div>
+                    ${categoryLabel}
+                </div>
                 <div class="exhibitor-detail">${exhibitor.description}</div>
-                <div class="exhibitor-booth">부스: ${exhibitor.boothNumber || 'N/A'}</div>
+                <div class="exhibitor-location">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>부스: ${exhibitor.boothNumber || 'N/A'}</span>
+                </div>
                 <div class="exhibitor-contact">
                     <div class="contact-item" title="담당자">
                         <i class="fas fa-user"></i>
@@ -270,11 +507,26 @@ class SidebarComponent {
                         <span>${exhibitor.contactEmail || 'N/A'}</span>
                     </div>
                 </div>
+                <div class="exhibitor-actions">
+                    <button class="btn-detail" title="상세 정보">
+                        <i class="fas fa-info-circle"></i>
+                    </button>
+                    <button class="btn-contact" title="연락하기">
+                        <i class="fas fa-comment"></i>
+                    </button>
+                </div>
             `;
             
             // 클릭 이벤트 - 전시업체 상세 정보 표시
-            card.addEventListener('click', () => {
+            card.querySelector('.btn-detail').addEventListener('click', (e) => {
+                e.stopPropagation();
                 this.showExhibitorDetail(exhibitor);
+            });
+            
+            // 클릭 이벤트 - 담당자 연락
+            card.querySelector('.btn-contact').addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.contactExhibitor(exhibitor);
             });
             
             return card;
@@ -308,6 +560,24 @@ class SidebarComponent {
     }
 
     /**
+     * 전시업체 담당자 연락
+     * @param {Object} exhibitor - 전시업체 데이터
+     */
+    contactExhibitor(exhibitor) {
+        try {
+            // 담당자 정보로 채팅 프롬프트 생성
+            const event = new CustomEvent('sidebar:contact-exhibitor', {
+                detail: { exhibitor },
+            });
+            document.dispatchEvent(event);
+            
+            this.logger.debug('전시업체 담당자 연락 이벤트 발생:', exhibitor);
+        } catch (error) {
+            this.logger.error('전시업체 담당자 연락 중 오류 발생:', error);
+        }
+    }
+
+    /**
      * 일정 목록 업데이트
      * @param {Array} schedules - 일정 목록
      */
@@ -328,10 +598,54 @@ class SidebarComponent {
                 return;
             }
             
-            // 일정 카드 추가
+            // 날짜별로 그룹화
+            const scheduleByDate = {};
             schedules.forEach(schedule => {
-                const card = this.createScheduleCard(schedule);
-                this.elements.scheduleList.appendChild(card);
+                const date = schedule.date || '미정';
+                if (!scheduleByDate[date]) {
+                    scheduleByDate[date] = [];
+                }
+                scheduleByDate[date].push(schedule);
+            });
+            
+            // 날짜순으로 정렬
+            const sortedDates = Object.keys(scheduleByDate).sort();
+            
+            // 각 날짜별 섹션 생성
+            sortedDates.forEach(date => {
+                const dateSection = document.createElement('div');
+                dateSection.className = 'date-section';
+                
+                // 날짜 헤더
+                const dateHeader = document.createElement('div');
+                dateHeader.className = 'date-header';
+                dateHeader.innerHTML = `
+                    <h3>${this.formatDate(date)}</h3>
+                    <span class="schedule-count">${scheduleByDate[date].length}개 일정</span>
+                `;
+                
+                // 일정 카드 추가
+                const dateContent = document.createElement('div');
+                dateContent.className = 'date-content';
+                
+                // 시간순으로 정렬
+                const sortedSchedules = scheduleByDate[date].sort((a, b) => {
+                    const timeA = a.time?.split(' - ')[0] || '';
+                    const timeB = b.time?.split(' - ')[0] || '';
+                    return timeA.localeCompare(timeB);
+                });
+                
+                sortedSchedules.forEach(schedule => {
+                    const card = this.createScheduleCard(schedule);
+                    dateContent.appendChild(card);
+                });
+                
+                // 섹션에 헤더와 콘텐츠 추가
+                dateSection.appendChild(dateHeader);
+                dateSection.appendChild(dateContent);
+                
+                // 목록에 섹션 추가
+                this.elements.scheduleList.appendChild(dateSection);
             });
             
             this.logger.debug(`일정 목록 업데이트: ${schedules.length}개 항목`);
@@ -351,21 +665,46 @@ class SidebarComponent {
             card.className = 'schedule-card';
             card.dataset.id = schedule.id;
             
+            // 태그 생성
+            let tagsHtml = '';
+            if (schedule.tags && schedule.tags.length > 0) {
+                tagsHtml = '<div class="schedule-tags">';
+                schedule.tags.forEach(tag => {
+                    tagsHtml += `<span class="tag">${tag}</span>`;
+                });
+                tagsHtml += '</div>';
+            }
+            
             card.innerHTML = `
-                <div class="schedule-time">${schedule.time || ''} ${schedule.date ? `| ${this.formatDate(schedule.date)}` : ''}</div>
-                <div class="schedule-title">${schedule.title || 'No Title'}</div>
-                <div class="schedule-location">${schedule.location || 'N/A'}</div>
+                <div class="schedule-time">
+                    <i class="far fa-clock"></i>
+                    <span>${schedule.time || '시간 미정'}</span>
+                </div>
+                <div class="schedule-content">
+                    <div class="schedule-title">${schedule.title || '제목 없음'}</div>
+                    <div class="schedule-location">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span>${schedule.location || '장소 미정'}</span>
+                    </div>
+                    ${tagsHtml}
+                </div>
                 <div class="schedule-presenter">
                     <div class="presenter-avatar">${this.getInitials(schedule.presenter)}</div>
                     <div class="presenter-info">
-                        <div class="presenter-name">${schedule.presenter || 'N/A'}</div>
+                        <div class="presenter-name">${schedule.presenter || '발표자 미정'}</div>
                         <div class="presenter-department">${schedule.department || ''}</div>
                     </div>
+                </div>
+                <div class="schedule-actions">
+                    <button class="btn-detail" title="상세 정보">
+                        <i class="fas fa-info-circle"></i>
+                    </button>
                 </div>
             `;
             
             // 클릭 이벤트 - 일정 상세 정보 표시
-            card.addEventListener('click', () => {
+            card.querySelector('.btn-detail').addEventListener('click', (e) => {
+                e.stopPropagation();
                 this.showScheduleDetail(schedule);
             });
             
@@ -420,8 +759,17 @@ class SidebarComponent {
                 return;
             }
             
+            // 온라인 상태로 정렬
+            const sortedParticipants = [...participants].sort((a, b) => {
+                // 온라인 참가자를 먼저 표시
+                if (a.online && !b.online) return -1;
+                if (!a.online && b.online) return 1;
+                // 같은 상태라면 이름순으로 정렬
+                return a.name.localeCompare(b.name);
+            });
+            
             // 참가자 항목 추가
-            participants.forEach(participant => {
+            sortedParticipants.forEach(participant => {
                 const item = this.createParticipantItem(participant);
                 this.elements.participantsList.appendChild(item);
             });
@@ -441,27 +789,41 @@ class SidebarComponent {
         try {
             const item = document.createElement('div');
             item.className = 'participant-item';
+            if (participant.online) item.classList.add('online');
             item.dataset.email = participant.email;
+            item.dataset.role = participant.role;
             
             // 사용자 이니셜 계산
             const initials = this.getInitials(participant.name);
             
-            // 온라인 상태 설정
-            const onlineStatusClass = participant.online ? 'has-online-indicator' : '';
-            const onlineIndicator = participant.online ? '<div class="online-indicator"></div>' : '';
+            // 온라인 상태 표시
+            const onlineStatusHtml = participant.online ? 
+                '<span class="online-indicator" title="온라인"></span>' : '';
             
             item.innerHTML = `
-                <div class="participant-avatar ${onlineStatusClass}">
+                <div class="participant-avatar">
                     ${initials}
-                    ${onlineIndicator}
+                    ${onlineStatusHtml}
                 </div>
                 <div class="participant-info">
-                    <div class="participant-name">${participant.name}
+                    <div class="participant-name">${participant.name}</div>
+                    <div class="participant-meta">
                         <span class="role-badge ${participant.role}">${this.getRoleDisplayName(participant.role)}</span>
+                        <span class="participant-email">${participant.email}</span>
                     </div>
-                    <div class="participant-email">${participant.email}</div>
+                </div>
+                <div class="participant-actions">
+                    <button class="btn-message" title="메시지 보내기">
+                        <i class="fas fa-comment"></i>
+                    </button>
                 </div>
             `;
+            
+            // 클릭 이벤트 - 참가자에게 메시지 보내기
+            item.querySelector('.btn-message').addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.messageParticipant(participant);
+            });
             
             return item;
         } catch (error) {
@@ -472,6 +834,24 @@ class SidebarComponent {
             fallbackItem.className = 'participant-item';
             fallbackItem.textContent = '정보를 표시할 수 없습니다.';
             return fallbackItem;
+        }
+    }
+
+    /**
+     * 참가자에게 메시지 보내기
+     * @param {Object} participant - 참가자 데이터
+     */
+    messageParticipant(participant) {
+        try {
+            // 메시지 보내기 이벤트 발생
+            const event = new CustomEvent('sidebar:message-participant', {
+                detail: { participant },
+            });
+            document.dispatchEvent(event);
+            
+            this.logger.debug('참가자 메시지 보내기 이벤트 발생:', participant);
+        } catch (error) {
+            this.logger.error('참가자 메시지 보내기 중 오류 발생:', error);
         }
     }
 
@@ -517,12 +897,15 @@ class SidebarComponent {
      */
     formatDate(dateStr) {
         try {
+            if (!dateStr || dateStr === '미정') return '날짜 미정';
+            
             const date = new Date(dateStr);
             
             if (isNaN(date.getTime())) {
                 return dateStr;
             }
             
+            // 주중 날짜 포맷 (예: 2023년 5월 15일 월요일)
             return date.toLocaleDateString('ko-KR', {
                 year: 'numeric',
                 month: 'long',
@@ -541,13 +924,19 @@ class SidebarComponent {
     loadData() {
         try {
             // 전시업체 목록 업데이트
-            this.updateExhibitorsList(this.dataManager.getExhibitors());
+            if (this.exhibitorDisplayMode === 'list') {
+                this.updateExhibitorsList(this.dataManager.getExhibitors());
+            } else if (this.exhibitorDisplayMode === 'category') {
+                this.updateExhibitorsByCategory();
+            } else if (this.exhibitorDisplayMode === 'company') {
+                this.updateExhibitorsByCompany();
+            }
             
             // 일정 목록 업데이트
             this.updateScheduleList(this.dataManager.getSchedule());
             
             // 참가자 목록 업데이트
-            this.updateParticipantsList(this.dataManager.getParticipants());
+            this.updateParticipantsList(this.dataManager.getParticipantsByRole(this.currentFilter));
             
             this.logger.info('사이드바 데이터 로드 완료');
         } catch (error) {
@@ -564,15 +953,19 @@ class SidebarComponent {
             // 모바일 화면에서 사이드바 표시
             if (panel === 'info' && this.elements.infoPanel) {
                 this.elements.infoPanel.classList.add('active');
+                this.elements.infoPanel.classList.remove('hidden');
                 
                 if (this.elements.participantsPanel) {
                     this.elements.participantsPanel.classList.remove('active');
+                    this.elements.participantsPanel.classList.add('hidden');
                 }
             } else if (panel === 'participants' && this.elements.participantsPanel) {
                 this.elements.participantsPanel.classList.add('active');
+                this.elements.participantsPanel.classList.remove('hidden');
                 
                 if (this.elements.infoPanel) {
                     this.elements.infoPanel.classList.remove('active');
+                    this.elements.infoPanel.classList.add('hidden');
                 }
             }
             
@@ -590,10 +983,12 @@ class SidebarComponent {
             // 모바일 화면에서 사이드바 숨기기
             if (this.elements.infoPanel) {
                 this.elements.infoPanel.classList.remove('active');
+                this.elements.infoPanel.classList.add('hidden');
             }
             
             if (this.elements.participantsPanel) {
                 this.elements.participantsPanel.classList.remove('active');
+                this.elements.participantsPanel.classList.add('hidden');
             }
             
             this.logger.debug('사이드바 숨김');
