@@ -73,6 +73,11 @@ async function initializeServices() {
     // 채팅 관리자 초기화
     chatManager = new ChatManager(supabaseClient, translationService, dataManager, userService, CONFIG, logger);
     
+    // 관리자 기능 확장
+    if (typeof extendChatManagerWithAdminFeatures === 'function') {
+        extendChatManagerWithAdminFeatures(chatManager);
+    }
+    
     logger.info('서비스 초기화 완료');
 }
 

@@ -1,72 +1,4 @@
-    /**
-     * 관리자 공지사항 메시지 전송
-     * @param {string} content - 메시지 내용
-     * @returns {Promise<Object|null>} - 전송된 메시지 또는 null
-     */
-    async sendAnnouncement(content) {
-        try {
-            if (!this.userService.isAdmin()) {
-                this.logger.warn('관리자만 공지사항을 보낼 수 있습니다.');
-                throw new Error('관리자 권한이 필요합니다.');
-            }
-            
-            if (!content.trim()) {
-                this.logger.warn('빈 공지사항은 전송할 수 없습니다.');
-                return null;
-            }
-            
-            // 공지사항 접두사 추가
-            const announcementContent = `${this.config.ADMIN.ANNOUNCEMENT_PREFIX} ${content}`;
-            
-            // Supabase 클라이언트를 통해 공지사항 전송
-            const message = await this.supabaseClient.sendAnnouncement(announcementContent);
-            
-            if (message) {
-                // 전송된 메시지를 로컬 메시지 목록에 추가
-                this.messages.push(message);
-                
-                // 메시지 전송 플래그 설정
-                this.hasSentMessagesFlag = true;
-                
-                // 메시지 전송 이벤트 발생
-                if (this.listeners.onNewMessage) {
-                    this.listeners.onNewMessage(message);
-                }
-                
-                this.logger.info('공지사항 전송 완료:', message);
-                return message;
-            }
-            
-            return null;
-        } catch (error) {
-            this.logger.error('공지사항 전송 중 오류 발생:', error);
-            
-            // 연결 오류 처리
-            this.handleConnectionError(error);
-            
-            throw error;
-        }
-    }    /**
-     * 모든 구독 재설정
-     * @returns {Promise<boolean>} - 성공 여부
-     */
-    async resubscribeAll() {
-        try {
-            this.logger.info('모든 구독 재설정 시작...');
-            
-            // 메시지 구독 재설정
-            this.subscribeToMessages();
-            
-            // 좋아요 구독 재설정
-            this.subscribeToLikes();
-            
-            this.logger.info('구독 재설정 완료');
-            return true;
-        } catch (error) {
-            this.logger.error('구독 재설정 중 오류:', error);
-            return false;
-        }
-    }/**
+/**
  * 채팅 관리 서비스
  * 채팅 메시지 송수신 및 번역 관리
  */
@@ -132,6 +64,78 @@ class ChatManager {
             this.logger.error('채팅 관리자 초기화 중 오류 발생:', error);
             this.handleConnectionError(error);
             throw new Error('채팅 초기화에 실패했습니다.');
+        }
+    }
+
+    /**
+     * 관리자 공지사항 메시지 전송
+     * @param {string} content - 메시지 내용
+     * @returns {Promise<Object|null>} - 전송된 메시지 또는 null
+     */
+    async sendAnnouncement(content) {
+        try {
+            if (!this.userService.isAdmin()) {
+                this.logger.warn('관리자만 공지사항을 보낼 수 있습니다.');
+                throw new Error('관리자 권한이 필요합니다.');
+            }
+            
+            if (!content.trim()) {
+                this.logger.warn('빈 공지사항은 전송할 수 없습니다.');
+                return null;
+            }
+            
+            // 공지사항 접두사 추가
+            const announcementContent = `${this.config.ADMIN.ANNOUNCEMENT_PREFIX} ${content}`;
+            
+            // Supabase 클라이언트를 통해 공지사항 전송
+            const message = await this.supabaseClient.sendAnnouncement(announcementContent);
+            
+            if (message) {
+                // 전송된 메시지를 로컬 메시지 목록에 추가
+                this.messages.push(message);
+                
+                // 메시지 전송 플래그 설정
+                this.hasSentMessagesFlag = true;
+                
+                // 메시지 전송 이벤트 발생
+                if (this.listeners.onNewMessage) {
+                    this.listeners.onNewMessage(message);
+                }
+                
+                this.logger.info('공지사항 전송 완료:', message);
+                return message;
+            }
+            
+            return null;
+        } catch (error) {
+            this.logger.error('공지사항 전송 중 오류 발생:', error);
+            
+            // 연결 오류 처리
+            this.handleConnectionError(error);
+            
+            throw error;
+        }
+    }
+
+    /**
+     * 모든 구독 재설정
+     * @returns {Promise<boolean>} - 성공 여부
+     */
+    async resubscribeAll() {
+        try {
+            this.logger.info('모든 구독 재설정 시작...');
+            
+            // 메시지 구독 재설정
+            this.subscribeToMessages();
+            
+            // 좋아요 구독 재설정
+            this.subscribeToLikes();
+            
+            this.logger.info('구독 재설정 완료');
+            return true;
+        } catch (error) {
+            this.logger.error('구독 재설정 중 오류:', error);
+            return false;
         }
     }
 
