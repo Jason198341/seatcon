@@ -119,8 +119,14 @@ class AuthComponent {
             // 폼 데이터 가져오기
             const supportedLanguages = ['en', 'ko', 'hi', 'te', 'zh'];
             let language = localStorage.getItem('premium-chat-language') || this.elements.languageSelect.value;
-            if (!supportedLanguages.includes(language)) {
-                language = this.elements.languageSelect.value;
+            // 모바일 등에서 ""(빈 문자열)로 넘어오는 경우 방어
+            if (!language || language === "" || !supportedLanguages.includes(language)) {
+                const select = this.elements.languageSelect;
+                if (select && select.options && select.options.length > 0) {
+                    language = select.options[select.selectedIndex]?.value || select.options[0].value;
+                } else {
+                    language = 'en'; // 최후의 방어
+                }
             }
             const userInfo = {
                 name: this.elements.nameInput.value.trim(),
