@@ -21,6 +21,7 @@
 
 1. Node.js가 설치되어 있어야 합니다.
 2. Supabase 프로젝트가 설정되어 있어야 합니다.
+3. Google Cloud Translation API가 활성화되어 있어야 합니다.
 
 ### 설치
 
@@ -56,6 +57,8 @@ conference-chat/
 │   ├── supabase-client.js   # Supabase 연결 및 데이터 처리
 │   ├── translation.js       # 번역 서비스 구현
 │   ├── chat.js              # 채팅 UI 관리
+│   ├── i18n.js              # 다국어 처리
+│   ├── mobile-ui.js         # 모바일 UI 관련
 │   ├── user.js              # 사용자 정보 관리
 │   ├── utils.js             # 유틸리티 함수
 │   └── main.js              # 메인 애플리케이션 파일
@@ -68,39 +71,14 @@ conference-chat/
 ├── index.html       # 메인 HTML 파일
 ├── database_schema.sql  # 데이터베이스 스키마 스크립트
 ├── package.json     # 프로젝트 메타데이터
+├── debugging_guide.md   # 디버깅 가이드
+├── project_plan.md      # 프로젝트 계획
 └── README.md        # 문서
 ```
 
-## 사용된 기술
+## 최근 업데이트 (2025년 5월 4일)
 
-- **프론트엔드**: HTML5, CSS3, JavaScript (ES6+)
-- **백엔드**: Supabase (데이터베이스, 인증, 실시간 구독)
-- **번역 서비스**: Google Cloud Translation API
-
-## 테스트 방법
-
-1. 개발 서버를 실행합니다: `npm start`
-2. 브라우저에서 http://localhost:8090 에 접속합니다.
-3. 사용자 정보(이름, 이메일, 역할)를 입력하고 참가합니다.
-4. 선호하는 언어를 선택합니다.
-5. 메시지를 입력하고 전송합니다.
-6. 다른 사용자의 메시지가 자동으로 선호 언어로 번역되는지 확인합니다.
-
-## 문제 해결
-
-- **실시간 메시지가 수신되지 않는 경우**:
-  - 브라우저 콘솔에서 Supabase 연결 상태를 확인합니다.
-  - `supabase-client.js` 파일의 실시간 구독 부분이 최신 Supabase API와 호환되는지 확인합니다.
-
-- **번역이 작동하지 않는 경우**:
-  - `config.js`에서 Google Cloud Translation API 키가 올바른지 확인합니다.
-  - API 사용량 및 할당량을 확인합니다.
-
-- **언어 변경 시 UI가 멈추거나 응답하지 않는 경우**:
-  - 브라우저 콘솔에서 오류 메시지를 확인합니다.
-  - 브라우저 캐시를 새로고침하거나 사용 중인 이전 버전의 캐시를 지워봅니다.
-  - `chat.js` 파일의 `handleLanguageChange` 함수에서 `isChangingLanguage` 플래그가 올바르게 설정되었는지 확인합니다.
-
-- **스태프 비밀번호 입력 처리 문제**:
-  - 스태프 역할 접근 비밀번호는 '9881'입니다.
-  - 스태프 비밀번호 필드가 표시되지 않는 경우 `user.js` 파일의 `setupStaffPasswordField` 함수를 확인합니다.
+- i18nService 모듈 가져오기 문제 수정
+- 불필요한 모듈 제거 (exhibition.js, speakers.js)
+- 로그아웃 기능 개선
+- 디
