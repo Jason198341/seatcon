@@ -47,8 +47,13 @@ async function applyLocale(lang) {
 // 언어 선택 모달 관련 코드 완전 제거
 // DOMContentLoaded에서 언어 모달/로컬스토리지 제어 삭제
 window.addEventListener('DOMContentLoaded', () => {
-    // 인증 폼만 바로 표시
-    showAuthInterface();
+    // 서비스/컴포넌트 초기화
+    initializeServices().then(() => {
+        // 반드시 컴포넌트 먼저 초기화
+        initializeComponents();
+        // 인증 폼만 바로 표시
+        showAuthInterface();
+    });
 });
 
 // 서비스/컴포넌트 초기화 진입점 함수로 분리
