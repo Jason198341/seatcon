@@ -77,6 +77,10 @@ const translations = {
         'conferenceInfoDescription': 'The Global Seat Conference 2025 brings together industry leaders, researchers, and innovators to discuss the future of automotive seating technology.',
         'conferenceVenue': 'Venue',
         'conferenceSchedule': 'Schedule',
+        'conferenceDate': 'Date',
+        'conferenceLocation': 'Location',
+        'morningLabel': 'AM',
+        'afternoonLabel': 'PM',
         
         // 에러 메시지
         'errorNameRequired': 'Name is required (minimum 2 characters).',
@@ -162,6 +166,10 @@ const translations = {
         'conferenceInfoDescription': '2025 글로벌 시트 컨퍼런스는 자동차 시트 기술의 미래를 논의하기 위해 산업 지도자, 연구원, 혁신가들을 하나로 모으는 행사입니다.',
         'conferenceVenue': '행사장',
         'conferenceSchedule': '일정',
+        'conferenceDate': '일시',
+        'conferenceLocation': '장소',
+        'morningLabel': '오전',
+        'afternoonLabel': '오후',
         
         // 에러 메시지
         'errorNameRequired': '이름은 2자 이상 입력해주세요.',
@@ -247,6 +255,10 @@ const translations = {
         'conferenceInfoDescription': 'वैश्विक सीट सम्मेलन 2025 ऑटोमोटिव सीटिंग तकनीक के भविष्य पर चर्चा करने के लिए उद्योग के नेताओं, शोधकर्ताओं और नवोन्मेषकों को एक साथ लाता है।',
         'conferenceVenue': 'स्थान',
         'conferenceSchedule': 'कार्यक्रम',
+        'conferenceDate': 'दिनांक',
+        'conferenceLocation': 'स्थान',
+        'morningLabel': 'पूर्वाह्न',
+        'afternoonLabel': 'अपराह्न',
         
         // 에러 메시지
         'errorNameRequired': 'नाम आवश्यक है (कम से कम 2 अक्षर)।',
@@ -332,6 +344,10 @@ const translations = {
         'conferenceInfoDescription': '2025全球座椅会议汇集了行业领导者、研究人员和创新者，共同探讨汽车座椅技术的未来。',
         'conferenceVenue': '会场',
         'conferenceSchedule': '日程',
+        'conferenceDate': '日期',
+        'conferenceLocation': '地点',
+        'morningLabel': '上午',
+        'afternoonLabel': '下午',
         
         // 에러 메시지
         'errorNameRequired': '需要姓名（至少2个字符）。',

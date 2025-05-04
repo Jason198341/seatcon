@@ -60,6 +60,14 @@ class MobileUI {
                     this.handleBottomNavClick(item);
                 });
             });
+            
+            // 다국어 업데이트 추가
+            document.addEventListener('language-changed', () => {
+                this.updateNavTexts();
+            });
+            
+            // 초기 텍스트 설정
+            this.updateNavTexts();
         }
         
         // 채팅 네비게이션 이벤트
@@ -176,18 +184,18 @@ class MobileUI {
         const modalContent = `
             <div class="modal">
                 <div class="modal-header">
-                    <h3 class="modal-title">내 정보</h3>
+                    <h3 class="modal-title">${i18nService.get('profileTabTitle')}</h3>
                     <button class="modal-close">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <p><strong>이름:</strong> ${utils.escapeHtml(user.name)}</p>
-                    <p><strong>이메일:</strong> ${utils.escapeHtml(user.email)}</p>
-                    <p><strong>역할:</strong> ${utils.escapeHtml(roleName)}</p>
-                    <p><strong>선호 언어:</strong> ${utils.escapeHtml(languageName)}</p>
+                    <p><strong>${i18nService.get('profileName')}:</strong> ${utils.escapeHtml(user.name)}</p>
+                    <p><strong>${i18nService.get('profileEmail')}:</strong> ${utils.escapeHtml(user.email)}</p>
+                    <p><strong>${i18nService.get('profileRole')}:</strong> ${utils.escapeHtml(roleName)}</p>
+                    <p><strong>${i18nService.get('profileLanguage')}:</strong> ${utils.escapeHtml(languageName)}</p>
                 </div>
                 <div class="modal-footer">
-                    <button class="button secondary modal-close-btn">닫기</button>
-                    <button class="button logout-btn">로그아웃</button>
+                    <button class="button secondary modal-close-btn">${i18nService.get('closeButton')}</button>
+                    <button class="button logout-btn">${i18nService.get('logoutButton')}</button>
                 </div>
             </div>
         `;
@@ -250,18 +258,18 @@ class MobileUI {
         const modalContent = `
             <div class="modal">
                 <div class="modal-header">
-                    <h3 class="modal-title">언어 선택</h3>
+                    <h3 class="modal-title">${i18nService.get('languageSettingsTitle')}</h3>
                     <button class="modal-close">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <p class="mb-3">메시지가 자동으로 선택한 언어로 번역됩니다.</p>
+                    <p class="mb-3">${i18nService.get('languageSettingsDescription')}</p>
                     <form id="languageForm">
                         ${languageOptions}
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button class="button secondary modal-close-btn">취소</button>
-                    <button class="button save-language-btn">저장</button>
+                    <button class="button secondary modal-close-btn">${i18nService.get('cancelButton')}</button>
+                    <button class="button save-language-btn">${i18nService.get('saveButton')}</button>
                 </div>
             </div>
         `;
@@ -323,25 +331,25 @@ class MobileUI {
         const modalContent = `
             <div class="modal">
                 <div class="modal-header">
-                    <h3 class="modal-title">컨퍼런스 정보</h3>
+                    <h3 class="modal-title">${i18nService.get('conferenceInfoTitle')}</h3>
                     <button class="modal-close">&times;</button>
                 </div>
                 <div class="modal-body">
                     <h4 class="mb-2">${utils.escapeHtml(this.conferenceData.title)}</h4>
-                    <p class="mb-3"><strong>일시:</strong> ${utils.escapeHtml(this.conferenceData.date)}</p>
-                    <p class="mb-3"><strong>장소:</strong> ${utils.escapeHtml(this.conferenceData.location)}</p>
+                    <p class="mb-3"><strong>${i18nService.get('conferenceDate')}:</strong> ${utils.escapeHtml(this.conferenceData.date)}</p>
+                    <p class="mb-3"><strong>${i18nService.get('conferenceVenue')}:</strong> ${utils.escapeHtml(this.conferenceData.location)}</p>
                     
-                    <h5 class="mb-2">주요 주제</h5>
+                    <h5 class="mb-2">${i18nService.get('conferenceSchedule')}</h5>
                     <ul class="mb-3">
                         ${this.conferenceData.topics.map(topic => `<li>${utils.escapeHtml(topic)}</li>`).join('')}
                     </ul>
                     
                     <p class="text-center mt-4">
-                        <small>© 2025 글로벌 시트 컨퍼런스. All rights reserved.</small>
+                        <small>© 2025 ${i18nService.get('conferenceTitle')}. All rights reserved.</small>
                     </p>
                 </div>
                 <div class="modal-footer">
-                    <button class="button modal-close-btn">닫기</button>
+                    <button class="button modal-close-btn">${i18nService.get('closeButton')}</button>
                 </div>
             </div>
         `;
@@ -385,6 +393,43 @@ class MobileUI {
      */
     getLanguageInfo(languageCode) {
         return CONFIG.LANGUAGES.find(l => l.code === languageCode) || null;
+    }
+    
+    /**
+     * 하단 네비게이션 텍스트 업데이트
+     */
+    updateNavTexts() {
+        // 채팅 탭
+        if (this.chatNav) {
+            const chatNavText = this.chatNav.querySelector('[data-i18n="navChat"]');
+            if (chatNavText) {
+                chatNavText.textContent = i18nService.get('navChat');
+            }
+        }
+        
+        // 내 정보 탭
+        if (this.userInfoNav) {
+            const userInfoNavText = this.userInfoNav.querySelector('[data-i18n="navProfile"]');
+            if (userInfoNavText) {
+                userInfoNavText.textContent = i18nService.get('navProfile');
+            }
+        }
+        
+        // 언어 탭
+        if (this.languageNav) {
+            const languageNavText = this.languageNav.querySelector('[data-i18n="navLanguage"]');
+            if (languageNavText) {
+                languageNavText.textContent = i18nService.get('navLanguage');
+            }
+        }
+        
+        // 정보 탭
+        if (this.infoNav) {
+            const infoNavText = this.infoNav.querySelector('[data-i18n="navInfo"]');
+            if (infoNavText) {
+                infoNavText.textContent = i18nService.get('navInfo');
+            }
+        }
     }
 }
 
