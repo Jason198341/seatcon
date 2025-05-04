@@ -20,22 +20,110 @@ class ChatManager {
         this.config = config;
         this.logger = logger || console;
         this.messages = [];
+        this.processedMessageIds = new Set(); // 처리된 메시지 ID 추적
         this.typingUsers = new Map();
         this.typingIndicatorTimeout = null;
         this.hasSentMessagesFlag = false;
         this.messageBuffer = [];
         this.isProcessingBuffer = false;
+        this.messagesPendingTranslation = new Map(); // 번역 대기 중인 메시지
         this.listeners = {
             onNewMessage: null,
             onMessageTranslated: null,
             onUserTyping: null,
             onLikeUpdate: null,
             onConnectionStatusChange: null,
+            onMessageSendStart: null,
+            onMessageSendSuccess: null,
+            onMessageSendFailed: null,
         };
         this.isConnected = true;
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 5;
         this.reconnectInterval = 3000; // 3초
+        this.setupSupabaseEventListeners();
+    }
+
+    /**
+     * Supabase 이벤트 리스너 설정
+     */
+    setupSupabaseEventListeners() {
+        if (typeof window === 'undefined') return;
+        
+        // 연결 관련 이벤트
+        window.addEventListener('connection:established', (event) => {
+            this.logger.info('Supabase 연결 성공', event.detail);
+            this.updateConnectionStatus(true);
+            
+            // 메시지 버퍼 처리
+            if (this.messageBuffer.length > 0) {
+                this.processMessageBuffer();
+            }
+        });
+        
+        window.addEventListener('connection:failed', (event) => {
+            this.logger.warn('Supabase 연결 실패', event.detail);
+            this.updateConnectionStatus(false);
+        });
+        
+        window.addEventListener('connection:reconnecting', (event) => {
+            this.logger.info('Supabase 재연결 시도 중...', event.detail);
+        });
+        
+        window.addEventListener('connection:lost', (event) => {
+            this.logger.warn('Supabase 연결 끊김', event.detail);
+            this.updateConnectionStatus(false);
+        });
+        
+        window.addEventListener('connection:restored', (event) => {
+            this.logger.info('Supabase 연결 복구됨', event.detail);
+            this.updateConnectionStatus(true);
+        });
+        
+        // 메시지 관련 이벤트
+        window.addEventListener('message:queued', (event) => {
+            this.logger.info('메시지 대기열에 추가됨', event.detail);
+        });
+        
+        window.addEventListener('message:send:start', (event) => {
+            this.logger.info('메시지 전송 시작', event.detail);
+            
+            // 이벤트 리스너 호출
+            if (this.listeners.onMessageSendStart) {
+                this.listeners.onMessageSendStart(event.detail);
+            }
+        });
+        
+        window.addEventListener('message:send:success', (event) => {
+            this.logger.info('메시지 전송 성공', event.detail);
+            
+            // 이벤트 리스너 호출
+            if (this.listeners.onMessageSendSuccess) {
+                this.listeners.onMessageSendSuccess(event.detail);
+            }
+        });
+        
+        window.addEventListener('message:send:failed', (event) => {
+            this.logger.error('메시지 전송 실패', event.detail);
+            
+            // 이벤트 리스너 호출
+            if (this.listeners.onMessageSendFailed) {
+                this.listeners.onMessageSendFailed(event.detail);
+            }
+        });
+        
+        window.addEventListener('message:received', (event) => {
+            this.logger.info('새 메시지 수신', event.detail);
+        });
+        
+        // 좋아요 관련 이벤트
+        window.addEventListener('like:add', (event) => {
+            this.logger.info('좋아요 추가됨', event.detail);
+        });
+        
+        window.addEventListener('like:remove', (event) => {
+            this.logger.info('좋아요 취소됨', event.detail);
+        });
     }
 
     /**
@@ -84,6 +172,9 @@ class ChatManager {
                 return null;
             }
             
+            // 시스템 메시지 전송 (전송 중)
+            const sendingSystemMessage = this.sendSystemMessage('공지사항을 전송 중입니다...');
+            
             // 공지사항 접두사 추가
             const announcementContent = `${this.config.ADMIN.ANNOUNCEMENT_PREFIX} ${content}`;
             
@@ -91,8 +182,23 @@ class ChatManager {
             const message = await this.supabaseClient.sendAnnouncement(announcementContent);
             
             if (message) {
+                // 처리된 메시지 ID 추가
+                this.processedMessageIds.add(message.id);
+                if (message.client_generated_id) {
+                    this.processedMessageIds.add(message.client_generated_id);
+                }
+                
                 // 전송된 메시지를 로컬 메시지 목록에 추가
-                this.messages.push(message);
+                const existingIndex = this.findMessageIndexById(message.id) || 
+                    (message.client_generated_id && this.findMessageIndexByClientId(message.client_generated_id));
+                
+                if (existingIndex !== -1) {
+                    // 기존 메시지 업데이트
+                    this.messages[existingIndex] = message;
+                } else {
+                    // 새 메시지 추가
+                    this.messages.push(message);
+                }
                 
                 // 메시지 전송 플래그 설정
                 this.hasSentMessagesFlag = true;
@@ -112,6 +218,9 @@ class ChatManager {
             
             // 연결 오류 처리
             this.handleConnectionError(error);
+            
+            // 시스템 메시지 전송 (실패)
+            this.sendSystemMessage('공지사항 전송 실패: ' + error.message);
             
             throw error;
         }
@@ -148,19 +257,41 @@ class ChatManager {
         try {
             this.logger.info(`메시지 이력 로드 중... (최대 ${limit}개)`);
             
+            // 시스템 메시지 전송 (로딩 중)
+            const loadingMessage = this.sendSystemMessage('메시지를 불러오는 중...');
+            
             // Supabase에서 메시지 가져오기
             const messages = await this.supabaseClient.getMessages(limit);
             
             this.messages = messages || [];
             this.logger.info(`${this.messages.length}개 메시지를 로드했습니다.`);
             
+            // 처리된 메시지 ID 추적을 위해 추가
+            for (const message of this.messages) {
+                this.processedMessageIds.add(message.id);
+                if (message.client_generated_id) {
+                    this.processedMessageIds.add(message.client_generated_id);
+                }
+            }
+            
             // 현재 사용자 언어로 메시지 번역
             if (this.config.CHAT.AUTO_TRANSLATION && this.userService.getCurrentUser()) {
                 const currentUserLanguage = this.userService.getCurrentUser().language;
                 
-                for (const message of this.messages) {
-                    if (message.language !== currentUserLanguage) {
+                // 번역이 필요한 메시지 찾기
+                const messagesToTranslate = this.messages.filter(
+                    message => message.language && message.language !== currentUserLanguage
+                );
+                
+                this.logger.info(`${messagesToTranslate.length}개 메시지 번역 필요`);
+                
+                // 번역 작업
+                for (const message of messagesToTranslate) {
+                    try {
                         await this.translateMessage(message, currentUserLanguage);
+                    } catch (translationError) {
+                        this.logger.warn(`메시지 번역 중 오류: ${message.id}`, translationError);
+                        // 번역 오류 무시하고 계속 진행
                     }
                 }
             }
@@ -168,12 +299,18 @@ class ChatManager {
             // 연결 상태 업데이트
             this.updateConnectionStatus(true);
             
+            // 시스템 메시지 제거 또는 업데이트
+            // (로딩이 완료되었으므로 로딩 메시지는 필요 없음)
+            
             return this.messages;
         } catch (error) {
             this.logger.error('메시지 이력 로드 중 오류 발생:', error);
             
             // 연결 상태 업데이트
             this.updateConnectionStatus(false);
+            
+            // 시스템 메시지 전송 (실패)
+            this.sendSystemMessage('메시지를 불러오는데 실패했습니다: ' + error.message);
             
             // 개발 환경에서는 빈 배열 반환
             if (this.config.DEBUG.ENABLED) {
@@ -211,6 +348,18 @@ class ChatManager {
             
             // 메시지 언어 감지
             const language = await this.translationService.detectLanguage(content);
+            this.logger.debug(`감지된 메시지 언어: ${language || '감지 실패'}`);
+            
+            // 메시지 전송 시작 이벤트 발생
+            if (this.listeners.onMessageSendStart) {
+                this.listeners.onMessageSendStart({
+                    content,
+                    language: language || currentUser.language
+                });
+            }
+            
+            // 클라이언트 생성 ID
+            const clientGeneratedId = Date.now().toString();
             
             // 네트워크 연결 상태 확인
             if (!this.isConnected) {
@@ -218,12 +367,12 @@ class ChatManager {
                 this.logger.warn('오프라인 상태입니다. 메시지를 버퍼에 추가합니다.');
                 
                 const offlineMessage = {
-                    id: 'offline-' + Date.now(),
+                    id: 'offline-' + clientGeneratedId,
                     speaker_id: 'global-chat',
                     author_name: currentUser.name,
                     author_email: currentUser.email,
                     content: content,
-                    client_generated_id: Date.now().toString(),
+                    client_generated_id: clientGeneratedId,
                     user_role: currentUser.role,
                     language: language || currentUser.language,
                     created_at: new Date().toISOString(),
@@ -237,9 +386,18 @@ class ChatManager {
                 // 로컬 메시지 처리
                 this.messages.push(offlineMessage);
                 
-                // 이벤트 발생
+                // 메시지 전송 이벤트 발생
                 if (this.listeners.onNewMessage) {
                     this.listeners.onNewMessage(offlineMessage);
+                }
+                
+                // 메시지 전송 실패 이벤트 발생
+                if (this.listeners.onMessageSendFailed) {
+                    this.listeners.onMessageSendFailed({
+                        message: offlineMessage,
+                        error: '오프라인 상태',
+                        willRetry: true
+                    });
                 }
                 
                 // 버퍼 처리 시도
@@ -252,8 +410,23 @@ class ChatManager {
             const message = await this.supabaseClient.sendMessage(content);
             
             if (message) {
+                // 처리된 메시지 ID 추적
+                this.processedMessageIds.add(message.id);
+                if (message.client_generated_id) {
+                    this.processedMessageIds.add(message.client_generated_id);
+                }
+                
                 // 전송된 메시지를 로컬 메시지 목록에 추가
-                this.messages.push(message);
+                const existingIndex = this.findMessageIndexById(message.id) || 
+                    (message.client_generated_id && this.findMessageIndexByClientId(message.client_generated_id));
+                
+                if (existingIndex !== -1) {
+                    // 기존 메시지 업데이트
+                    this.messages[existingIndex] = message;
+                } else {
+                    // 새 메시지 추가
+                    this.messages.push(message);
+                }
                 
                 // 메시지 전송 플래그 설정
                 this.hasSentMessagesFlag = true;
@@ -261,6 +434,13 @@ class ChatManager {
                 // 메시지 전송 이벤트 발생
                 if (this.listeners.onNewMessage) {
                     this.listeners.onNewMessage(message);
+                }
+                
+                // 메시지 전송 성공 이벤트 발생
+                if (this.listeners.onMessageSendSuccess) {
+                    this.listeners.onMessageSendSuccess({
+                        message
+                    });
                 }
                 
                 this.logger.info('메시지 전송 완료:', message);
@@ -273,8 +453,57 @@ class ChatManager {
             // 연결 오류 처리
             this.handleConnectionError(error);
             
+            // 메시지 전송 실패 이벤트 발생
+            if (this.listeners.onMessageSendFailed) {
+                this.listeners.onMessageSendFailed({
+                    content,
+                    error: error.message,
+                    isConnectionError: this.isConnectionError(error)
+                });
+            }
+            
             throw error;
         }
+    }
+    
+    /**
+     * ID로 메시지 인덱스 찾기
+     * @param {string} messageId - 메시지 ID
+     * @returns {number} - 메시지 인덱스 또는 -1
+     */
+    findMessageIndexById(messageId) {
+        if (!messageId) return -1;
+        return this.messages.findIndex(msg => msg.id === messageId);
+    }
+    
+    /**
+     * 클라이언트 ID로 메시지 인덱스 찾기
+     * @param {string} clientId - 클라이언트 생성 ID
+     * @returns {number} - 메시지 인덱스 또는 -1
+     */
+    findMessageIndexByClientId(clientId) {
+        if (!clientId) return -1;
+        return this.messages.findIndex(msg => msg.client_generated_id === clientId);
+    }
+    
+    /**
+     * 연결 관련 오류인지 확인
+     * @param {Error} error - 오류 객체
+     * @returns {boolean} - 연결 관련 오류 여부
+     */
+    isConnectionError(error) {
+        if (!error || !error.message) return false;
+        
+        return (
+            error.message.includes('Failed to fetch') ||
+            error.message.includes('Network Error') ||
+            error.message.includes('Network request failed') ||
+            error.message.includes('Connection error') ||
+            error.message.includes('The connection was interrupted') ||
+            error.message.includes('Supabase 연결') ||
+            error.message.includes('timeout') ||
+            error.message.includes('시간 초과')
+        );
     }
 
     /**
@@ -296,6 +525,11 @@ class ChatManager {
             this.isProcessingBuffer = true;
             this.logger.info(`메시지 버퍼 처리 중... (${this.messageBuffer.length}개 메시지)`);
             
+            // 시스템 메시지 전송 (버퍼 처리 중)
+            if (this.messageBuffer.length > 0) {
+                this.sendSystemMessage(`오프라인 상태에서 저장된 메시지 ${this.messageBuffer.length}개를 전송합니다...`);
+            }
+            
             // 버퍼에서 메시지 하나씩 처리
             while (this.messageBuffer.length > 0 && this.isConnected) {
                 const offlineMessage = this.messageBuffer.shift();
@@ -313,8 +547,14 @@ class ChatManager {
                     const sentMessage = await this.supabaseClient.sendMessage(offlineMessage.content);
                     
                     if (sentMessage) {
+                        // 처리된 메시지 ID 추적
+                        this.processedMessageIds.add(sentMessage.id);
+                        if (sentMessage.client_generated_id) {
+                            this.processedMessageIds.add(sentMessage.client_generated_id);
+                        }
+                        
                         // 오프라인 메시지를 전송된 메시지로 대체
-                        const messageIndex = this.messages.findIndex(msg => msg.id === offlineMessage.id);
+                        const messageIndex = this.findMessageIndexById(offlineMessage.id);
                         if (messageIndex !== -1) {
                             this.messages[messageIndex] = sentMessage;
                         }
@@ -324,8 +564,19 @@ class ChatManager {
                             this.listeners.onNewMessage(sentMessage);
                         }
                         
+                        // 메시지 전송 성공 이벤트 발생
+                        if (this.listeners.onMessageSendSuccess) {
+                            this.listeners.onMessageSendSuccess({
+                                message: sentMessage,
+                                wasBuffered: true
+                            });
+                        }
+                        
                         this.logger.info('오프라인 메시지 전송 완료:', sentMessage);
                     }
+                    
+                    // 다음 메시지 전송 전에 약간의 지연 (서버 부하 방지)
+                    await new Promise(resolve => setTimeout(resolve, 500));
                 } catch (error) {
                     this.logger.error('오프라인 메시지 전송 중 오류 발생:', error);
                     
@@ -338,9 +589,23 @@ class ChatManager {
                         this.listeners.onNewMessage(offlineMessage);
                     }
                     
+                    // 메시지 전송 실패 이벤트 발생
+                    if (this.listeners.onMessageSendFailed) {
+                        this.listeners.onMessageSendFailed({
+                            message: offlineMessage,
+                            error: error.message,
+                            willRetry: true
+                        });
+                    }
+                    
                     // 재시도 지연
                     await new Promise(resolve => setTimeout(resolve, 3000));
                 }
+            }
+            
+            // 모든 버퍼 메시지 처리 완료
+            if (this.messageBuffer.length === 0) {
+                this.sendSystemMessage('저장된 모든 메시지가 전송되었습니다.');
             }
         } finally {
             this.isProcessingBuffer = false;
@@ -360,7 +625,7 @@ class ChatManager {
     async resendMessage(messageId) {
         try {
             // 메시지 찾기
-            const messageIndex = this.messages.findIndex(msg => msg.id === messageId);
+            const messageIndex = this.findMessageIndexById(messageId);
             
             if (messageIndex === -1) {
                 this.logger.warn(`메시지 ID ${messageId}를 찾을 수 없습니다.`);
@@ -375,6 +640,15 @@ class ChatManager {
             // 메시지 상태 업데이트
             failedMessage.status = 'sending';
             
+            // 메시지 전송 시작 이벤트 발생
+            if (this.listeners.onMessageSendStart) {
+                this.listeners.onMessageSendStart({
+                    messageId,
+                    content: failedMessage.content,
+                    isResend: true
+                });
+            }
+            
             // 이벤트 발생
             if (this.listeners.onNewMessage) {
                 this.listeners.onNewMessage(failedMessage);
@@ -384,6 +658,12 @@ class ChatManager {
             const sentMessage = await this.supabaseClient.sendMessage(failedMessage.content);
             
             if (sentMessage) {
+                // 처리된 메시지 ID 추적
+                this.processedMessageIds.add(sentMessage.id);
+                if (sentMessage.client_generated_id) {
+                    this.processedMessageIds.add(sentMessage.client_generated_id);
+                }
+                
                 // 메시지 대체
                 this.messages[messageIndex] = sentMessage;
                 
@@ -397,6 +677,14 @@ class ChatManager {
                     this.listeners.onNewMessage(sentMessage);
                 }
                 
+                // 메시지 전송 성공 이벤트 발생
+                if (this.listeners.onMessageSendSuccess) {
+                    this.listeners.onMessageSendSuccess({
+                        message: sentMessage,
+                        wasResend: true
+                    });
+                }
+                
                 this.logger.info('메시지 재전송 완료:', sentMessage);
                 return sentMessage;
             }
@@ -408,6 +696,15 @@ class ChatManager {
             // 연결 오류 처리
             this.handleConnectionError(error);
             
+            // 메시지 전송 실패 이벤트 발생
+            if (this.listeners.onMessageSendFailed) {
+                this.listeners.onMessageSendFailed({
+                    messageId,
+                    error: error.message,
+                    isConnectionError: this.isConnectionError(error)
+                });
+            }
+            
             throw error;
         }
     }
@@ -415,11 +712,11 @@ class ChatManager {
     /**
      * 시스템 메시지 전송
      * @param {string} content - 메시지 내용
-     * @returns {Promise<Object|null>} - 전송된 메시지 또는 null
+     * @returns {Object|null} - 생성된 시스템 메시지 또는 null
      */
-    async sendSystemMessage(content) {
+    sendSystemMessage(content) {
         try {
-            if (!content.trim()) {
+            if (!content || !content.trim()) {
                 this.logger.warn('빈 시스템 메시지는 전송할 수 없습니다.');
                 return null;
             }
@@ -440,7 +737,7 @@ class ChatManager {
                 this.listeners.onNewMessage(systemMessage);
             }
             
-            this.logger.info('시스템 메시지 전송 완료:', systemMessage);
+            this.logger.info('시스템 메시지 전송:', systemMessage);
             return systemMessage;
         } catch (error) {
             this.logger.error('시스템 메시지 전송 중 오류 발생:', error);
@@ -466,7 +763,17 @@ class ChatManager {
                 return message;
             }
             
-            this.logger.debug(`메시지 번역 중: ${message.language} -> ${targetLanguage}`);
+            // 이미 번역 중인지 확인
+            const pendingKey = `${message.id}-${targetLanguage}`;
+            if (this.messagesPendingTranslation.has(pendingKey)) {
+                this.logger.debug(`메시지 번역 중복 요청 무시: ${pendingKey}`);
+                return message;
+            }
+            
+            // 번역 대기 중으로 표시
+            this.messagesPendingTranslation.set(pendingKey, true);
+            
+            this.logger.debug(`메시지 번역 중: ${message.language} -> ${targetLanguage}`, message.id);
             
             // 번역 서비스를 통해 번역
             const translatedContent = await this.translationService.translateText(
@@ -474,6 +781,9 @@ class ChatManager {
                 message.language,
                 targetLanguage
             );
+            
+            // 번역 대기 목록에서 제거
+            this.messagesPendingTranslation.delete(pendingKey);
             
             // 번역된 메시지 객체 생성
             const translatedMessage = {
@@ -487,9 +797,13 @@ class ChatManager {
                 this.listeners.onMessageTranslated(translatedMessage);
             }
             
-            this.logger.debug('메시지 번역 완료:', translatedMessage);
+            this.logger.debug('메시지 번역 완료:', message.id);
             return translatedMessage;
         } catch (error) {
+            // 번역 대기 목록에서 제거
+            const pendingKey = `${message.id}-${targetLanguage}`;
+            this.messagesPendingTranslation.delete(pendingKey);
+            
             this.logger.error('메시지 번역 중 오류 발생:', error);
             return message;
         }
@@ -504,27 +818,63 @@ class ChatManager {
         try {
             this.logger.info(`모든 메시지를 ${targetLanguage}로 번역 중...`);
             
-            const translatedMessages = [];
+            // 번역이 필요한 메시지만 필터링
+            const messagesToTranslate = this.messages.filter(message => 
+                !message.system_message && 
+                message.language && 
+                message.language !== targetLanguage &&
+                message.content
+            );
             
-            for (const message of this.messages) {
-                if (message.system_message) {
-                    // 시스템 메시지는 번역하지 않음
-                    translatedMessages.push(message);
-                    continue;
-                }
-                
-                if (message.language !== targetLanguage) {
-                    const translatedMessage = await this.translateMessage(message, targetLanguage);
-                    translatedMessages.push(translatedMessage);
-                } else {
-                    translatedMessages.push(message);
-                }
+            this.logger.info(`${messagesToTranslate.length}개 메시지 번역 필요`);
+            
+            if (messagesToTranslate.length > 0) {
+                // 시스템 메시지 전송 (번역 중)
+                this.sendSystemMessage(`${messagesToTranslate.length}개 메시지 번역 중...`);
             }
             
-            this.logger.info(`${translatedMessages.length}개 메시지 번역 완료`);
+            // 병렬 번역 (최대 5개씩)
+            const translatedMessages = [...this.messages]; // 복사
+            const batchSize = 5;
+            
+            for (let i = 0; i < messagesToTranslate.length; i += batchSize) {
+                const batch = messagesToTranslate.slice(i, i + batchSize);
+                
+                // 병렬 번역
+                await Promise.all(batch.map(async (message) => {
+                    try {
+                        const translatedMessage = await this.translateMessage(message, targetLanguage);
+                        
+                        // 원본 메시지 배열에서 해당 메시지 찾아 업데이트
+                        const index = this.findMessageIndexById(message.id);
+                        if (index !== -1) {
+                            translatedMessages[index] = translatedMessage;
+                            
+                            // 번역 완료 이벤트 발생
+                            if (this.listeners.onMessageTranslated) {
+                                this.listeners.onMessageTranslated(translatedMessage);
+                            }
+                        }
+                    } catch (translationError) {
+                        this.logger.warn(`메시지 번역 중 오류: ${message.id}`, translationError);
+                        // 번역 오류 무시하고 계속 진행
+                    }
+                }));
+            }
+            
+            if (messagesToTranslate.length > 0) {
+                // 시스템 메시지 전송 (번역 완료)
+                this.sendSystemMessage(`${messagesToTranslate.length}개 메시지 번역 완료`);
+            }
+            
+            this.logger.info(`${messagesToTranslate.length}개 메시지 번역 완료`);
             return translatedMessages;
         } catch (error) {
             this.logger.error('모든 메시지 번역 중 오류 발생:', error);
+            
+            // 시스템 메시지 전송 (번역 실패)
+            this.sendSystemMessage('메시지 번역 중 오류가 발생했습니다.');
+            
             throw new Error('메시지 번역에 실패했습니다.');
         }
     }
@@ -724,21 +1074,50 @@ class ChatManager {
                 this.logger.info('새 메시지 수신:', payload);
                 
                 // 중복 메시지 체크
-                const isDuplicate = this.messages.some(msg => msg.id === payload.id);
+                const messageId = payload.id;
+                const clientId = payload.client_generated_id;
                 
-                if (!isDuplicate) {
-                    // 메시지 목록에 추가
-                    this.messages.push(payload);
+                if (this.processedMessageIds.has(messageId) || 
+                    (clientId && this.processedMessageIds.has(clientId))) {
+                    this.logger.info(`중복 메시지 무시: ${messageId}`);
+                    return;
+                }
+                
+                // 처리된 메시지 ID 추적
+                this.processedMessageIds.add(messageId);
+                if (clientId) {
+                    this.processedMessageIds.add(clientId);
+                }
+                
+                // 사용자 메시지가 아닌 경우에만 추가 (내 메시지는 이미 추가됨)
+                const currentUser = this.userService.getCurrentUser();
+                const isMyMessage = currentUser && payload.author_email === currentUser.email;
+                
+                if (!isMyMessage) {
+                    // 기존 메시지 확인 (클라이언트 ID로)
+                    let existingIndex = -1;
+                    if (clientId) {
+                        existingIndex = this.findMessageIndexByClientId(clientId);
+                    }
+                    
+                    if (existingIndex !== -1) {
+                        // 기존 메시지 업데이트
+                        this.messages[existingIndex] = payload;
+                    } else {
+                        // 메시지 목록에 추가
+                        this.messages.push(payload);
+                    }
                     
                     // 현재 사용자 언어로 메시지 번역
                     if (
                         this.config.CHAT.AUTO_TRANSLATION && 
-                        this.userService.getCurrentUser() && 
-                        payload.language !== this.userService.getCurrentUser().language
+                        currentUser && 
+                        payload.language && 
+                        payload.language !== currentUser.language
                     ) {
                         const translatedMessage = await this.translateMessage(
-                            payload,
-                            this.userService.getCurrentUser().language
+                            payload, 
+                            currentUser.language
                         );
                         
                         // 이벤트 처리
@@ -751,16 +1130,31 @@ class ChatManager {
                             this.listeners.onNewMessage(payload);
                         }
                     }
+                } else {
+                    // 내 메시지인 경우, 서버에서 생성된 ID 업데이트
+                    const existingIndex = clientId 
+                        ? this.findMessageIndexByClientId(clientId)
+                        : -1;
                     
-                    // 메시지 수신 시 타이핑 사용자 제거
-                    if (payload.author_email) {
-                        this.typingUsers.delete(payload.author_email);
-                        this.updateTypingIndicator();
+                    if (existingIndex !== -1) {
+                        // 기존 메시지 업데이트
+                        this.messages[existingIndex] = payload;
+                        
+                        // 이벤트 처리
+                        if (this.listeners.onNewMessage) {
+                            this.listeners.onNewMessage(payload);
+                        }
                     }
-                    
-                    // 연결 상태 업데이트
-                    this.updateConnectionStatus(true);
                 }
+                
+                // 메시지 수신 시 타이핑 사용자 제거
+                if (payload.author_email) {
+                    this.typingUsers.delete(payload.author_email);
+                    this.updateTypingIndicator();
+                }
+                
+                // 연결 상태 업데이트
+                this.updateConnectionStatus(true);
             }
         });
     }
@@ -965,14 +1359,7 @@ class ChatManager {
      */
     handleConnectionError(error) {
         // 연결 문제로 인한 오류인지 확인
-        if (
-            error.message.includes('Failed to fetch') ||
-            error.message.includes('Network Error') ||
-            error.message.includes('Network request failed') ||
-            error.message.includes('Connection error') ||
-            error.message.includes('The connection was interrupted') ||
-            error.message.includes('Supabase 연결에 실패했습니다')
-        ) {
+        if (this.isConnectionError(error)) {
             this.updateConnectionStatus(false);
             this.reconnectAttempts++;
             
@@ -985,6 +1372,9 @@ class ChatManager {
                 }, this.reconnectInterval * Math.pow(2, this.reconnectAttempts - 1)); // 지수 백오프
             } else {
                 this.logger.error(`최대 재연결 시도 횟수(${this.maxReconnectAttempts}회)를 초과했습니다.`);
+                
+                // 시스템 메시지 전송 (재연결 실패)
+                this.sendSystemMessage('서버 연결을 복구할 수 없습니다. 페이지를 새로고침해주세요.');
             }
         }
     }

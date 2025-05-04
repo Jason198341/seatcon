@@ -109,6 +109,7 @@ function initializeComponents() {
     
     if (savedUser) {
         // 이미 로그인한 사용자가 있는 경우 채팅 인터페이스 표시
+        supabaseClient.setCurrentUser(savedUser);
         showChatInterface();
         
         // 채팅 관리자 초기화 및 메시지 로드
@@ -134,7 +135,7 @@ function setupGlobalEventListeners() {
     // 로그인 성공 이벤트
     document.addEventListener('auth:login-success', async (event) => {
         logger.info('로그인 성공 이벤트 수신:', event.detail);
-        
+        supabaseClient.setCurrentUser(event.detail.userInfo);
         // 채팅 인터페이스 표시
         showChatInterface();
         

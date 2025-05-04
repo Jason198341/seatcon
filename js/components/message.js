@@ -87,6 +87,29 @@ class MessageComponent {
             </div>
         `;
         
+        // 공지사항 메시지 템플릿
+        this.messageTemplates.announcement = `
+            <div class="message-header">
+                <span class="announcement-icon"><i class="fas fa-bullhorn"></i></span>
+                <span class="sender"></span>
+                <span class="role-badge admin">관리자</span>
+                <span class="time"></span>
+            </div>
+            <div class="message-content"></div>
+            <div class="message-footer">
+                <div class="translation-info hidden">
+                    <span class="translation-toggle">원문 보기</span>
+                    <span class="translation-language"></span>
+                </div>
+                <div class="message-actions">
+                    <div class="like-button">
+                        <i class="far fa-heart"></i>
+                        <span class="like-count"></span>
+                    </div>
+                </div>
+            </div>
+        `;
+        
         // 타이핑 인디케이터 템플릿
         this.messageTemplates.typing = `
             <div class="typing-text"></div>
@@ -120,9 +143,19 @@ class MessageComponent {
             const currentUser = this.userService.getCurrentUser();
             const isMyMessage = currentUser && message.author_email === currentUser.email;
             
+            // 공지사항 메시지인지 확인
+            const isAnnouncement = message.is_announcement || 
+                                   (message.content && message.content.startsWith('📢 [공지]'));
+            
             // 메시지 요소 생성
             const messageElement = document.createElement('div');
-            messageElement.className = `message ${isMyMessage ? 'mine' : 'others'}`;
+            
+            // 메시지 클래스 설정
+            if (isAnnouncement) {
+                messageElement.className = 'message announcement';
+            } else {
+                messageElement.className = `message ${isMyMessage ? 'mine' : 'others'}`;
+            }
             
             // 메시지 상태에 따른 추가 클래스
             if (message.status === 'pending' || message.status === 'sending') {
@@ -140,12 +173,16 @@ class MessageComponent {
             }
             
             // 템플릿 적용
-            messageElement.innerHTML = isMyMessage 
-                ? this.messageTemplates.mine 
-                : this.messageTemplates.regular;
+            if (isAnnouncement) {
+                messageElement.innerHTML = this.messageTemplates.announcement;
+            } else if (isMyMessage) {
+                messageElement.innerHTML = this.messageTemplates.mine;
+            } else {
+                messageElement.innerHTML = this.messageTemplates.regular;
+            }
             
             // 메시지 데이터 채우기
-            this.populateMessageData(messageElement, message, isMyMessage);
+            this.populateMessageData(messageElement, message, isMyMessage, isAnnouncement);
             
             // 이벤트 리스너 등록
             this.attachEventListeners(messageElement, message);
@@ -219,19 +256,25 @@ class MessageComponent {
      * @param {HTMLElement} element - 메시지 요소
      * @param {Object} message - 메시지 객체
      * @param {boolean} isMyMessage - 내 메시지 여부
+     * @param {boolean} isAnnouncement - 공지사항 여부
      */
-    populateMessageData(element, message, isMyMessage) {
+    populateMessageData(element, message, isMyMessage, isAnnouncement) {
         try {
-            // 작성자 이름 (내 메시지가 아닌 경우만)
-            if (!isMyMessage) {
+            // 작성자 이름 (내 메시지가 아닌 경우나 공지사항인 경우)
+            if (!isMyMessage || isAnnouncement) {
                 const senderElement = element.querySelector('.sender');
                 if (senderElement) {
-                    senderElement.textContent = message.author_name;
+                    // 공지사항인 경우 "공지사항" 텍스트 추가
+                    if (isAnnouncement) {
+                        senderElement.textContent = `${message.author_name} (공지사항)`;
+                    } else {
+                        senderElement.textContent = message.author_name;
+                    }
                 }
                 
                 // 역할 배지
                 const roleBadgeElement = element.querySelector('.role-badge');
-                if (roleBadgeElement && message.user_role) {
+                if (roleBadgeElement && message.user_role && !isAnnouncement) {
                     roleBadgeElement.textContent = this.getRoleDisplayName(message.user_role);
                     roleBadgeElement.classList.add(message.user_role);
                 }
@@ -246,8 +289,19 @@ class MessageComponent {
             // 메시지 내용
             const contentElement = element.querySelector('.message-content');
             if (contentElement) {
-                // 번역된 내용이 있으면 번역된 내용 표시, 없으면 원본 내용 표시
-                contentElement.textContent = message.translatedContent || message.content;
+                // 공지사항인 경우 접두사 제거 (이미 UI에 표시되었으므로)
+                let content = message.translatedContent || message.content;
+                
+                if (isAnnouncement && content.startsWith('📢 [공지]')) {
+                    content = content.replace('📢 [공지]', '').trim();
+                }
+                
+                contentElement.textContent = content;
+                
+                // 공지사항인 경우 강조 스타일 추가
+                if (isAnnouncement) {
+                    contentElement.classList.add('announcement-content');
+                }
             }
             
             // 번역 정보
@@ -261,6 +315,12 @@ class MessageComponent {
                         languageElement.textContent = `${this.translationService.getLanguageName(message.translatedLanguage)}로 번역됨`;
                     }
                 }
+            }
+            
+            // 공지사항인 경우 추가 스타일링
+            if (isAnnouncement) {
+                element.style.borderLeft = '4px solid #ff9800';
+                element.style.backgroundColor = 'rgba(255, 152, 0, 0.05)';
             }
         } catch (error) {
             this.logger.error('메시지 데이터 채우기 중 오류 발생:', error);
@@ -292,6 +352,20 @@ class MessageComponent {
                     this.toggleTranslation(element, message);
                 });
             }
+            
+            // 메시지 상태가 실패인 경우 재전송 이벤트 추가
+            if (message.status === 'failed') {
+                element.addEventListener('dblclick', async () => {
+                    // 메시지 재전송 요청
+                    await this.chatManager.resendMessage(message.id);
+                });
+                
+                // 재전송 힌트 추가
+                const hint = document.createElement('div');
+                hint.className = 'resend-hint';
+                hint.textContent = '더블클릭하여 재전송';
+                element.appendChild(hint);
+            }
         } catch (error) {
             this.logger.error('이벤트 리스너 등록 중 오류 발생:', error);
         }
@@ -319,7 +393,15 @@ class MessageComponent {
                 toggleElement.textContent = '원문 보기';
             } else {
                 // 원문으로 전환
-                contentElement.textContent = message.content;
+                let content = message.content;
+                
+                // 공지사항인 경우 접두사 제거
+                if ((message.is_announcement || element.classList.contains('announcement')) && 
+                    content.startsWith('📢 [공지]')) {
+                    content = content.replace('📢 [공지]', '').trim();
+                }
+                
+                contentElement.textContent = content;
                 toggleElement.textContent = '번역 보기';
             }
         } catch (error) {
@@ -417,6 +499,7 @@ class MessageComponent {
             'exhibitor': '전시자',
             'presenter': '발표자',
             'staff': '스태프',
+            'admin': '관리자',
         };
         
         return roleMap[role] || role;
@@ -435,8 +518,12 @@ class MessageComponent {
             const currentUser = this.userService.getCurrentUser();
             const isMyMessage = currentUser && message.author_email === currentUser.email;
             
+            // 공지사항 여부 확인
+            const isAnnouncement = message.is_announcement || 
+                                   (message.content && message.content.startsWith('📢 [공지]'));
+            
             // 메시지 데이터 업데이트
-            this.populateMessageData(element, message, isMyMessage);
+            this.populateMessageData(element, message, isMyMessage, isAnnouncement);
         } catch (error) {
             this.logger.error('메시지 요소 업데이트 중 오류 발생:', error);
         }

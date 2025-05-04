@@ -142,6 +142,46 @@
     transition: border-color 0.3s ease;
 }
 
+/* 공지사항 메시지 스타일 */
+.message.announcement {
+    background-color: rgba(255, 152, 0, 0.1);
+    border-left: 4px solid #ff9800;
+    align-self: center;
+    max-width: 90%;
+    width: 90%;
+    box-shadow: var(--shadow-md);
+    margin: var(--spacing-6) 0;
+}
+
+.message.announcement::after {
+    display: none; /* 말풍선 화살표 제거 */
+}
+
+.message.announcement .message-header {
+    color: var(--neutral-800);
+    font-weight: 600;
+    border-bottom: 1px solid rgba(255, 152, 0, 0.3);
+    padding-bottom: var(--spacing-2);
+    margin-bottom: var(--spacing-3);
+}
+
+.message.announcement .announcement-icon {
+    color: #ff9800;
+    margin-right: var(--spacing-2);
+    font-size: 1.1rem;
+}
+
+.message.announcement .message-content {
+    font-weight: 500;
+    color: var(--neutral-900);
+    padding: var(--spacing-1) 0;
+}
+
+.announcement-content {
+    font-weight: 500;
+    line-height: 1.5;
+}
+
 /* 메시지 상태 스타일 */
 .message.sending {
     opacity: 0.7;
@@ -168,6 +208,15 @@
 
 .message.failed::before {
     content: '전송 실패. 클릭하여 재시도';
+    position: absolute;
+    bottom: -20px;
+    right: 10px;
+    font-size: 0.75rem;
+    color: var(--error-500);
+    cursor: pointer;
+}
+
+.resend-hint {
     position: absolute;
     bottom: -20px;
     right: 10px;
@@ -234,6 +283,18 @@
 
 .like-button.liked {
     color: var(--primary-600);
+}
+
+.translation-info {
+    display: flex;
+    flex-direction: column;
+    margin-right: auto;
+    font-size: 0.75rem;
+}
+
+.translation-language {
+    color: var(--neutral-500);
+    margin-top: 2px;
 }
 
 .translation-toggle {
@@ -347,6 +408,12 @@
     margin: var(--spacing-2) 0;
 }
 
+.typing-text {
+    font-size: 0.75rem;
+    color: var(--neutral-600);
+    margin-right: var(--spacing-2);
+}
+
 .typing-indicator span {
     width: 6px;
     height: 6px;
@@ -374,6 +441,18 @@
     }
     40% {
         transform: scale(1);
+    }
+}
+
+/* 메시지 애니메이션 */
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 
@@ -440,6 +519,18 @@
     color: #7e22ce;
 }
 
+.role-badge.admin {
+    background-color: #ffe4b5;
+    color: #d97706;
+}
+
+/* 키워드 하이라이트 */
+.highlight-keyword {
+    background-color: rgba(254, 240, 138, 0.5);
+    border-radius: 0.125rem;
+    padding: 0.125rem 0;
+}
+
 /* 토스트 메시지 */
 #toast-container {
     position: fixed;
@@ -487,4 +578,15 @@
     background-color: #fff7ed;
     color: #c2410c;
     border: 1px solid #fed7aa;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
