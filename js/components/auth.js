@@ -153,6 +153,13 @@ class AuthComponent {
             // 참가자 목록에 추가
             this.dataManager.addParticipant(userInfo);
             this.logger.info('로그인 성공:', userInfo);
+            
+            // === [핵심] main.js로 로그인 성공 이벤트 dispatch ===
+            const loginEvent = new CustomEvent('auth:login-success', {
+                detail: { userInfo }
+            });
+            document.dispatchEvent(loginEvent);
+            
             // 인증 컨테이너 숨기기
             this.hide();
         } catch (error) {

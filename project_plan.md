@@ -324,10 +324,41 @@
 - 역할별(내/타인/공지/통역/시스템) UI 분리, 상태별(전송중/실패) 표시, 번역/좋아요/재전송/하이라이트 등 고급 상호작용 완비
 - 주요 함수: prepareTemplates, createMessageElement, createSystemMessageElement, createTypingIndicator, populateMessageData, attachEventListeners, toggleTranslation, updateLikeStatus, formatTime, getRoleDisplayName, updateMessageElement, findMessageElement, highlightKeyword 등
 
-### auth.js (394줄, 14KB)
+### auth.js (403줄, 15KB)
 - AuthComponent 클래스: 로그인/회원가입/역할선택/언어선택 등 인증 및 진입 UI, 상태 관리, 이벤트 처리 담당
 - 역할별(관리자/통역사) 비밀번호 처리, 실시간 에러/로딩 UX, 저장된 정보 자동 채움 등 실전 컨퍼런스 채팅의 진입/인증 UX 완성도를 좌우하는 핵심
-- 주요 함수: init, setupEventListeners, handleRoleChange, handleFormSubmit, validateField, setFieldError, updateSubmitButtonState, showError, showErrors, resetForm, populateForm, setLoading, show, hide 등
+- 주요 함수:
+  - **init**: DOM 요소 연결, 이벤트 리스너 등록, 저장된 사용자 정보 폼에 채움
+  - **setupEventListeners**: 폼 제출, 실시간 유효성 검사, 역할 변경 시 비밀번호 입력란 동기화
+  - **handleRoleChange**: admin/interpreter 선택 시 비밀번호 입력란 표시/required, 그 외 숨김/초기화
+  - **handleFormSubmit**: 폼 데이터 수집, 유효성 검사, 인증, 참가자 목록 추가, 인증 폼 숨김
+  - **validateField**: 이름/이메일/역할/비밀번호 실시간 유효성 검사, 에러 메시지 표시
+  - **setFieldError, updateSubmitButtonState, showError, showErrors, resetForm, populateForm, setLoading, show, hide**: UX/에러 방지/상태 관리 보조 함수
+- UX/에러 방지:
+  - 모든 입력 필드 null 체크/유효성 검사
+  - 역할 변경 시 비밀번호 입력란 동기화
+  - 인증 실패/에러 시 구체적 메시지, 비밀번호 초기화
+  - 인증 성공 시 참가자 목록 추가, 인증 폼 숨김
+- 실전 QA 기준 체크포인트:
+  - 역할/비밀번호/언어/이름/이메일 입력 → 인증 성공 → UI 전환
+  - admin/interpreter 선택 시 비밀번호 입력란 활성화
+  - 인증 실패/에러 시 UX/메시지/상태 초기화
+  - 인증 성공 시 참가자 목록 추가 및 인증 폼 숨김
 
 #### 다음 분석 대상
 - components/settings.js (262줄, 8.5KB): 사용자 설정(프로필, 언어, 테마 등) 관리 UI/로직, 모달, 상태 관리, 이벤트 처리 등 분석 예정
+
+### [2025-05-04] 실전 QA 이슈/해결 내역 추가
+
+- **이슈:**
+  - 인증(입장하기) 성공 후 채팅방 UI가 뜨지 않는 문제 발생
+  - 원인: auth.js의 handleFormSubmit에서 인증 성공 시 main.js로 'auth:login-success' 커스텀 이벤트를 dispatch하지 않아, main.js가 showChatInterface()를 호출하지 못함
+
+- **해결:**
+  - handleFormSubmit에서 로그인 성공 직후 아래 코드 추가
+    ```js
+    const loginEvent = new CustomEvent('auth:login-success', { detail: { userInfo } });
+    document.dispatchEvent(loginEvent);
+    ```
+  - main.js의 전역 이벤트 리스너가 정상적으로 showChatInterface()를 호출하여, 채팅 UI가 100% 전환됨
+  - 실전 QA 기준으로 인증 → 채팅방 UI 전환 플로우 완전 보장
