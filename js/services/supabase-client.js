@@ -1454,4 +1454,29 @@ class SupabaseClient {
             })
             .subscribe();
     }
+
+    /**
+     * 통역가 메시지(채팅/공지)만 가져오기
+     * @param {number} limit - 가져올 메시지 수 제한
+     * @returns {Promise<Array>} - 통역가 메시지 목록
+     */
+    async getInterpreterMessages(limit = 50) {
+        try {
+            if (this.connectionStatus !== 'connected' && !this.config.DEBUG.ENABLED) {
+                throw new Error('Supabase 연결이 끊어졌습니다.');
+            }
+            const { data, error } = await this.supabase
+                .from('comments')
+                .select('*')
+                .eq('user_role', 'interpreter')
+                .order('created_at', { ascending: false })
+                .limit(limit);
+            if (error) throw error;
+            return data.reverse(); // 시간순 정렬
+        } catch (error) {
+            this.logger.error('통역가 메시지 가져오기 중 오류 발생:', error);
+            if (this.config.DEBUG.ENABLED) return [];
+            throw new Error('통역가 메시지를 불러오는데 실패했습니다: ' + error.message);
+        }
+    }
 }

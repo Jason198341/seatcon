@@ -411,3 +411,24 @@
   - 여러 브라우저/기기에서 동시 접속 시 실시간 반영
   - 새로고침/브라우저 종료/로그아웃 시 즉시 목록에서 사라짐
   - 참가자 수, 역할, 언어 등 정보가 정확히 표시됨
+
+## 2024-06-12 참가자 패널 → 통역가 메시지 패널 전환
+
+- 요구사항: 참가자 목록은 더 이상 필요 없고, 참가자 탭(패널)에 통역가가 남긴 메시지만 시간순으로 보여주도록 변경
+- js/services/supabase-client.js
+    - getInterpreterMessages 함수 추가: comments 테이블에서 user_role이 'interpreter'인 메시지만 시간순으로 반환
+- js/components/sidebar.js
+    - updateInterpreterMessagesList 함수 추가: 참가자 패널에 통역가 메시지만 렌더링
+    - subscribeParticipantsRealtime, updateParticipantsList 함수 모두 통역가 메시지 실시간 갱신/표시로 대체
+    - 기존 참가자 목록/필터/검색 등은 더 이상 사용하지 않음
+- UI: 참가자 패널(우측)에 통역가 메시지(작성자, 시간, 내용)만 최신순으로 표시, 실시간 반영
+- 실전 QA: 통역가 메시지만 정상적으로 표시되는지, 실시간 갱신되는지, 오류/빈 상태/로딩 상태 등 모두 점검
+
+## 2024-06-12 통역가 메시지 패널 UI 고급화
+
+- 요구사항: 통역가 메시지 패널(참가자 패널)을 고급스럽고 세련된 카드형 UI로 개선(색상, 폰트, 정렬, 그림자, 그라데이션, 다크모드 등)
+- css/sidebar-styles.css
+    - .interpreter-message-item, .interpreter-message-meta, .interpreter-message-content 등 통역가 메시지용 고급 스타일 신규 추가
+    - 카드형 배경(그라데이션), 라운드, 미묘한 그림자, 세련된 폰트, hover 효과, 애니메이션, 다크모드 대응 등 적용
+- 효과: 실제 컨퍼런스/프리미엄 서비스에 어울리는 고급스러운 메시지 패널 UX 완성
+- 실전 QA: 라이트/다크모드, 데스크톱/모바일, 다양한 메시지 길이/언어/상태에서 모두 시각적 완성도 점검

@@ -624,3 +624,79 @@
         margin-bottom: var(--spacing-4);
     }
 }
+
+/* 통역가 메시지 패널 고급 스타일 */
+.interpreter-message-item {
+    background: linear-gradient(135deg, var(--primary-50) 0%, var(--secondary-50) 100%);
+    border-radius: 1rem;
+    box-shadow: 0 4px 16px 0 rgba(14, 165, 233, 0.08), 0 1.5px 4px 0 rgba(140, 90, 255, 0.06);
+    margin-bottom: 1.25rem;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    border: 1.5px solid var(--primary-100);
+    transition: box-shadow 0.2s, border-color 0.2s, background 0.2s;
+    font-family: 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
+    animation: fadeIn 0.5s;
+}
+.interpreter-message-item:hover {
+    box-shadow: 0 8px 32px 0 rgba(14, 165, 233, 0.16), 0 3px 12px 0 rgba(140, 90, 255, 0.12);
+    border-color: var(--primary-300);
+    background: linear-gradient(135deg, var(--primary-100) 0%, var(--secondary-100) 100%);
+}
+.interpreter-message-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.95rem;
+    color: var(--primary-700);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+.interpreter-name {
+    font-family: 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
+    font-weight: 700;
+    color: var(--secondary-700);
+    font-size: 1.05rem;
+}
+.interpreter-time {
+    font-size: 0.85rem;
+    color: var(--neutral-400);
+    font-weight: 400;
+}
+.interpreter-message-content {
+    font-size: 1.08rem;
+    color: var(--neutral-800);
+    font-family: 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
+    line-height: 1.7;
+    letter-spacing: 0.01em;
+    word-break: break-word;
+    padding-left: 0.1rem;
+    padding-right: 0.1rem;
+}
+[data-theme="dark"] .interpreter-message-item {
+    background: linear-gradient(135deg, #23263a 0%, #1a1a2e 100%);
+    border-color: var(--primary-700);
+    box-shadow: 0 4px 16px 0 rgba(14, 165, 233, 0.18), 0 1.5px 4px 0 rgba(140, 90, 255, 0.12);
+}
+[data-theme="dark"] .interpreter-message-item:hover {
+    background: linear-gradient(135deg, #2a2d4d 0%, #23263a 100%);
+    border-color: var(--primary-400);
+}
+[data-theme="dark"] .interpreter-message-meta {
+    color: var(--primary-200);
+}
+[data-theme="dark"] .interpreter-name {
+    color: var(--secondary-200);
+}
+[data-theme="dark"] .interpreter-time {
+    color: var(--neutral-500);
+}
+[data-theme="dark"] .interpreter-message-content {
+    color: var(--neutral-100);
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+}

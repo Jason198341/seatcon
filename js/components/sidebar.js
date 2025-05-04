@@ -743,29 +743,34 @@ class SidebarComponent {
     }
 
     /**
-     * 참가자 목록 업데이트
-     * @param {Array} participants - 참가자 목록
+     * 통역가 메시지 리스트를 참가자 패널에 표시
      */
-    updateParticipantsList(participants) {
+    async updateInterpreterMessagesList() {
         const list = this.elements.participantsList;
         if (!list) return;
-        list.innerHTML = '';
-        const participantsList = participants || this.dataManager.participants || [];
-        console.log('UI에 표시될 참가자:', participantsList);
-        if (participantsList.length === 0) {
-            list.innerHTML = '<div class="placeholder-item">현재 접속 중인 참가자가 없습니다.</div>';
-            return;
-        }
-        for (const p of participantsList) {
-            const item = document.createElement('div');
-            item.className = 'participant-item';
-            if (p.is_online) item.classList.add('online');
-            item.innerHTML = `
-                <span class="participant-name">${p.name}</span>
-                <span class="participant-role">${this.getRoleDisplayName(p.role)}</span>
-                <span class="online-badge">${p.is_online ? '● 접속 중' : ''}</span>
-            `;
-            list.appendChild(item);
+        list.innerHTML = '<div class="placeholder-item">불러오는 중...</div>';
+        try {
+            const messages = await window.supabaseClient.getInterpreterMessages(50);
+            list.innerHTML = '';
+            if (!messages || messages.length === 0) {
+                list.innerHTML = '<div class="placeholder-item">통역가 메시지가 없습니다.</div>';
+                return;
+            }
+            for (const msg of messages) {
+                const item = document.createElement('div');
+                item.className = 'interpreter-message-item';
+                item.innerHTML = `
+                    <div class="interpreter-message-meta">
+                        <span class="interpreter-name">${msg.author_name || '통역가'}</span>
+                        <span class="interpreter-time">${this.formatDate(msg.created_at)}</span>
+                    </div>
+                    <div class="interpreter-message-content">${msg.content}</div>
+                `;
+                list.appendChild(item);
+            }
+        } catch (error) {
+            list.innerHTML = '<div class="placeholder-item">통역가 메시지 불러오기 실패</div>';
+            this.logger.error('통역가 메시지 표시 중 오류:', error);
         }
     }
 
@@ -918,33 +923,21 @@ class SidebarComponent {
      */
     subscribeParticipantsRealtime(supabaseClient) {
         if (!supabaseClient) return;
-        supabaseClient.subscribeToParticipants((participants) => {
-            // is_online: true인 참가자만 필터링
-            const onlineParticipants = (participants || []).filter(p => p.is_online);
-            this.dataManager.participants = onlineParticipants;
-            this.updateParticipantsList();
-        });
+        // comments 테이블에 실시간 구독(통역가 메시지)
+        supabaseClient.supabase
+            .from('comments')
+            .on('*', async () => {
+                await this.updateInterpreterMessagesList();
+            })
+            .subscribe();
+        // 최초 1회 로드
+        this.updateInterpreterMessagesList();
     }
 
+    // 참가자 목록 UI 갱신 함수는 더 이상 사용하지 않음
     updateParticipantsList() {
-        const list = this.elements.participantsList;
-        if (!list) return;
-        list.innerHTML = '';
-        const participants = this.dataManager.participants || [];
-        if (participants.length === 0) {
-            list.innerHTML = '<div class="placeholder-item">현재 접속 중인 참가자가 없습니다.</div>';
-            return;
-        }
-        for (const p of participants) {
-            const item = document.createElement('div');
-            item.className = 'participant-item';
-            item.innerHTML = `
-                <span class="participant-name">${p.name}</span>
-                <span class="participant-role">${this.getRoleDisplayName(p.role)}</span>
-                <span class="online-badge">● 접속 중</span>
-            `;
-            list.appendChild(item);
-        }
+        // 참가자 대신 통역가 메시지 표시
+        this.updateInterpreterMessagesList();
     }
 }
 
