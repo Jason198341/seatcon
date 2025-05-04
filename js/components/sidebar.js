@@ -747,115 +747,25 @@ class SidebarComponent {
      * @param {Array} participants - 참가자 목록
      */
     updateParticipantsList(participants) {
-        try {
-            if (!this.elements.participantsList) return;
-            
-            // 목록 비우기
-            this.elements.participantsList.innerHTML = '';
-            
-            if (!participants || participants.length === 0) {
-                // 검색 결과가 없는 경우
-                this.elements.participantsList.innerHTML = `
-                    <div class="empty-result">
-                        <p>참가자가 없습니다.</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            // 온라인 상태로 정렬
-            const sortedParticipants = [...participants].sort((a, b) => {
-                // 온라인 참가자를 먼저 표시
-                if (a.online && !b.online) return -1;
-                if (!a.online && b.online) return 1;
-                // 같은 상태라면 이름순으로 정렬
-                return a.name.localeCompare(b.name);
-            });
-            
-            // 참가자 항목 추가
-            sortedParticipants.forEach(participant => {
-                const item = this.createParticipantItem(participant);
-                this.elements.participantsList.appendChild(item);
-            });
-            
-            this.logger.debug(`참가자 목록 업데이트: ${participants.length}명`);
-        } catch (error) {
-            this.logger.error('참가자 목록 업데이트 중 오류 발생:', error);
+        const list = this.elements.participantsList;
+        if (!list) return;
+        list.innerHTML = '';
+        const participantsList = participants || this.dataManager.participants || [];
+        console.log('UI에 표시될 참가자:', participantsList);
+        if (participantsList.length === 0) {
+            list.innerHTML = '<div class="placeholder-item">현재 접속 중인 참가자가 없습니다.</div>';
+            return;
         }
-    }
-
-    /**
-     * 참가자 항목 생성
-     * @param {Object} participant - 참가자 데이터
-     * @returns {HTMLElement} - 참가자 항목 요소
-     */
-    createParticipantItem(participant) {
-        try {
+        for (const p of participantsList) {
             const item = document.createElement('div');
             item.className = 'participant-item';
-            if (participant.online) item.classList.add('online');
-            item.dataset.email = participant.email;
-            item.dataset.role = participant.role;
-            
-            // 사용자 이니셜 계산
-            const initials = this.getInitials(participant.name);
-            
-            // 온라인 상태 표시
-            const onlineStatusHtml = participant.online ? 
-                '<span class="online-indicator" title="온라인"></span>' : '';
-            
+            if (p.is_online) item.classList.add('online');
             item.innerHTML = `
-                <div class="participant-avatar">
-                    ${initials}
-                    ${onlineStatusHtml}
-                </div>
-                <div class="participant-info">
-                    <div class="participant-name">${participant.name}</div>
-                    <div class="participant-meta">
-                        <span class="role-badge ${participant.role}">${this.getRoleDisplayName(participant.role)}</span>
-                        <span class="participant-email">${participant.email}</span>
-                    </div>
-                </div>
-                <div class="participant-actions">
-                    <button class="btn-message" title="메시지 보내기">
-                        <i class="fas fa-comment"></i>
-                    </button>
-                </div>
+                <span class="participant-name">${p.name}</span>
+                <span class="participant-role">${this.getRoleDisplayName(p.role)}</span>
+                <span class="online-badge">${p.is_online ? '● 접속 중' : ''}</span>
             `;
-            
-            // 클릭 이벤트 - 참가자에게 메시지 보내기
-            item.querySelector('.btn-message').addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.messageParticipant(participant);
-            });
-            
-            return item;
-        } catch (error) {
-            this.logger.error('참가자 항목 생성 중 오류 발생:', error);
-            
-            // 오류 발생 시 기본 항목 반환
-            const fallbackItem = document.createElement('div');
-            fallbackItem.className = 'participant-item';
-            fallbackItem.textContent = '정보를 표시할 수 없습니다.';
-            return fallbackItem;
-        }
-    }
-
-    /**
-     * 참가자에게 메시지 보내기
-     * @param {Object} participant - 참가자 데이터
-     */
-    messageParticipant(participant) {
-        try {
-            // 메시지 보내기 이벤트 발생
-            const event = new CustomEvent('sidebar:message-participant', {
-                detail: { participant },
-            });
-            document.dispatchEvent(event);
-            
-            this.logger.debug('참가자 메시지 보내기 이벤트 발생:', participant);
-        } catch (error) {
-            this.logger.error('참가자 메시지 보내기 중 오류 발생:', error);
+            list.appendChild(item);
         }
     }
 
