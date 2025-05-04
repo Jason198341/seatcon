@@ -1,522 +1,280 @@
 /**
- * 반응형 스타일시트
+ * 반응형 디자인 스타일시트
  * 
- * 컨퍼런스 채팅 애플리케이션의 반응형 디자인을 정의합니다.
- * 다양한 화면 크기 및 디바이스에 따른 레이아웃 최적화를 포함합니다.
+ * 다양한 화면 크기에 대응하는 반응형 스타일을 정의합니다.
+ * 모바일, 태블릿, 데스크톱 등 다양한 디바이스에 최적화된 레이아웃을 제공합니다.
  */
 
-/* 기본 반응형 설정 */
-html {
-    font-size: 16px;
+/* 기본 모바일 스타일 */
+:root {
+    --bottom-nav-height: 56px;
 }
 
-/* 미디어 쿼리: 대형 데스크톱 (1200px 이상) */
-@media (min-width: 1200px) {
-    .container {
-        max-width: 1140px;
+/* 모바일 디바이스 (세로 화면) */
+@media (max-width: 767px) {
+    body {
+        padding-bottom: var(--bottom-nav-height);
     }
     
-    /* 레이아웃 최적화 */
-    .content {
-        padding: 2rem;
-    }
-    
-    /* 메시지 목록 최적화 */
-    .message-list {
-        padding: 1.5rem;
-        gap: 1rem;
-    }
-    
-    /* 입력 영역 최적화 */
-    .message-form {
-        padding: 1rem;
-    }
-    
-    /* 사이드바 최적화 */
-    .sidebar {
-        padding: 2rem 1.5rem;
-    }
-}
-
-/* 미디어 쿼리: 데스크톱 (992px ~ 1199px) */
-@media (min-width: 992px) and (max-width: 1199px) {
-    .container {
-        max-width: 960px;
-    }
-    
-    /* 사이드바 크기 조정 */
-    :root {
-        --sidebar-width: 260px;
-    }
-}
-
-/* 미디어 쿼리: 태블릿 (768px ~ 991px) */
-@media (min-width: 768px) and (max-width: 991px) {
-    .container {
-        max-width: 720px;
-    }
-    
-    /* 사이드바 크기 조정 */
-    :root {
-        --sidebar-width: 240px;
-    }
-    
-    /* 헤더 최적화 */
-    .header-brand {
-        font-size: 1.1rem;
-    }
-    
-    /* 콘텐츠 패딩 조정 */
-    .content {
-        padding: 1.25rem;
-    }
-    
-    /* 채팅 메시지 최적화 */
-    .message {
-        max-width: 90%;
-    }
-    
-    /* 모달 크기 조정 */
-    .modal {
-        max-width: 600px;
-    }
-}
-
-/* 미디어 쿼리: 모바일 & 소형 태블릿 (576px ~ 767px) */
-@media (min-width: 576px) and (max-width: 767px) {
-    html {
-        font-size: 15px;
-    }
-    
-    .container {
-        max-width: 540px;
-    }
-    
-    /* 모바일 레이아웃 전환 */
-    :root {
-        --sidebar-width: 100%;
-        --header-height: 56px;
-    }
-    
-    /* 사이드바 슬라이드 메뉴 */
-    .sidebar {
-        transform: translateX(-100%);
-        z-index: 1010;
-        box-shadow: var(--shadow-lg);
-        transition: transform 0.3s ease;
-    }
-    
-    .sidebar.show {
-        transform: translateX(0);
-    }
-    
-    /* 메인 콘텐츠 조정 */
-    .content {
-        margin-left: 0;
-        width: 100%;
-        padding: 1rem;
-    }
-    
-    /* 토글 버튼 표시 */
-    .mobile-menu-toggle {
-        display: flex;
-    }
-    
-    /* 헤더 컴팩트화 */
     .header {
-        padding: 0 1rem;
-    }
-    
-    .header-brand img {
-        height: 30px;
-    }
-    
-    /* 채팅 UI 최적화 */
-    .chat-header {
-        padding: 0.5rem 1rem;
-    }
-    
-    .message-list {
-        padding: 0.75rem;
-    }
-    
-    .message-form {
-        padding: 0.75rem;
-    }
-    
-    .message {
-        max-width: 90%;
-        padding: 0.5rem 0.75rem;
-    }
-    
-    /* 사용자 정보 폼 최적화 */
-    .user-info-form {
-        padding: 1rem;
-    }
-    
-    /* 에러 다이얼로그 최적화 */
-    .error-dialog-content {
-        width: 95%;
-    }
-}
-
-/* 미디어 쿼리: 소형 모바일 (575px 이하) */
-@media (max-width: 575px) {
-    html {
-        font-size: 14px;
-    }
-    
-    /* 모바일 레이아웃 전환 */
-    :root {
-        --sidebar-width: 100%;
-        --header-height: 50px;
-    }
-    
-    /* 사이드바 전체화면 */
-    .sidebar {
-        transform: translateX(-100%);
-        z-index: 1010;
-        width: 100%;
-        box-shadow: var(--shadow-lg);
-        transition: transform 0.3s ease;
-    }
-    
-    .sidebar.show {
-        transform: translateX(0);
-    }
-    
-    /* 헤더 컴팩트화 */
-    .header {
-        padding: 0 0.75rem;
+        height: 50px;
     }
     
     .header-brand {
         font-size: 1rem;
-        margin-right: 1rem;
     }
     
     .header-brand img {
         height: 28px;
-        margin-right: 0.5rem;
     }
     
-    /* 메인 콘텐츠 조정 */
+    .main-content {
+        padding-top: 50px;
+    }
+    
     .content {
+        padding: 0.5rem;
         margin-left: 0;
         width: 100%;
-        padding: 0.75rem;
     }
     
-    /* 채팅 UI 최적화 */
+    .sidebar {
+        display: none;
+    }
+    
     .chat-container {
-        height: calc(100vh - var(--header-height) - 1.5rem);
-    }
-    
-    .chat-header {
-        padding: 0.5rem 0.75rem;
-    }
-    
-    .chat-title {
-        font-size: 0.9rem;
-    }
-    
-    .message-list {
-        padding: 0.75rem 0.5rem;
-        gap: 0.5rem;
-    }
-    
-    .message {
-        max-width: 95%;
-        padding: 0.5rem 0.625rem;
-    }
-    
-    .message-meta {
-        font-size: 0.7rem;
-        margin-top: 0.375rem;
+        height: calc(100vh - 50px - 1rem - var(--bottom-nav-height));
+        margin-bottom: 0.5rem;
     }
     
     .message-form {
-        padding: 0.5rem 0.75rem;
-        gap: 0.5rem;
+        padding: 0.5rem;
     }
     
     .message-input {
-        padding: 0.625rem;
-        font-size: 1rem; /* 모바일에서 입력하기 쉽게 */
-        min-height: 40px;
+        padding: 0.5rem;
+        font-size: 16px; /* 모바일에서 더 큰 폰트 사이즈 (iOS에서 자동 확대 방지) */
     }
     
     .send-button {
-        width: 40px;
-        height: 40px;
+        width: 2.25rem;
+        height: 2.25rem;
     }
     
-    /* 폼 요소 최적화 */
-    input, textarea, select, button {
-        font-size: 1rem; /* 모바일 터치 최적화 */
+    /* 하단 네비게이션 바 */
+    .bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: var(--bottom-nav-height);
+        background-color: var(--background);
+        border-top: 1px solid var(--border);
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+        z-index: 1000;
+        transition: background-color var(--transition-speed) ease, border-color var(--transition-speed) ease;
     }
     
-    label {
-        font-size: 0.8rem;
+    .bottom-nav-item {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5rem;
+        color: var(--foreground-alt);
+        text-decoration: none;
+        font-size: 0.75rem;
+        transition: color var(--transition-speed) ease;
     }
     
-    /* 좋아요 버튼 최적화 */
-    .message-likes {
-        padding: 0.125rem 0.375rem;
+    .bottom-nav-item.active {
+        color: var(--primary);
     }
     
-    .like-button {
-        width: 1.25rem;
-        height: 1.25rem;
+    .bottom-nav-icon {
+        font-size: 1.25rem;
+        margin-bottom: 0.25rem;
     }
     
-    /* 사용자 정보 최적화 */
+    /* 유저 정보 폼 모바일 최적화 */
     .user-info-form {
-        padding: 0.75rem;
+        padding: 1rem;
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .user-info-form h2 {
+        font-size: 1.25rem;
+        margin-bottom: 1rem;
     }
     
     .form-group {
         margin-bottom: 0.75rem;
     }
     
-    /* 모달 및 다이얼로그 */
+    /* 토스트 메시지 위치 조정 */
+    .toast {
+        bottom: calc(var(--bottom-nav-height) + 1rem);
+    }
+    
+    /* 모달 스타일 조정 */
     .modal {
         width: 95%;
     }
-    
-    .modal-header, .modal-footer {
-        padding: 0.75rem 1rem;
+}
+
+/* 태블릿 디바이스 (세로 및 가로 화면) */
+@media (min-width: 768px) and (max-width: 1023px) {
+    .header-brand {
+        font-size: 1.15rem;
     }
     
-    .modal-body {
-        padding: 1rem;
+    .sidebar {
+        width: 240px;
     }
     
-    .error-dialog-content {
-        width: 95%;
+    .content {
+        margin-left: 0;
+        width: 100%;
     }
     
-    .error-dialog-header, .error-dialog-footer {
-        padding: 0.75rem 1rem;
-    }
-    
-    .error-dialog-body {
-        padding: 1rem;
-    }
-    
-    /* 토스트 알림 최적화 */
-    .toast {
-        padding: 0.75rem 1rem;
-        max-width: 90%;
-        right: 0.75rem;
-        bottom: 0.75rem;
-        left: 0.75rem;
-        margin: 0 auto;
-    }
-    
-    /* 새 메시지 알림 최적화 */
-    .new-message-notification {
-        padding: 0.375rem 0.75rem;
-        font-size: 0.75rem;
-    }
-    
-    .new-message-notification button {
-        width: 1.25rem;
-        height: 1.25rem;
+    /* 태블릿에서는 하단 네비게이션 바 숨김 */
+    .bottom-nav {
+        display: none;
     }
 }
 
-/* 미디어 쿼리: 화면 높이가 작은 경우 (노트북, 태블릿 가로 모드 등) */
-@media (max-height: 600px) {
-    :root {
-        --header-height: 50px;
+/* 데스크톱 스크린 */
+@media (min-width: 1024px) {
+    .container {
+        max-width: 1140px;
     }
     
-    .chat-container {
-        height: calc(100vh - var(--header-height) - 1rem);
+    .content {
+        margin-left: 0;
+        width: 100%;
     }
     
-    .message-form {
-        padding: 0.5rem 0.75rem;
-    }
-    
-    .message-input {
-        min-height: 36px;
-        max-height: 100px;
-    }
-    
-    .send-button {
-        width: 36px;
-        height: 36px;
+    /* 데스크톱에서는 하단 네비게이션 바 숨김 */
+    .bottom-nav {
+        display: none;
     }
 }
 
-/* 미디어 쿼리: 인쇄 모드 */
-@media print {
-    .header, .footer, .sidebar, .message-form, .chat-actions {
-        display: none !important;
+/* 큰 데스크톱 스크린 */
+@media (min-width: 1200px) {
+    .container {
+        max-width: 1320px;
+    }
+}
+
+/* 가로 방향 모바일 */
+@media (max-height: 500px) and (orientation: landscape) {
+    .header {
+        height: 40px;
     }
     
-    .content, .main-content {
-        margin: 0 !important;
-        padding: 0 !important;
-        width: 100% !important;
+    .main-content {
+        padding-top: 40px;
     }
     
     .chat-container {
-        height: auto !important;
-        box-shadow: none !important;
-        border: 1px solid #ddd;
+        height: calc(100vh - 40px - 0.5rem - var(--bottom-nav-height));
     }
     
-    .message-list {
-        height: auto !important;
-        overflow: visible !important;
+    .bottom-nav {
+        height: 40px;
     }
     
-    /* 인쇄 시 배경색 및 테마 색상 최적화 */
-    body, .chat-container, .message {
-        background-color: white !important;
-        color: black !important;
+    .bottom-nav-item {
+        flex-direction: row;
+        font-size: 0.7rem;
     }
     
-    .message {
-        border: 1px solid #eee !important;
-        margin-bottom: 10px !important;
-        page-break-inside: avoid;
+    .bottom-nav-icon {
+        font-size: 1rem;
+        margin-bottom: 0;
+        margin-right: 0.25rem;
     }
-    
-    /* 인쇄 시 링크 URL 표시 */
-    a[href]:after {
-        content: " (" attr(href) ")";
-        font-size: 0.8em;
+}
+
+/* 다크 모드 특정 조정 */
+@media (prefers-color-scheme: dark) {
+    .bottom-nav {
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
     }
 }
 
 /* 접근성: 고대비 모드 */
 @media (prefers-contrast: high) {
     :root {
-        --light-primary: #0000FF;
-        --light-foreground: #000000;
-        --light-background: #FFFFFF;
         --light-border: #000000;
-        
-        --dark-primary: #FFFF00;
-        --dark-foreground: #FFFFFF;
-        --dark-background: #000000;
-        --dark-border: #FFFFFF;
+        --dark-border: #ffffff;
     }
     
-    .message, .button, input, select, textarea {
-        border: 2px solid currentColor !important;
+    .message, .card, .chat-container {
+        border: 1px solid var(--border);
     }
 }
 
-/* 접근성: 애니메이션 감소 */
-@media (prefers-reduced-motion) {
+/* 애니메이션 줄이기 선호 설정 */
+@media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         animation-duration: 0.001s !important;
-        animation-iteration-count: 1 !important;
         transition-duration: 0.001s !important;
-        scroll-behavior: auto !important;
     }
 }
 
-/* 방향: RTL 언어 지원 */
-[dir="rtl"] {
-    .message {
-        border-right: 3px solid var(--role-color);
-        border-left: none;
-    }
-    
-    .message.own-message {
-        border-left: 3px solid var(--role-color);
-        border-right: none;
-    }
-    
-    .message-meta {
-        flex-direction: row-reverse;
-    }
-    
-    .language-tag {
-        margin-right: auto;
-        margin-left: 0;
-    }
-    
-    .header-brand {
-        margin-left: 2rem;
-        margin-right: 0;
-    }
-    
-    .header-nav {
-        margin-right: auto;
-        margin-left: 0;
-    }
-    
-    .header-nav-item {
-        margin-right: 1.25rem;
-        margin-left: 0;
-    }
+/* 모달 내 언어 선택 옵션 */
+.language-option {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
 }
 
-/* 다크 모드: 시스템 설정 기반 자동 적용 */
-@media (prefers-color-scheme: dark) {
-    body:not(.theme-light) {
-        --primary: var(--dark-primary);
-        --primary-dark: var(--dark-primary-dark);
-        --primary-light: var(--dark-primary-light);
-        --secondary: var(--dark-secondary);
-        --accent: var(--dark-accent);
-        --background: var(--dark-background);
-        --background-alt: var(--dark-background-alt);
-        --foreground: var(--dark-foreground);
-        --foreground-alt: var(--dark-foreground-alt);
-        --border: var(--dark-border);
-        --success: var(--dark-success);
-        --warning: var(--dark-warning);
-        --error: var(--dark-error);
-        --info: var(--dark-info);
-        
-        color-scheme: dark;
-    }
+.language-option:last-child {
+    border-bottom: none;
 }
 
-/* 디바이스 특화 스타일 */
-.device-mobile .mobile-only {
-    display: block;
+.language-option input[type="radio"] {
+    width: auto;
+    margin-right: 0.75rem;
 }
 
-.device-mobile .desktop-only {
-    display: none;
+.language-option label {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0;
+    cursor: pointer;
+    font-weight: normal;
+    color: var(--foreground);
 }
 
-.device-desktop .mobile-only {
-    display: none;
+/* 언어 선택 폼 */
+#languageForm {
+    margin-top: 1rem;
 }
 
-.device-desktop .desktop-only {
-    display: block;
+/* 사용자 모달 스타일 */
+.modal-body p {
+    margin-bottom: 0.5rem;
 }
 
-/* 추가 여백 및 간격 조정 (모바일) */
-@media (max-width: 767px) {
-    .m-1 { margin: 0.25rem; }
-    .m-2 { margin: 0.5rem; }
-    .m-3 { margin: 0.75rem; }
-    .m-4 { margin: 1rem; }
-    
-    .p-1 { padding: 0.25rem; }
-    .p-2 { padding: 0.5rem; }
-    .p-3 { padding: 0.75rem; }
-    .p-4 { padding: 1rem; }
-    
-    .mt-1-mobile { margin-top: 0.25rem; }
-    .mt-2-mobile { margin-top: 0.5rem; }
-    .mt-3-mobile { margin-top: 0.75rem; }
-    .mt-4-mobile { margin-top: 1rem; }
-    
-    .mb-1-mobile { margin-bottom: 0.25rem; }
-    .mb-2-mobile { margin-bottom: 0.5rem; }
-    .mb-3-mobile { margin-bottom: 0.75rem; }
-    .mb-4-mobile { margin-bottom: 1rem; }
+.modal-body ul {
+    padding-left: 1.5rem;
+    margin-top: 0.5rem;
+}
+
+.modal-body h4 {
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+}
+
+.modal-body h5 {
+    font-size: 1rem;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
 }

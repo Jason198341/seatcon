@@ -10,6 +10,7 @@ import supabaseClient from './supabase-client.js';
 import translationService from './translation.js';
 import userManager from './user.js';
 import chatManager from './chat.js';
+import mobileUI from './mobile-ui.js';
 import * as utils from './utils.js';
 
 /**
@@ -28,8 +29,6 @@ class ConferenceChatApp {
         
         // DOM 요소 참조
         this.themeToggle = null;
-        this.speakerSelector = null;
-        this.speakerNameElement = null;
         this.currentSpeakerId = 'global-chat';
     }
 
@@ -76,14 +75,14 @@ class ConferenceChatApp {
             // 컨퍼런스 데이터 로드
             await this.loadConferenceData();
             
-            // 화자 선택 옵션 구성
-            this.setupSpeakerOptions();
-            
             // 사용자 관리자 초기화
             this.initUserManager();
             
             // 테마 설정
             this.initTheme();
+            
+            // 모바일 UI 초기화
+            this.initMobileUI();
             
             // 초기화 완료
             this.isInitialized = true;
@@ -116,8 +115,6 @@ class ConferenceChatApp {
      */
     setupDOMReferences() {
         this.themeToggle = document.getElementById('themeToggle');
-        this.speakerSelector = document.getElementById('speakerSelector');
-        this.speakerNameElement = document.getElementById('speakerName');
     }
 
     /**
@@ -128,13 +125,6 @@ class ConferenceChatApp {
         if (this.themeToggle) {
             this.themeToggle.addEventListener('click', () => {
                 this.toggleTheme();
-            });
-        }
-        
-        // 화자 선택 이벤트
-        if (this.speakerSelector) {
-            this.speakerSelector.addEventListener('change', () => {
-                this.handleSpeakerChange();
             });
         }
         
@@ -224,59 +214,6 @@ class ConferenceChatApp {
     }
 
     /**
-     * 화자 선택 옵션 구성
-     */
-    setupSpeakerOptions() {
-        if (!this.speakerSelector || !this.conferenceData) return;
-        
-        // 기존 옵션 제거
-        this.speakerSelector.innerHTML = '';
-        
-        // 화자 옵션 추가
-        this.conferenceData.speakers.forEach(speaker => {
-            const option = document.createElement('option');
-            option.value = speaker.id;
-            option.textContent = speaker.name;
-            option.dataset.role = speaker.role;
-            this.speakerSelector.appendChild(option);
-        });
-        
-        // 기본 화자 선택 (전체 채팅)
-        this.speakerSelector.value = 'global-chat';
-        
-        // 초기 화자 정보 업데이트
-        this.updateSpeakerInfo('global-chat');
-    }
-
-    /**
-     * 화자 정보 업데이트
-     * @param {string} speakerId - 화자 ID
-     */
-    updateSpeakerInfo(speakerId) {
-        if (!this.conferenceData) return;
-        
-        // 화자 정보 찾기
-        const speaker = this.conferenceData.speakers.find(s => s.id === speakerId);
-        
-        if (!speaker) return;
-        
-        // 화자 이름 업데이트
-        if (this.speakerNameElement) {
-            this.speakerNameElement.textContent = speaker.name;
-        }
-        
-        // 화자 역할에 따른 스타일 적용
-        const chatContainer = document.getElementById('chatContainer');
-        if (chatContainer) {
-            // 이전 역할 클래스 제거
-            chatContainer.classList.remove('speaker-role-global', 'speaker-role-speaker', 'speaker-role-exhibitor');
-            
-            // 새 역할 클래스 추가
-            chatContainer.classList.add(`speaker-role-${speaker.role}`);
-        }
-    }
-
-    /**
      * 사용자 관리자 초기화
      */
     initUserManager() {
@@ -326,6 +263,25 @@ class ConferenceChatApp {
             loadMoreButtonId: 'loadMoreButton',
             speakerId: this.currentSpeakerId
         });
+    }
+
+    /**
+     * 모바일 UI 초기화
+     */
+    initMobileUI() {
+        mobileUI.init({
+            conferenceData: this.conferenceData,
+            onLanguageChange: (language) => {
+                this.handleLanguageChange(language);
+            },
+            onLogout: () => {
+                userManager.handleLogout();
+            }
+        });
+        
+        if (CONFIG.APP.DEBUG_MODE) {
+            console.log('Mobile UI initialized');
+        }
     }
 
     /**
@@ -388,51 +344,20 @@ class ConferenceChatApp {
     }
 
     /**
-     * 화자 변경 처리
-     */
-    handleSpeakerChange() {
-        if (!this.speakerSelector) return;
-        
-        // 새 화자 ID
-        const newSpeakerId = this.speakerSelector.value;
-        
-        // 현재 화자와 같으면 무시
-        if (newSpeakerId === this.currentSpeakerId) {
-            return;
-        }
-        
-        // 화자 ID 업데이트
-        this.currentSpeakerId = newSpeakerId;
-        
-        // 화자 정보 업데이트
-        this.updateSpeakerInfo(newSpeakerId);
-        
-        // 채팅 채널 변경
-        if (chatManager) {
-            // 기존 채팅 정리
-            chatManager.cleanup();
-            
-            // 새 채팅 초기화
-            chatManager.init({
-                containerid: 'chatContainer',
-                messageListId: 'messageList',
-                messageFormId: 'messageForm',
-                messageInputId: 'messageInput',
-                sendButtonId: 'sendButton',
-                loadMoreButtonId: 'loadMoreButton',
-                speakerId: this.currentSpeakerId
-            });
-        }
-        
-        utils.log('Speaker changed', { speakerId: newSpeakerId });
-    }
-
-    /**
      * 사용자 로그인 처리
      * @param {Object} user - 사용자 정보
      */
     handleUserLogin(user) {
         this.isLoggedIn = true;
+        
+        // 사용자 정보 폼 숨기고 채팅 컨테이너 표시
+        const userInfoFormContainer = document.getElementById('userInfoFormContainer');
+        const chatContainer = document.getElementById('chatContainer');
+        
+        if (userInfoFormContainer && chatContainer) {
+            userInfoFormContainer.style.display = 'none';
+            chatContainer.style.display = 'flex';
+        }
         
         // 채팅 관리자 초기화
         this.initChatManager();
@@ -446,6 +371,15 @@ class ConferenceChatApp {
      */
     handleUserLogout(user) {
         this.isLoggedIn = false;
+        
+        // 채팅 컨테이너 숨기고 사용자 정보 폼 표시
+        const userInfoFormContainer = document.getElementById('userInfoFormContainer');
+        const chatContainer = document.getElementById('chatContainer');
+        
+        if (userInfoFormContainer && chatContainer) {
+            userInfoFormContainer.style.display = 'block';
+            chatContainer.style.display = 'none';
+        }
         
         // 채팅 관리자 정리
         if (chatManager) {

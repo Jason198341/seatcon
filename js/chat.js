@@ -472,47 +472,6 @@ class ChatManager {
     }
 
     /**
-     * 번역 토글
-     * @param {string} messageId - 메시지 ID
-     */
-    toggleTranslation(messageId) {
-        const message = this.messagesMap[messageId];
-        
-        if (!message) {
-            return;
-        }
-        
-        // 번역 표시 토글
-        const messageElement = this.messageList.querySelector(`[data-message-id="${messageId}"]`);
-        
-        if (messageElement) {
-            const contentElement = messageElement.querySelector('.message-content');
-            const originalElement = messageElement.querySelector('.original-content');
-            const translatedElement = messageElement.querySelector('.translated-content');
-            const toggleButton = messageElement.querySelector('.translation-toggle');
-            
-            // 번역된 내용이 있는 경우
-            if (message.isTranslated && translatedElement && originalElement) {
-                const isShowingTranslation = contentElement.classList.contains('showing-translation');
-                
-                if (isShowingTranslation) {
-                    // 원본 표시로 전환
-                    contentElement.classList.remove('showing-translation');
-                    originalElement.style.display = 'block';
-                    translatedElement.style.display = 'none';
-                    toggleButton.textContent = '번역 보기';
-                } else {
-                    // 번역 표시로 전환
-                    contentElement.classList.add('showing-translation');
-                    originalElement.style.display = 'none';
-                    translatedElement.style.display = 'block';
-                    toggleButton.textContent = '원문 보기';
-                }
-            }
-        }
-    }
-
-    /**
      * 메시지 렌더링
      */
     renderMessages() {
@@ -616,7 +575,7 @@ class ChatManager {
     }
 
     /**
-     * 메시지 내용 요소 생성
+     * 메시지 내용 요소 생성 - 번역 항상 표시하도록 수정
      * @param {Object} message - 메시지 객체
      * @returns {HTMLElement} - 메시지 내용 요소
      */
@@ -631,17 +590,18 @@ class ChatManager {
         
         contentWrapper.appendChild(originalContent);
         
-        // 번역 내용이 있는 경우
+        // 번역 내용이 있는 경우 - 항상 표시하도록 수정
         if (message.isTranslated && message.translatedContent) {
             // 번역 내용 요소
             const translatedContent = document.createElement('div');
             translatedContent.className = 'translated-content';
             translatedContent.innerHTML = this.formatMessageContent(message.translatedContent);
-            translatedContent.style.display = 'none';
+            // 항상 표시되도록 display 속성 변경
+            translatedContent.style.display = 'block';
             
             contentWrapper.appendChild(translatedContent);
             
-            // 번역 토글 버튼
+            // 번역 토글 버튼은 CSS에서 display: none으로 처리됨
             const toggleButton = document.createElement('button');
             toggleButton.className = 'translation-toggle';
             toggleButton.textContent = '번역 보기';
@@ -743,14 +703,6 @@ class ChatManager {
         if (likeButton) {
             likeButton.addEventListener('click', () => {
                 this.toggleLike(messageId);
-            });
-        }
-        
-        // 번역 토글 버튼 클릭 이벤트
-        const toggleButton = messageElement.querySelector('.translation-toggle');
-        if (toggleButton) {
-            toggleButton.addEventListener('click', () => {
-                this.toggleTranslation(messageId);
             });
         }
     }

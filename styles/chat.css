@@ -59,17 +59,18 @@
     scroll-behavior: smooth;
 }
 
-/* 개별 메시지 */
+/* 개별 메시지 - 컴팩트하게 조정 */
 .message {
     display: flex;
     flex-direction: column;
     max-width: 85%;
-    padding: 0.5rem 0.75rem;
+    padding: 0.5rem 0.5rem;
     border-radius: var(--border-radius);
     background-color: var(--background-alt);
     position: relative;
     animation: message-appear 0.2s ease;
     transition: background-color var(--transition-speed) ease;
+    margin-bottom: 0.5rem;
 }
 
 /* 자기 메시지 */
@@ -122,47 +123,28 @@
     margin-bottom: 0.25rem;
 }
 
-/* 번역된 메시지 */
+/* 번역된 메시지 - 항상 표시되도록 변경 */
 .translated-content {
     font-style: italic;
     font-size: 0.9em;
     opacity: 0.9;
     padding-top: 0.25rem;
-    border-top: 1px dashed rgba(var(--foreground-rgb), 0.2);
+    border-top: 1px dashed rgba(128, 128, 128, 0.3);
+    display: block !important;
 }
 
-/* 번역 토글 버튼 */
+/* 번역 토글 버튼 숨김 처리 (번역은 항상 표시) */
 .translation-toggle {
-    font-size: 0.75rem;
-    padding: 0.25rem 0.5rem;
-    background-color: transparent;
-    color: var(--primary);
-    border: 1px solid var(--primary);
-    border-radius: var(--border-radius);
-    margin-top: 0.5rem;
-    align-self: flex-start;
+    display: none;
 }
 
-.translation-toggle:hover {
-    background-color: var(--primary);
-    color: white;
-}
-
-.message.own-message .translation-toggle {
-    color: white;
-    border-color: white;
-}
-
-.message.own-message .translation-toggle:hover {
-    background-color: rgba(255, 255, 255, 0.2);
-}
-
-/* 메시지 메타 정보 */
+/* 메시지 메타 정보 - 오른쪽 정렬로 변경 */
 .message-meta {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 0.5rem;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: var(--foreground-alt);
     margin-top: 0.5rem;
 }
@@ -173,6 +155,7 @@
 
 .author-name {
     font-weight: 600;
+    margin-right: auto;
 }
 
 .timestamp {
@@ -180,8 +163,8 @@
 }
 
 .language-tag {
-    margin-left: auto;
-    font-size: 0.875rem;
+    font-size: 0.75rem;
+    margin-left: 0.25rem;
 }
 
 /* 이모티콘 스타일 */
@@ -191,18 +174,18 @@
     vertical-align: middle;
 }
 
-/* 메시지 좋아요 */
+/* 메시지 좋아요 - 위치 조정 */
 .message-likes {
     display: flex;
     align-items: center;
     gap: 0.25rem;
     position: absolute;
-    bottom: -0.5rem;
-    right: 0.5rem;
+    top: 0.25rem;
+    right: 0.25rem;
     background-color: var(--background);
     border-radius: 1rem;
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
+    padding: 0.15rem 0.3rem;
+    font-size: 0.7rem;
     box-shadow: var(--shadow-sm);
     transition: background-color var(--transition-speed) ease;
 }
@@ -213,8 +196,8 @@
     color: var(--foreground-alt);
     padding: 0;
     margin: 0;
-    width: 1.5rem;
-    height: 1.5rem;
+    width: 1.2rem;
+    height: 1.2rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -427,6 +410,7 @@
     
     .message {
         max-width: 90%;
+        padding: 0.4rem 0.4rem;
     }
     
     .message-form {
@@ -441,6 +425,10 @@
     .send-button {
         width: 2.25rem;
         height: 2.25rem;
+    }
+    
+    .author-name, .timestamp, .language-tag {
+        font-size: 0.65rem;
     }
 }
 

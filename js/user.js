@@ -230,6 +230,16 @@ class UserManager {
         
         if (saved) {
             this.currentUser = user;
+            
+            // 로그인 폼 숨기고 채팅 UI 표시
+            const userInfoFormContainer = document.getElementById('userInfoFormContainer');
+            const chatContainer = document.getElementById('chatContainer');
+            
+            if (userInfoFormContainer && chatContainer) {
+                userInfoFormContainer.style.display = 'none';
+                chatContainer.style.display = 'flex';
+            }
+            
             this.updateUI();
             
             // 로그인 이벤트 콜백 호출
@@ -265,14 +275,67 @@ class UserManager {
         // UI 업데이트
         this.updateUI();
         
+        // 채팅 화면에서 로그인 화면으로 전환
+        const userInfoFormContainer = document.getElementById('userInfoFormContainer');
+        const chatContainer = document.getElementById('chatContainer');
+        
+        if (userInfoFormContainer && chatContainer) {
+            userInfoFormContainer.style.display = 'block';
+            chatContainer.style.display = 'none';
+            
+            // 입력 필드 초기화
+            const nameInput = userInfoFormContainer.querySelector('#userName');
+            const emailInput = userInfoFormContainer.querySelector('#userEmail');
+            
+            if (prevUser && nameInput && emailInput) {
+                nameInput.value = prevUser.name || '';
+                emailInput.value = prevUser.email || '';
+            }
+        }
+        
+        // Supabase 연결 정리
+        supabaseClient.cleanup();
+        
         // 로그아웃 이벤트 콜백 호출
         if (typeof this.onUserLogout === 'function' && prevUser) {
             this.onUserLogout(prevUser);
         }
         
+        // 페이지 스크롤을 맨 위로 이동
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
         if (CONFIG.APP.DEBUG_MODE) {
             console.log('User logged out');
         }
+        
+        // 로그아웃 성공 메시지 표시 (선택 사항)
+        this.showLogoutSuccessMessage();
+    }
+    
+    /**
+     * 로그아웃 성공 메시지 표시
+     */
+    showLogoutSuccessMessage() {
+        // 토스트 메시지 생성
+        const toast = document.createElement('div');
+        toast.className = 'toast success';
+        toast.textContent = '로그아웃이 완료되었습니다.';
+        
+        document.body.appendChild(toast);
+        
+        // 표시 후 자동 제거
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    document.body.removeChild(toast);
+                }
+            }, 300);
+        }, 2000);
     }
 
     /**

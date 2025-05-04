@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>현대자동차그룹 시트기술 컨퍼런스 2025</title>
     <meta name="description" content="현대자동차그룹 시트기술 컨퍼런스 2025 실시간 다국어 번역 채팅 시스템">
     
@@ -32,13 +32,6 @@
         </div>
         
         <div class="header-nav">
-            <!-- 언어 선택 -->
-            <div class="header-nav-item">
-                <select id="languageSelector" class="language-selector" aria-label="언어 선택">
-                    <!-- JS에서 동적으로 추가됨 -->
-                </select>
-            </div>
-            
             <!-- 테마 전환 버튼 -->
             <div class="header-nav-item">
                 <button id="themeToggle" class="icon-button" aria-label="테마 전환">
@@ -46,11 +39,8 @@
                 </button>
             </div>
             
-            <!-- 사용자 정보 -->
-            <div class="header-nav-item">
-                <div id="userInfo" class="user-info" style="display: none;">
-                    <!-- JS에서 동적으로 추가됨 -->
-                </div>
+            <!-- 로그아웃 버튼 (PC 전용) -->
+            <div class="header-nav-item d-none d-md-block">
                 <button id="logoutButton" class="button secondary" style="display: none;">
                     <i class="fas fa-sign-out-alt mr-1"></i> 로그아웃
                 </button>
@@ -58,66 +48,53 @@
         </div>
     </header>
     
-    <!-- 메인 컨텐츠 -->
+    <!-- 메인 콘텐츠 -->
     <main class="main-content">
-        <!-- 사이드바 -->
-        <aside class="sidebar">
-            <div class="conference-info mb-4">
-                <h2 class="text-center mb-2">컨퍼런스 정보</h2>
-                <p id="conferenceDate" class="text-center mb-1">2025년 5월 4일</p>
-                <p id="conferenceLocation" class="text-center">서울 양재 플로팅아일랜드</p>
-            </div>
-            
-            <!-- 로그인 폼 -->
-            <form id="userInfoForm" class="user-info-form">
-                <h3 class="mb-3">사용자 정보</h3>
-                <div class="form-group">
-                    <label for="userName">이름</label>
-                    <input type="text" id="userName" placeholder="이름을 입력하세요" required>
-                </div>
-                <div class="form-group">
-                    <label for="userEmail">이메일</label>
-                    <input type="email" id="userEmail" placeholder="이메일을 입력하세요" required>
-                </div>
-                <div class="form-group">
-                    <label for="roleSelector">역할</label>
-                    <select id="roleSelector" required>
-                        <!-- JS에서 동적으로 추가됨 -->
-                    </select>
-                </div>
-                <button id="loginButton" type="submit" class="button w-100">
-                    <i class="fas fa-sign-in-alt mr-1"></i> 참가하기
-                </button>
-            </form>
-            
-            <!-- 화자 선택 -->
-            <div class="speaker-selector mt-4">
-                <h3 class="mb-3">화자 선택</h3>
-                <select id="speakerSelector" class="w-100">
-                    <!-- JS에서 동적으로 추가됨 -->
-                </select>
-            </div>
-            
-            <!-- 발표자 정보 -->
-            <div class="speaker-info mt-4">
-                <h3 class="mb-2">현재 발표</h3>
-                <div class="current-speaker">
-                    <span id="speakerName">전체 채팅</span>
-                </div>
-            </div>
-        </aside>
-        
-        <!-- 콘텐츠 영역 -->
         <div class="content">
+            <!-- 사용자 정보 입력 폼 -->
+            <div id="userInfoFormContainer" class="card user-info-form">
+                <h2>채팅 시작하기</h2>
+                <p class="mb-4">채팅에 참여하기 위해 아래 정보를 입력해주세요.</p>
+                
+                <form id="userInfoForm">
+                    <div class="form-group">
+                        <label for="userName">이름</label>
+                        <input type="text" id="userName" name="userName" required placeholder="이름을 입력하세요">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="userEmail">이메일</label>
+                        <input type="email" id="userEmail" name="userEmail" required placeholder="이메일을 입력하세요">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="roleSelector">역할</label>
+                        <select id="roleSelector" name="roleSelector" required>
+                            <option value="" disabled selected>역할을 선택하세요</option>
+                            <!-- JS에서 동적으로 추가됨 -->
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="languageSelector">선호 언어</label>
+                        <select id="languageSelector" name="languageSelector" required>
+                            <option value="" disabled selected>언어를 선택하세요</option>
+                            <!-- JS에서 동적으로 추가됨 -->
+                        </select>
+                    </div>
+                    
+                    <button type="submit" id="loginButton" class="button mt-4 w-100">채팅 시작하기</button>
+                </form>
+            </div>
+            
             <!-- 채팅 컨테이너 -->
-            <div id="chatContainer" class="chat-container">
-                <!-- 채팅 헤더 -->
+            <div id="chatContainer" class="chat-container" style="display: none;">
                 <div class="chat-header">
                     <div>
                         <h2 class="chat-title">실시간 채팅</h2>
-                        <p class="chat-subtitle">
-                            참가자들과 대화하고 질문을 남겨보세요
-                        </p>
+                        <div class="chat-subtitle">
+                            <span id="conferenceDate">2025년 5월 4일</span> | <span id="conferenceLocation">서울 양재 플로팅아일랜드</span>
+                        </div>
                     </div>
                     <div class="chat-actions">
                         <button id="scrollToBottom" class="icon-button" aria-label="하단으로 스크롤">
@@ -126,28 +103,19 @@
                     </div>
                 </div>
                 
-                <!-- 메시지 목록 -->
                 <div id="messageList" class="message-list">
-                    <!-- JS에서 동적으로 추가됨 -->
+                    <!-- 메시지 목록이 동적으로 추가됨 -->
                 </div>
                 
-                <!-- 더 보기 버튼 -->
-                <button id="loadMoreButton" class="button secondary load-more-button" style="display: none;">
+                <button id="loadMoreButton" class="load-more-button" style="display: none;">
                     이전 메시지 더 보기
                 </button>
                 
-                <!-- 메시지 입력 폼 -->
                 <form id="messageForm" class="message-form">
                     <div class="message-input-container">
-                        <textarea 
-                            id="messageInput" 
-                            class="message-input" 
-                            placeholder="메시지를 입력하세요..." 
-                            maxlength="1000"
-                            rows="1"
-                        ></textarea>
+                        <textarea id="messageInput" class="message-input" placeholder="메시지를 입력하세요..." maxlength="1000"></textarea>
                     </div>
-                    <button id="sendButton" type="submit" class="button send-button">
+                    <button type="submit" id="sendButton" class="send-button">
                         <i class="fas fa-paper-plane"></i>
                     </button>
                 </form>
@@ -155,18 +123,25 @@
         </div>
     </main>
     
-    <!-- 푸터 -->
-    <footer class="footer">
-        <p>&copy; 2025 현대자동차그룹 시트기술 컨퍼런스. All rights reserved.</p>
-        <p>
-            <small>실시간 번역 기술 제공: Google Cloud Translation API</small>
-        </p>
-    </footer>
-    
-    <!-- 모바일 메뉴 토글 버튼 -->
-    <button id="mobileMenuToggle" class="mobile-menu-toggle icon-button">
-        <i class="fas fa-bars"></i>
-    </button>
+    <!-- 하단 네비게이션 바 (모바일 전용) -->
+    <nav class="bottom-nav">
+        <a href="#" class="bottom-nav-item active" id="chatNav">
+            <div class="bottom-nav-icon"><i class="fas fa-comments"></i></div>
+            <span>채팅</span>
+        </a>
+        <a href="#" class="bottom-nav-item" id="userInfoNav">
+            <div class="bottom-nav-icon"><i class="fas fa-user"></i></div>
+            <span>내 정보</span>
+        </a>
+        <a href="#" class="bottom-nav-item" id="languageNav">
+            <div class="bottom-nav-icon"><i class="fas fa-language"></i></div>
+            <span>언어</span>
+        </a>
+        <a href="#" class="bottom-nav-item" id="infoNav">
+            <div class="bottom-nav-icon"><i class="fas fa-info-circle"></i></div>
+            <span>정보</span>
+        </a>
+    </nav>
     
     <!-- 자바스크립트 모듈 -->
     <script type="module" src="js/main.js"></script>
@@ -180,32 +155,6 @@
             // 터치 디바이스일 경우 클래스 추가
             if (isTouchDevice) {
                 document.body.classList.add('touch-device');
-            }
-            
-            // 모바일 메뉴 토글
-            const mobileMenuToggle = document.getElementById('mobileMenuToggle');
-            const sidebar = document.querySelector('.sidebar');
-            
-            if (mobileMenuToggle && sidebar) {
-                mobileMenuToggle.addEventListener('click', function() {
-                    sidebar.classList.toggle('show');
-                    mobileMenuToggle.querySelector('i').classList.toggle('fa-bars');
-                    mobileMenuToggle.querySelector('i').classList.toggle('fa-times');
-                });
-                
-                // 사이드바 외부 클릭 시 닫기
-                document.addEventListener('click', function(event) {
-                    if (
-                        sidebar.classList.contains('show') && 
-                        !sidebar.contains(event.target) && 
-                        event.target !== mobileMenuToggle &&
-                        !mobileMenuToggle.contains(event.target)
-                    ) {
-                        sidebar.classList.remove('show');
-                        mobileMenuToggle.querySelector('i').classList.add('fa-bars');
-                        mobileMenuToggle.querySelector('i').classList.remove('fa-times');
-                    }
-                });
             }
             
             // 스크롤 버튼 처리
