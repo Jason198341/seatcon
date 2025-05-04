@@ -819,9 +819,7 @@ class SidebarComponent {
             // 일정 목록 업데이트
             this.updateScheduleList(this.dataManager.getSchedule());
             
-            // 참가자 목록 업데이트
-            this.updateParticipantsList(this.dataManager.getParticipantsByRole(this.currentFilter));
-            
+            // (참가자/통역가 메시지 패널 갱신은 실시간 구독 함수에서만 처리)
             this.logger.info('사이드바 데이터 로드 완료');
         } catch (error) {
             this.logger.error('사이드바 데이터 로드 중 오류 발생:', error);
@@ -879,12 +877,6 @@ class SidebarComponent {
         } catch (error) {
             this.logger.error('사이드바 숨기기 중 오류 발생:', error);
         }
-    }
-
-    // 참가자 목록 UI 갱신 함수는 더 이상 사용하지 않음
-    updateParticipantsList() {
-        // 참가자 대신 통역가 메시지 표시
-        this.updateInterpreterMessagesList();
     }
 }
 
