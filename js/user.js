@@ -468,13 +468,27 @@ class UserManager {
             userInfoFormContainer.style.display = 'block';
             chatContainer.style.display = 'none';
             
-            // 입력 필드 초기화
-            const nameInput = userInfoFormContainer.querySelector('#userName');
-            const emailInput = userInfoFormContainer.querySelector('#userEmail');
-            
-            if (prevUser && nameInput && emailInput) {
-                nameInput.value = prevUser.name || '';
-                emailInput.value = prevUser.email || '';
+            // 입력 폼 완전 초기화
+            const loginForm = document.getElementById('userInfoForm');
+            if (loginForm) {
+                loginForm.reset();
+                
+                // 역할 선택기 초기화
+                const roleSelector = loginForm.querySelector('#roleSelector');
+                if (roleSelector) {
+                    roleSelector.value = '';
+                }
+                
+                // 스태프 비밀번호 필드 초기화 및 숨김
+                const staffPasswordField = document.getElementById('staffPassword');
+                const staffPasswordContainer = document.getElementById('staffPasswordContainer');
+                if (staffPasswordField) {
+                    staffPasswordField.value = '';
+                }
+                if (staffPasswordContainer) {
+                    staffPasswordContainer.classList.remove('show');
+                    staffPasswordContainer.style.display = 'none';
+                }
             }
         }
         

@@ -12,6 +12,8 @@ import userManager from './user.js';
 import chatManager from './chat.js';
 import mobileUI from './mobile-ui.js';
 import i18nService from './i18n.js';
+import exhibitionManager from './exhibition.js';
+import speakersManager from './speakers.js';
 import * as utils from './utils.js';
 
 /**
@@ -236,6 +238,12 @@ class ConferenceChatApp {
             }
         });
         
+        // 전시물 관리자 초기화
+        exhibitionManager.init();
+        
+        // 발표자 관리자 초기화
+        speakersManager.init();
+        
         // 현재 사용자 상태 확인
         const currentUser = userManager.getCurrentUser();
         this.isLoggedIn = !!currentUser;
@@ -315,7 +323,7 @@ class ConferenceChatApp {
         document.body.classList.remove('theme-light', 'theme-dark');
         document.body.classList.add(`theme-${theme}`);
         
-        // 테마 변수 업데이트
+        // 상태 변수 업데이트
         this.currentTheme = theme;
         
         // 테마 설정 저장
@@ -336,6 +344,18 @@ class ConferenceChatApp {
         window.dispatchEvent(new CustomEvent('theme-changed', { 
             detail: { theme } 
         }));
+        
+        // 모달에도 테마 적용
+        const modals = document.querySelectorAll('.info-modal-content');
+        modals.forEach(modal => {
+            if (theme === 'dark') {
+                modal.classList.add('theme-dark');
+                modal.classList.remove('theme-light');
+            } else {
+                modal.classList.add('theme-light');
+                modal.classList.remove('theme-dark');
+            }
+        });
     }
 
     /**

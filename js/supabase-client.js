@@ -103,8 +103,11 @@ class SupabaseClient {
         this.currentUser = null;
         localStorage.removeItem('currentUser');
         
+        // 처리된 메시지 캐시 초기화
+        this.processedMessages.clear();
+        
         if (CONFIG.APP.DEBUG_MODE) {
-            console.log('User info cleared');
+            console.log('User info cleared and message cache reset');
         }
     }
 
