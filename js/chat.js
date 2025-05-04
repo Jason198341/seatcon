@@ -19,6 +19,7 @@ class ChatManager {
         this.messageInput = null;
         this.sendButton = null;
         this.loadMoreButton = null;
+        this.pinnedMessageContainer = null;
         
         // 메시지 관련 상태
         this.messages = [];
@@ -29,6 +30,7 @@ class ChatManager {
         this.isScrolling = false;
         this.shouldScrollToBottom = true;
         this.isSubmitting = false;
+        this.lastStaffMessage = null;
         
         // 스피커 ID
         this.currentSpeakerId = 'global-chat';
@@ -50,6 +52,9 @@ class ChatManager {
         // 스피커 ID 설정
         this.currentSpeakerId = options.speakerId || 'global-chat';
         
+        // 고정 메시지 컨테이너 생성
+        this.createPinnedMessageContainer();
+        
         // 이벤트 리스너 설정
         this.setupEventListeners();
         
@@ -63,6 +68,58 @@ class ChatManager {
             console.log('ChatManager initialized', {
                 speakerId: this.currentSpeakerId
             });
+        }
+    }
+
+    /**
+     * 고정 메시지 컨테이너 생성
+     */
+    createPinnedMessageContainer() {
+        // 이미 존재하는 경우 제거
+        let existingContainer = document.querySelector('.pinned-message-container');
+        if (existingContainer) {
+            existingContainer.remove();
+        }
+        
+        // 컨테이너 생성
+        this.pinnedMessageContainer = document.createElement('div');
+        this.pinnedMessageContainer.className = 'pinned-message-container';
+        
+        // 스타일 설정
+        this.pinnedMessageContainer.style.cssText = `
+            display: none;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        `;
+        
+        // 다크 모드 대응
+        document.addEventListener('theme-changed', (e) => {
+            if (e.detail.theme === 'dark') {
+                this.pinnedMessageContainer.style.backgroundColor = '#2A2F35';
+                this.pinnedMessageContainer.style.borderColor = '#444';
+            } else {
+                this.pinnedMessageContainer.style.backgroundColor = '#f8f9fa';
+                this.pinnedMessageContainer.style.borderColor = '#dee2e6';
+            }
+        });
+        
+        // 테마 초기 적용
+        if (document.body.classList.contains('theme-dark')) {
+            this.pinnedMessageContainer.style.backgroundColor = '#2A2F35';
+            this.pinnedMessageContainer.style.borderColor = '#444';
+        }
+        
+        // 메시지 리스트에 추가
+        if (this.messageList) {
+            this.messageList.insertBefore(this.pinnedMessageContainer, this.messageList.firstChild);
         }
     }
 
@@ -139,6 +196,9 @@ class ChatManager {
             this.messages = messages;
             this.updateMessagesMap();
             
+            // 마지막 스태프 메시지 찾기
+            this.findLastStaffMessage();
+            
             // 좋아요 정보 로드
             await this.loadLikesInfo();
             
@@ -211,6 +271,9 @@ class ChatManager {
             this.messages = [...translatedMessages, ...this.messages];
             this.updateMessagesMap();
             
+            // 마지막 스태프 메시지 찾기
+            this.findLastStaffMessage();
+            
             // 좋아요 정보 업데이트
             await this.loadLikesInfo();
             
@@ -245,6 +308,57 @@ class ChatManager {
         this.messages.forEach(message => {
             this.messagesMap[message.id] = message;
         });
+    }
+
+    /**
+     * 마지막 스태프 메시지 찾기
+     */
+    findLastStaffMessage() {
+        // 역순으로 순회하며 스태프 메시지 찾기
+        for (let i = this.messages.length - 1; i >= 0; i--) {
+            if (this.messages[i].user_role === 'staff') {
+                this.lastStaffMessage = this.messages[i];
+                this.updatePinnedMessage();
+                return;
+            }
+        }
+        
+        // 스태프 메시지가 없을 경우
+        this.lastStaffMessage = null;
+        this.updatePinnedMessage();
+    }
+
+    /**
+     * 고정 메시지 업데이트
+     */
+    updatePinnedMessage() {
+        if (!this.pinnedMessageContainer) return;
+        
+        // 마지막 스태프 메시지가 있으면 표시
+        if (this.lastStaffMessage) {
+            const staffMessage = this.lastStaffMessage;
+            const messageContent = staffMessage.translatedContent || staffMessage.content;
+            
+            // 고정 메시지 컨텐츠 생성
+            this.pinnedMessageContainer.innerHTML = `
+                <div class="pinned-message-header">
+                    <i class="fas fa-thumbtack" style="margin-right: 5px;"></i>
+                    <strong>${this.escapeHtml(staffMessage.author_name)}</strong>
+                    <span class="pinned-timestamp">${this.formatTimestamp(staffMessage.created_at)}</span>
+                </div>
+                <div class="pinned-message-content">${this.formatMessageContent(messageContent)}</div>
+            `;
+            
+            // 고정 메시지 표시
+            this.pinnedMessageContainer.style.display = 'block';
+            
+            // 공지사항 스타일 강조
+            this.pinnedMessageContainer.style.borderLeft = '4px solid #2ecc71';
+        } else {
+            // 고정 메시지 숨기기
+            this.pinnedMessageContainer.style.display = 'none';
+            this.pinnedMessageContainer.innerHTML = '';
+        }
     }
 
     /**
@@ -319,6 +433,12 @@ class ChatManager {
         } else {
             // 새 메시지 알림 표시
             this.showNewMessageNotification();
+        }
+        
+        // 스태프 메시지인 경우 고정 메시지 업데이트
+        if (message.user_role === 'staff') {
+            this.lastStaffMessage = message;
+            this.updatePinnedMessage();
         }
     }
 
@@ -480,6 +600,9 @@ class ChatManager {
         // 메시지 목록 초기화
         this.messageList.innerHTML = '';
         
+        // 고정 메시지 컨테이너 다시 추가
+        this.createPinnedMessageContainer();
+        
         // 메시지가 없을 때
         if (this.messages.length === 0) {
             this.showEmptyState();
@@ -534,6 +657,13 @@ class ChatManager {
             if (roleInfo) {
                 messageElement.dataset.userRole = message.user_role;
                 messageElement.style.setProperty('--role-color', roleInfo.color);
+            }
+            
+            // 스태프 메시지 강조
+            if (message.user_role === 'staff') {
+                messageElement.classList.add('staff-message');
+                messageElement.style.backgroundColor = 'rgba(46, 204, 113, 0.1)';
+                messageElement.style.borderLeft = '3px solid #2ecc71';
             }
         }
         
@@ -641,6 +771,21 @@ class ChatManager {
             const langInfo = translationService.getLanguageInfo(message.language);
             language.textContent = langInfo ? langInfo.flag : message.language;
             language.title = langInfo ? langInfo.name : message.language;
+        }
+        
+        // 역할 표시 (스태프인 경우에만)
+        if (message.user_role === 'staff') {
+            const roleTag = document.createElement('span');
+            roleTag.className = 'role-tag';
+            roleTag.textContent = '스태프';
+            roleTag.style.backgroundColor = '#2ecc71';
+            roleTag.style.color = 'white';
+            roleTag.style.padding = '2px 5px';
+            roleTag.style.borderRadius = '4px';
+            roleTag.style.fontSize = '10px';
+            roleTag.style.marginRight = '5px';
+            
+            metaInfo.appendChild(roleTag);
         }
         
         metaInfo.appendChild(authorName);

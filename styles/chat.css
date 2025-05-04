@@ -5,79 +5,138 @@
  * 메시지 디자인, 입력 폼, 애니메이션 등 채팅 관련 디자인 요소를 포함합니다.
  */
 
-/* 채팅 컨테이너 */
+/* 채팅 컨테이너 - Figma 스타일로 업데이트 */
 .chat-container {
     display: flex;
     flex-direction: column;
     height: calc(100vh - var(--header-height) - 2rem);
     background-color: var(--background);
-    border-radius: var(--border-radius);
-    box-shadow: var(--shadow-sm);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     overflow: hidden;
     position: relative;
-    transition: background-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+    transition: all 200ms ease;
+    border: 1px solid var(--border);
 }
 
-/* 채팅 상단 바 */
+/* 채팅 상단 바 - Figma 스타일로 업데이트 */
 .chat-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.75rem 1rem;
-    background-color: var(--background-alt);
+    padding: 12px 16px;
+    background-color: var(--background);
     border-bottom: 1px solid var(--border);
-    transition: background-color var(--transition-speed) ease, border-color var(--transition-speed) ease;
+    transition: all 200ms ease;
 }
 
 .chat-title {
     font-weight: 600;
-    font-size: 1rem;
+    font-size: 16px;
     color: var(--foreground);
     margin: 0;
 }
 
 .chat-subtitle {
-    font-size: 0.75rem;
+    font-size: 12px;
     color: var(--foreground-alt);
-    margin-top: 0.25rem;
+    margin-top: 4px;
 }
 
 .chat-actions {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 8px;
 }
 
 /* 채팅 메시지 목록 */
 .message-list {
     flex: 1;
     overflow-y: auto;
-    padding: 1rem;
+    padding: 16px;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 12px;
     scroll-behavior: smooth;
+    background-color: var(--background);
 }
 
-/* 개별 메시지 - 컴팩트하게 조정 */
+/* 개별 메시지 - Figma 스타일로 업데이트 */
 .message {
     display: flex;
     flex-direction: column;
     max-width: 85%;
-    padding: 0.5rem 0.5rem;
-    border-radius: var(--border-radius);
-    background-color: var(--background-alt);
+    padding: 8px 10px;
+    border-radius: 12px;
+    background-color: #F0F2F5;
     position: relative;
     animation: message-appear 0.2s ease;
-    transition: background-color var(--transition-speed) ease;
-    margin-bottom: 0.5rem;
+    transition: all 200ms ease;
+    margin-bottom: 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 /* 자기 메시지 */
 .message.own-message {
     align-self: flex-end;
-    background-color: var(--primary);
-    color: white;
+    background-color: #E3F2FD;
+    color: var(--foreground);
+}
+
+/* 스태프 메시지 스타일 */
+.message.staff-message {
+    background-color: rgba(46, 204, 113, 0.1);
+    border-left: 3px solid #2ecc71;
+}
+
+/* 고정 메시지 컨테이너 */
+.pinned-message-container {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 10px 15px;
+    margin-bottom: 15px;
+    border-left: 4px solid #2ecc71;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    transition: all 0.3s ease;
+}
+
+.theme-dark .pinned-message-container {
+    background-color: #2A2F35;
+    border-color: #2ecc71;
+}
+
+.pinned-message-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+    font-size: 13px;
+    color: #555;
+}
+
+.theme-dark .pinned-message-header {
+    color: #aaa;
+}
+
+.pinned-message-header strong {
+    margin-right: 5px;
+}
+
+.pinned-timestamp {
+    margin-left: auto;
+    font-size: 11px;
+    color: #777;
+}
+
+.theme-dark .pinned-timestamp {
+    color: #888;
+}
+
+.pinned-message-content {
+    font-size: 14px;
+    line-height: 1.4;
 }
 
 /* 역할별 메시지 스타일 */
@@ -120,22 +179,33 @@
 
 /* 원본 메시지 */
 .original-content {
-    margin-bottom: 0.25rem;
+    margin-bottom: 2px;
+    font-size: 14px;
 }
 
-/* 번역된 메시지 - 항상 표시되도록 변경 */
+/* 번역된 메시지 - 항상 표시 */
 .translated-content {
-    font-style: italic;
-    font-size: 0.9em;
-    opacity: 0.9;
-    padding-top: 0.25rem;
+    font-size: 13px;
+    opacity: 0.8;
+    padding-top: 4px;
     border-top: 1px dashed rgba(128, 128, 128, 0.3);
     display: block !important;
+    color: #666;
 }
 
-/* 번역 토글 버튼 숨김 처리 (번역은 항상 표시) */
+/* 번역 토글 버튼 숨김 처리 */
 .translation-toggle {
     display: none;
+}
+
+/* 역할 태그 */
+.role-tag {
+    display: inline-block;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 10px;
+    color: white;
+    margin-right: 5px;
 }
 
 /* 메시지 메타 정보 - 오른쪽 정렬로 변경 */
@@ -143,28 +213,29 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 0.5rem;
-    font-size: 0.7rem;
-    color: var(--foreground-alt);
-    margin-top: 0.5rem;
+    gap: 6px;
+    font-size: 11px;
+    color: #777;
+    margin-top: 4px;
 }
 
 .message.own-message .message-meta {
-    color: rgba(255, 255, 255, 0.8);
+    color: #666;
 }
 
 .author-name {
     font-weight: 600;
     margin-right: auto;
+    color: #555;
 }
 
 .timestamp {
-    opacity: 0.8;
+    opacity: 0.9;
 }
 
 .language-tag {
-    font-size: 0.75rem;
-    margin-left: 0.25rem;
+    font-size: 12px;
+    margin-left: 4px;
 }
 
 /* 이모티콘 스타일 */
@@ -178,56 +249,61 @@
 .message-likes {
     display: flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: 2px;
     position: absolute;
-    top: 0.25rem;
-    right: 0.25rem;
-    background-color: var(--background);
-    border-radius: 1rem;
-    padding: 0.15rem 0.3rem;
-    font-size: 0.7rem;
-    box-shadow: var(--shadow-sm);
-    transition: background-color var(--transition-speed) ease;
+    top: 3px;
+    right: 3px;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 12px;
+    padding: 2px 4px;
+    font-size: 10px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    transition: all 200ms ease;
+    backdrop-filter: blur(4px);
 }
 
 .like-button {
     background: none;
     border: none;
-    color: var(--foreground-alt);
+    color: #999;
     padding: 0;
     margin: 0;
-    width: 1.2rem;
-    height: 1.2rem;
+    width: 16px;
+    height: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: color var(--transition-speed) ease, transform var(--transition-speed) ease;
+    transition: all 150ms ease;
+    box-shadow: none;
 }
 
 .like-button:hover {
-    color: var(--accent);
-    transform: scale(1.1);
+    color: #f06292;
+    transform: scale(1.2);
+    background: none;
+    box-shadow: none;
 }
 
 .like-button.liked {
-    color: var(--accent);
+    color: #f06292;
 }
 
 .like-count {
-    color: var(--foreground-alt);
-    transition: color var(--transition-speed) ease;
+    color: #555;
+    font-weight: 600;
+    font-size: 10px;
 }
 
-/* 채팅 입력 영역 */
+/* 채팅 입력 영역 - Figma 스타일로 업데이트 */
 .message-form {
-    padding: 0.75rem;
-    background-color: var(--background-alt);
+    padding: 10px 12px;
+    background-color: var(--background);
     border-top: 1px solid var(--border);
     display: flex;
     align-items: flex-end;
-    gap: 0.75rem;
-    transition: background-color var(--transition-speed) ease, border-color var(--transition-speed) ease;
+    gap: 8px;
+    transition: all 200ms ease;
 }
 
 .message-input-container {
@@ -236,24 +312,43 @@
 }
 
 .message-input {
-    padding: 0.75rem;
-    padding-right: 2.5rem;
-    min-height: 2.5rem;
-    max-height: 150px;
+    padding: 10px 12px;
+    padding-right: 40px;
+    min-height: 40px;
+    max-height: 120px;
     resize: none;
     line-height: 1.4;
     overflow-y: auto;
+    font-size: 14px;
+    border-radius: 20px;
+    border: 1px solid #ddd;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: all 200ms ease;
+}
+
+.message-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.15);
 }
 
 .send-button {
-    width: 2.5rem;
-    height: 2.5rem;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0;
     flex-shrink: 0;
+    background-color: var(--primary);
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.send-button:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
 }
 
 /* 비활성화된 채팅 폼 */
@@ -262,18 +357,21 @@
     cursor: not-allowed;
 }
 
-/* 이전 메시지 로드 버튼 */
+/* 이전 메시지 로드 버튼 - Figma 스타일로 업데이트 */
 .load-more-button {
     background-color: var(--background);
     color: var(--primary);
-    margin: 0.5rem auto;
-    padding: 0.25rem 0.75rem;
-    font-size: 0.75rem;
+    margin: 8px auto;
+    padding: 6px 12px;
+    font-size: 12px;
     border: 1px solid var(--primary);
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .load-more-button:hover {
-    background-color: var(--background-alt);
+    background-color: rgba(67, 97, 238, 0.05);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* 빈 상태 표시 */
@@ -283,68 +381,74 @@
     align-items: center;
     justify-content: center;
     margin: auto;
-    padding: 2rem;
+    padding: 40px 20px;
     text-align: center;
     color: var(--foreground-alt);
 }
 
 .empty-icon {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-    opacity: 0.7;
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.6;
+    color: #bbb;
 }
 
 .empty-state h3 {
     font-weight: 500;
-    margin-bottom: 0.5rem;
+    margin-bottom: 8px;
+    color: #555;
 }
 
 .empty-state p {
-    font-size: 0.875rem;
+    font-size: 14px;
+    color: #777;
 }
 
-/* 새 메시지 알림 */
+/* 새 메시지 알림 - Figma 스타일로 업데이트 */
 .new-message-notification {
     position: fixed;
-    bottom: 1rem;
+    bottom: 80px;
     left: 50%;
     transform: translateX(-50%);
     background-color: var(--primary);
     color: white;
-    padding: 0.5rem 1rem;
-    border-radius: 2rem;
+    padding: 8px 16px;
+    border-radius: 24px;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    box-shadow: var(--shadow-md);
+    gap: 8px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
     cursor: pointer;
     z-index: 100;
-    font-size: 0.875rem;
+    font-size: 13px;
     animation: slide-up 0.3s ease;
     opacity: 1;
-    transition: opacity var(--transition-speed) ease, transform var(--transition-speed) ease;
+    transition: all 200ms ease;
 }
 
 .new-message-notification.hide {
     opacity: 0;
-    transform: translate(-50%, 1rem);
+    transform: translate(-50%, 10px);
 }
 
 .new-message-notification button {
     background-color: rgba(255, 255, 255, 0.2);
     border: none;
-    width: 1.5rem;
-    height: 1.5rem;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
     padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.75rem;
+    font-size: 10px;
+    color: white;
+    box-shadow: none;
 }
 
 .new-message-notification button:hover {
     background-color: rgba(255, 255, 255, 0.3);
+    box-shadow: none;
 }
 
 /* 메시지 애니메이션 최적화 */
@@ -356,7 +460,7 @@
 @keyframes message-appear {
     from {
         opacity: 0;
-        transform: translateY(0.5rem);
+        transform: translateY(5px);
     }
     to {
         opacity: 1;
@@ -367,7 +471,7 @@
 @keyframes slide-up {
     from {
         opacity: 0;
-        transform: translate(-50%, 1rem);
+        transform: translate(-50%, 10px);
     }
     to {
         opacity: 1;
@@ -377,28 +481,42 @@
 
 /* 새 메시지 애니메이션 */
 .new-message-animation {
-    animation: message-highlight 1s ease-out forwards;
+    animation: message-highlight 0.8s ease-out forwards;
 }
 
 @keyframes message-highlight {
     0% {
-        background-color: var(--primary-light);
+        background-color: rgba(77, 208, 225, 0.3);
     }
     100% {
-        background-color: var(--background-alt);
+        background-color: #F0F2F5;
     }
 }
 
 .message.own-message.new-message-animation {
-    animation: own-message-highlight 1s ease-out forwards;
+    animation: own-message-highlight 0.8s ease-out forwards;
 }
 
 @keyframes own-message-highlight {
     0% {
-        background-color: var(--primary-light);
+        background-color: rgba(77, 208, 225, 0.3);
     }
     100% {
-        background-color: var(--primary);
+        background-color: #E3F2FD;
+    }
+}
+
+/* 스태프 메시지 하이라이트 애니메이션 */
+.message.staff-message.new-message-animation {
+    animation: staff-message-highlight 0.8s ease-out forwards;
+}
+
+@keyframes staff-message-highlight {
+    0% {
+        background-color: rgba(46, 204, 113, 0.3);
+    }
+    100% {
+        background-color: rgba(46, 204, 113, 0.1);
     }
 }
 
@@ -406,29 +524,44 @@
 @media (max-width: 768px) {
     .chat-container {
         height: calc(100vh - var(--header-height) - 1rem);
+        border-radius: 8px;
     }
     
     .message {
         max-width: 90%;
-        padding: 0.4rem 0.4rem;
+        padding: 6px 8px;
     }
     
     .message-form {
-        padding: 0.5rem;
+        padding: 8px 10px;
     }
     
     .message-input {
-        font-size: 1rem; /* 모바일에서 더 큰 글꼴 크기 */
-        padding: 0.5rem;
+        font-size: 14px; /* 모바일에서도 일관된 글꼴 크기 */
+        padding: 8px 10px;
+        min-height: 38px;
     }
     
     .send-button {
-        width: 2.25rem;
-        height: 2.25rem;
+        width: 34px;
+        height: 34px;
     }
     
     .author-name, .timestamp, .language-tag {
-        font-size: 0.65rem;
+        font-size: 10px;
+    }
+    
+    .pinned-message-container {
+        padding: 8px 12px;
+        margin-bottom: 10px;
+    }
+    
+    .pinned-message-header {
+        font-size: 12px;
+    }
+    
+    .pinned-message-content {
+        font-size: 13px;
     }
 }
 
@@ -438,49 +571,111 @@
 }
 
 .theme-dark .message {
-    background-color: var(--background-alt);
+    background-color: #2A2F35;
 }
 
 .theme-dark .message.own-message {
-    background-color: var(--primary-dark);
+    background-color: #1A3A4E;
+}
+
+.theme-dark .message.staff-message {
+    background-color: rgba(46, 204, 113, 0.1);
 }
 
 .theme-dark .translated-content {
-    border-top-color: rgba(255, 255, 255, 0.1);
+    border-top-color: rgba(255, 255, 255, 0.15);
+    color: #aaa;
+}
+
+.theme-dark .author-name {
+    color: #aaa;
+}
+
+.theme-dark .timestamp, 
+.theme-dark .message-meta {
+    color: #888;
+}
+
+.theme-dark .message-likes {
+    background-color: rgba(42, 47, 53, 0.8);
+}
+
+.theme-dark .like-count {
+    color: #aaa;
+}
+
+.theme-dark .message-input {
+    border-color: #444;
+    background-color: #2A2F35;
+    color: #ddd;
+}
+
+.theme-dark .empty-state h3 {
+    color: #ccc;
+}
+
+.theme-dark .empty-state p {
+    color: #999;
+}
+
+.theme-dark .empty-icon {
+    color: #666;
 }
 
 /* 스크롤바 스타일 */
 .message-list::-webkit-scrollbar {
-    width: 0.5rem;
+    width: 6px;
 }
 
 .message-list::-webkit-scrollbar-track {
-    background: var(--background);
+    background: transparent;
 }
 
 .message-list::-webkit-scrollbar-thumb {
-    background-color: var(--border);
-    border-radius: 0.25rem;
-    border: 2px solid var(--background);
+    background-color: #ddd;
+    border-radius: 3px;
 }
 
 .message-list::-webkit-scrollbar-thumb:hover {
-    background-color: var(--foreground-alt);
+    background-color: #ccc;
+}
+
+.theme-dark .message-list::-webkit-scrollbar-thumb {
+    background-color: #555;
+}
+
+.theme-dark .message-list::-webkit-scrollbar-thumb:hover {
+    background-color: #666;
+}
+
+/* 스태프 비밀번호 필드 스타일 */
+#staffPasswordContainer {
+    transition: all 0.3s ease;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    margin-bottom: 0;
+}
+
+#staffPasswordContainer.show {
+    max-height: 100px;
+    opacity: 1;
+    margin-bottom: 16px;
 }
 
 /* 역할별 메시지 배경 변형 */
 .speaker-role-speaker .message[data-user-role="speaker"] {
-    background-color: rgba(231, 76, 60, 0.1);
+    background-color: rgba(231, 76, 60, 0.08);
 }
 
 .speaker-role-exhibitor .message[data-user-role="exhibitor"] {
-    background-color: rgba(26, 188, 156, 0.1);
+    background-color: rgba(26, 188, 156, 0.08);
 }
 
 .theme-dark .speaker-role-speaker .message[data-user-role="speaker"] {
-    background-color: rgba(231, 76, 60, 0.2);
+    background-color: rgba(231, 76, 60, 0.15);
 }
 
 .theme-dark .speaker-role-exhibitor .message[data-user-role="exhibitor"] {
-    background-color: rgba(26, 188, 156, 0.2);
+    background-color: rgba(26, 188, 156, 0.15);
 }

@@ -147,9 +147,9 @@ class ConferenceChatApp {
             // 실제 구현에서는 서버나 Supabase에서 데이터를 가져옵니다.
             // 현재는 예시 데이터를 사용합니다.
             this.conferenceData = {
-                title: '현대자동차그룹 시트기술 컨퍼런스 2025',
-                date: '2025년 5월 4일',
-                location: '서울 양재 플로팅아일랜드',
+                title: '2025 글로벌 시트 컨퍼런스',
+                date: '2025년 6월 16일~19일',
+                location: '인도 하이데라바드 인도기술연구소',
                 speakers: [
                     { id: 'global-chat', name: '전체 채팅', role: 'global' },
                     { id: 'speaker-1', name: '나선채 책임 - 시트 TRM 기술 트랜드 분석', role: 'speaker' },

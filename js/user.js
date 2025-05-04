@@ -17,6 +17,8 @@ class UserManager {
         this.loginButton = null;
         this.logoutButton = null;
         this.userInfo = null;
+        this.staffPasswordContainer = null;
+        this.staffPassword = null;
         
         // 현재 사용자
         this.currentUser = null;
@@ -68,6 +70,9 @@ class UserManager {
         // 역할 선택 옵션 구성
         this.setupRoleOptions();
         
+        // 스태프 비밀번호 필드 생성
+        this.setupStaffPasswordField();
+        
         // 폼 이벤트 리스너 등록
         this.setupEventListeners();
         
@@ -105,8 +110,14 @@ class UserManager {
         // 기존 옵션 제거
         this.roleSelector.innerHTML = '';
         
+        // 역할 옵션 간소화 (참가자/스태프만 표시)
+        const simplifiedRoles = [
+            { id: 'attendee', name: '참가자' },
+            { id: 'staff', name: '스태프' }
+        ];
+        
         // 역할 옵션 추가
-        CONFIG.USER_ROLES.forEach(role => {
+        simplifiedRoles.forEach(role => {
             const option = document.createElement('option');
             option.value = role.id;
             option.textContent = role.name;
@@ -114,13 +125,62 @@ class UserManager {
         });
         
         // 기본 역할 선택 (첫 번째 역할)
-        if (CONFIG.USER_ROLES.length > 0) {
-            this.roleSelector.value = CONFIG.USER_ROLES[0].id;
+        if (simplifiedRoles.length > 0) {
+            this.roleSelector.value = simplifiedRoles[0].id;
         }
         
         // 현재 사용자가 있으면 해당 역할 선택
         if (this.currentUser && this.currentUser.role) {
             this.roleSelector.value = this.currentUser.role;
+        }
+        
+        // 역할 변경 이벤트 리스너
+        this.roleSelector.addEventListener('change', () => {
+            this.handleRoleChange();
+        });
+    }
+    
+    /**
+     * 스태프 비밀번호 필드 설정
+     */
+    setupStaffPasswordField() {
+        // 기존 필드가 있으면 제거
+        const existingContainer = document.getElementById('staffPasswordContainer');
+        if (existingContainer) {
+            existingContainer.remove();
+        }
+        
+        // 스태프 비밀번호 컨테이너 생성
+        this.staffPasswordContainer = document.createElement('div');
+        this.staffPasswordContainer.id = 'staffPasswordContainer';
+        this.staffPasswordContainer.className = 'form-group';
+        this.staffPasswordContainer.style.display = 'none';
+        
+        // 레이블 생성
+        const passwordLabel = document.createElement('label');
+        passwordLabel.htmlFor = 'staffPassword';
+        passwordLabel.textContent = '스태프 비밀번호';
+        
+        // 비밀번호 입력 필드 생성
+        this.staffPassword = document.createElement('input');
+        this.staffPassword.type = 'password';
+        this.staffPassword.id = 'staffPassword';
+        this.staffPassword.name = 'staffPassword';
+        this.staffPassword.placeholder = '스태프 비밀번호를 입력하세요';
+        this.staffPassword.required = true;
+        
+        // 컨테이너에 요소 추가
+        this.staffPasswordContainer.appendChild(passwordLabel);
+        this.staffPasswordContainer.appendChild(this.staffPassword);
+        
+        // 사용자 정보 폼에 추가
+        if (this.userInfoForm) {
+            const submitButton = this.userInfoForm.querySelector('button[type="submit"]');
+            if (submitButton) {
+                this.userInfoForm.insertBefore(this.staffPasswordContainer, submitButton);
+            } else {
+                this.userInfoForm.appendChild(this.staffPasswordContainer);
+            }
         }
     }
 
@@ -148,6 +208,24 @@ class UserManager {
             this.languageSelector.addEventListener('change', () => {
                 this.handleLanguageChange();
             });
+        }
+    }
+    
+    /**
+     * 역할 변경 처리
+     */
+    handleRoleChange() {
+        if (!this.roleSelector || !this.staffPasswordContainer) return;
+        
+        const selectedRole = this.roleSelector.value;
+        
+        // 스태프 역할 선택 시 비밀번호 필드 표시
+        if (selectedRole === 'staff') {
+            this.staffPasswordContainer.style.display = 'block';
+            this.staffPassword.required = true;
+        } else {
+            this.staffPasswordContainer.style.display = 'none';
+            this.staffPassword.required = false;
         }
     }
 
@@ -211,6 +289,17 @@ class UserManager {
         const name = nameInput.value.trim();
         const email = emailInput.value.trim();
         const role = roleSelect.value;
+        
+        // 스태프 역할 선택 시 비밀번호 확인
+        if (role === 'staff') {
+            const staffPassword = this.staffPassword ? this.staffPassword.value : '';
+            
+            // 비밀번호 검증
+            if (staffPassword !== '9881') {
+                alert('스태프 비밀번호가 올바르지 않습니다.');
+                return;
+            }
+        }
         
         // 유효성 검사
         if (!this.validateUserInput(name, email, role)) {
@@ -387,12 +476,22 @@ class UserManager {
         }
         
         // 역할 검사
-        if (!role || !CONFIG.USER_ROLES.some(r => r.id === role)) {
+        if (!role || !this.isValidRole(role)) {
             alert('유효한 역할을 선택해주세요.');
             return false;
         }
         
         return true;
+    }
+    
+    /**
+     * 유효한 역할인지 확인
+     * @param {string} role - 역할 ID
+     * @returns {boolean} - 유효성 여부
+     */
+    isValidRole(role) {
+        // 간소화된 역할만 사용하므로 직접 확인
+        return role === 'attendee' || role === 'staff';
     }
 
     /**

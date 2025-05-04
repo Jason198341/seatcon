@@ -337,7 +337,7 @@ class MobileUI {
                     </ul>
                     
                     <p class="text-center mt-4">
-                        <small>© 2025 현대자동차그룹. All rights reserved.</small>
+                        <small>© 2025 글로벌 시트 컨퍼런스. All rights reserved.</small>
                     </p>
                 </div>
                 <div class="modal-footer">
