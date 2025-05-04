@@ -93,24 +93,24 @@ class SettingsComponent {
         try {
             // 테마 설정 불러오기
             const savedTheme = localStorage.getItem('premium-chat-theme');
-            this.themeSelector.value = savedTheme || 'system';
+            if (this.themeSelector) this.themeSelector.value = savedTheme || 'system';
             this.currentTheme = savedTheme || 'system';
             
             // 언어 설정 불러오기
             const currentUser = this.userService.getCurrentUser();
             if (currentUser && currentUser.language) {
-                this.languageSelector.value = currentUser.language;
+                if (this.languageSelector) this.languageSelector.value = currentUser.language;
             }
             
             // 폰트 크기 불러오기
             const fontSize = localStorage.getItem('premium-chat-font-size') || '3';
-            this.fontSizeSlider.value = fontSize;
+            if (this.fontSizeSlider) this.fontSizeSlider.value = fontSize;
             
             // 알림 설정 불러오기
             const notificationSettings = JSON.parse(localStorage.getItem('premium-chat-notifications') || '{}');
-            this.notificationAll.checked = notificationSettings.all || false;
-            this.notificationMention.checked = notificationSettings.mention || false;
-            this.notificationSound.checked = notificationSettings.sound || false;
+            if (this.notificationAll) this.notificationAll.checked = notificationSettings.all || false;
+            if (this.notificationMention) this.notificationMention.checked = notificationSettings.mention || false;
+            if (this.notificationSound) this.notificationSound.checked = notificationSettings.sound || false;
             
             this.logger.info('설정 로드 완료');
         } catch (error) {
