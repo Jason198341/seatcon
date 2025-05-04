@@ -7,6 +7,7 @@
 import CONFIG from './config.js';
 import supabaseClient from './supabase-client.js';
 import translationService from './translation.js';
+import i18nService from './i18n.js';  // i18nService 가져오기 추가
 import * as utils from './utils.js';
 
 class MobileUI {

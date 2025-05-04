@@ -12,6 +12,7 @@
 - 메시지 좋아요 기능
 - 반응형 디자인 (모바일 및 데스크톱 지원)
 - 다크/라이트 테마 지원
+- 전시물 목록 및 발표자 정보 조회 기능
 
 ### 기술 스택
 - 프론트엔드: HTML, CSS, JavaScript (ES6+)
@@ -21,7 +22,7 @@
 
 ## 2. 현재 상태 분석
 
-현재 프로젝트는, 이미 대부분의 기능이 구현된 상태입니다. 주요 파일 구조는 다음과 같습니다:
+현재 프로젝트는 대부분의 기능이 구현된 상태이나, 몇 가지 주요 문제가 존재합니다. 주요 파일 구조는 다음과 같습니다:
 
 ```
 conference-chat/
@@ -29,9 +30,11 @@ conference-chat/
 ├── js/             # JavaScript 모듈
 │   ├── chat.js        # 채팅 UI 및 로직
 │   ├── config.js      # 전역 설정
+│   ├── exhibition.js  # 전시물 관리
 │   ├── i18n.js        # 다국어 처리
 │   ├── main.js        # 진입점
 │   ├── mobile-ui.js   # 모바일 UI 관련
+│   ├── speakers.js    # 발표자 관리
 │   ├── supabase-client.js # Supabase 연동
 │   ├── translation.js # 번역 서비스
 │   ├── user.js        # 사용자 관리
@@ -48,6 +51,8 @@ conference-chat/
 
 ### 주요 문제점
 1. 로그아웃 기능에 문제가 있음 - 완전히 로그아웃되지 않아 로그인 시 이전 사용자 정보가 남아있음
+2. i18nService 참조 오류 - mobile-ui.js에서 i18nService를 제대로 참조하지 못함
+3. exhibition.js와 speakers.js 모듈 DOM 요소 에러 - 해당 요소를 찾지 못함
 
 ## 3. 작업 계획
 
@@ -56,13 +61,12 @@ conference-chat/
   - 로그아웃 시 폼 데이터 완전 초기화
   - 로그아웃 시 캐시된 메시지 정보 초기화
   - 로그인 상태 관리 개선
+- [ ] i18nService 참조 오류 수정: mobile-ui.js 파일에서 i18nService 가져오기 문제 해결
+- [ ] exhibition.js 및 speakers.js 모듈 DOM 요소 에러 수정
+  - index.html에 필요한 모달 및 관련 요소 추가
+  - 모듈 초기화 로직 개선
 
 ### 3.2 추가 개선사항
-- [x] 컨퍼런스 전시물 및 발표자 정보 표시 기능 추가
-  - 전시물 목록 모달 구현
-  - 발표자 정보 모달 구현
-  - 다국어 지원 추가
-  - 테마 적용
 - [ ] 채팅 메시지 검색 기능 추가
 - [ ] 에러 처리 및 사용자 피드백 개선
 - [ ] 성능 최적화
@@ -75,15 +79,14 @@ conference-chat/
 - [x] 로그아웃 버그 원인 파악 완료
 - [x] 로그아웃 시 폼 초기화 처리 개선 (user.js)
 - [x] 로그아웃 시 메시지 캐시 초기화 (supabase-client.js)
-- [x] 전시물 관리 모듈 구현 (exhibition.js)
-- [x] 발표자 관리 모듈 구현 (speakers.js)
-- [x] 전시물 및 발표자 모달 UI 구현 (index.html, info-modal.css)
-- [x] 다국어 번역 항목 추가 (i18n.js)
-- [x] 메인 애플리케이션 모듈 업데이트 (main.js)
-- [x] 테마 적용 기능 개선
+- [x] 주요 오류 분석 완료
+  - i18nService 참조 오류 파악
+  - exhibition.js 및 speakers.js 모듈 DOM 요소 없음 문제 파악
 
 ## 5. 다음 단계
 
+- [ ] i18nService 참조 오류 수정
+- [ ] exhibition.js 및 speakers.js 모듈 DOM 요소 추가
 - [ ] 채팅 메시지 검색 기능 구현
 - [ ] 통합 테스트 및 디버깅
 - [ ] 사용자 피드백 수집 기능 추가
@@ -94,5 +97,4 @@ conference-chat/
 
 - 이 프로젝트는 2025 글로벌 시트 컨퍼런스 참가자들을 위한 실시간 다국어 번역 채팅 시스템입니다.
 - 개발은 현재 테스트 환경에서 진행 중이며, 실제 배포 전에 API 키를 환경 변수로 관리하는 것이 필요합니다.
-- 다국어 처리와 번역은 Google Cloud Translation API를 활용합니다.
-- 실시간 데이터 처리 및 저장은 Supabase를 사용합니다.
+- 다국어 처리와 번역은 Google Cloud Translation API
