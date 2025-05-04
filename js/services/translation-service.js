@@ -160,16 +160,19 @@ class TranslationService {
      * @returns {Promise<string>} - 번역된 텍스트
      */
     async translateText(text, sourceLanguage, targetLanguage) {
+        // === [실전 QA] 입력값 타입 방어 및 추적 ===
+        if (typeof text !== 'string') {
+            console.warn('[translateText] 입력값이 string이 아님:', text, typeof text);
+            text = String(text);
+        }
+        console.log('[translateText] 번역 요청:', { text, sourceLanguage, targetLanguage });
         // 입력 확인 - 텍스트가 없거나 소스/타겟 언어가 같으면 원본 그대로 반환
         if (!text || !text.trim()) {
             return text;
         }
-        
-        // 언어 코드가 없거나 같으면 원본 반환
         if (!sourceLanguage || !targetLanguage || sourceLanguage === targetLanguage) {
             return text;
         }
-        
         try {
             // 텍스트가 너무 길면 안전하게 자르기 (API 제한)
             const maxLength = 5000;
@@ -205,16 +208,21 @@ class TranslationService {
                     text,
                     sourceLanguage,
                     targetLanguage,
-                    resolve,
+                    resolve: (translation) => {
+                        // === [실전 QA] 번역 결과 타입 방어 및 추적 ===
+                        if (typeof translation !== 'string') {
+                            console.warn('[translateText] 번역 결과가 string이 아님:', translation, typeof translation);
+                            translation = JSON.stringify(translation);
+                        }
+                        console.log('[translateText] 번역 결과:', translation);
+                        resolve(translation);
+                    },
                     reject
                 });
-                
-                // 대기열 처리 시작
                 this.processQueue();
             });
         } catch (error) {
             this.logger.error('[번역 중 오류 발생]', error, { text, sourceLanguage, targetLanguage });
-            // 오류 발생 시 원본 텍스트 반환
             return text + ' [번역 실패]';
         }
     }
