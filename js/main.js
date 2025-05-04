@@ -159,8 +159,8 @@ function initializeComponents() {
     // 사이드바 컴포넌트 초기화
     sidebarComponent = new SidebarComponent(dataManager, userService, logger);
     
-    // 참가자 실시간 구독 보장 (supabaseClient가 준비된 후에도)
-    if (typeof sidebarComponent.subscribeParticipantsRealtime === 'function' && window.supabaseClient) {
+    // supabaseClient가 완전히 준비된 후에만 실시간 구독 시작
+    if (typeof sidebarComponent.subscribeParticipantsRealtime === 'function' && window.supabaseClient && window.supabaseClient.supabase) {
         sidebarComponent.subscribeParticipantsRealtime(window.supabaseClient);
     }
     

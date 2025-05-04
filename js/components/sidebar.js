@@ -34,10 +34,6 @@ class SidebarComponent {
         this.exhibitorDisplayMode = 'list'; // 'list' 또는 'category'
         
         this.init();
-        // 참가자 실시간 구독 시작 (supabaseClient는 window에서 참조)
-        if (window.supabaseClient && window.supabaseClient.supabase) {
-            this.subscribeParticipantsRealtime(window.supabaseClient);
-        }
     }
 
     /**
@@ -743,38 +739,6 @@ class SidebarComponent {
     }
 
     /**
-     * 통역가 메시지 리스트를 패널에 표시 (참가자 관련 코드 완전 제거)
-     */
-    async updateInterpreterMessagesList() {
-        const list = this.elements.participantsList;
-        if (!list) return;
-        list.innerHTML = '<div class="placeholder-item">불러오는 중...</div>';
-        try {
-            const messages = await window.supabaseClient.getInterpreterMessages(50);
-            list.innerHTML = '';
-            if (!messages || messages.length === 0) {
-                list.innerHTML = '<div class="placeholder-item">통역가 메시지가 없습니다.</div>';
-                return;
-            }
-            for (const msg of messages) {
-                const item = document.createElement('div');
-                item.className = 'interpreter-message-item';
-                item.innerHTML = `
-                    <div class="interpreter-message-meta">
-                        <span class="interpreter-message-author">${msg.author_name || '통역가'}</span>
-                        <span class="interpreter-message-time">${new Date(msg.created_at).toLocaleString()}</span>
-                    </div>
-                    <div class="interpreter-message-content">${msg.content}</div>
-                `;
-                list.appendChild(item);
-            }
-        } catch (error) {
-            list.innerHTML = '<div class="interpreter-message-item error">통역가 메시지 불러오기 실패</div>';
-            if (window.logger) window.logger.error('통역가 메시지 불러오기 실패:', error);
-        }
-    }
-
-    /**
      * 사용자 이니셜 계산
      * @param {string} name - 사용자 이름
      * @returns {string} - 이니셜
@@ -915,23 +879,6 @@ class SidebarComponent {
         } catch (error) {
             this.logger.error('사이드바 숨기기 중 오류 발생:', error);
         }
-    }
-
-    /**
-     * 참가자 실시간 구독 시작
-     * @param {SupabaseClient} supabaseClient
-     */
-    subscribeParticipantsRealtime(supabaseClient) {
-        if (!supabaseClient) return;
-        // comments 테이블에 실시간 구독(통역가 메시지)
-        supabaseClient.supabase
-            .from('comments')
-            .on('*', async () => {
-                await this.updateInterpreterMessagesList();
-            })
-            .subscribe();
-        // 최초 1회 로드
-        this.updateInterpreterMessagesList();
     }
 
     // 참가자 목록 UI 갱신 함수는 더 이상 사용하지 않음
