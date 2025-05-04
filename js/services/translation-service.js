@@ -113,7 +113,10 @@ class TranslationService {
                     this.lastAPICallTime = Date.now();
                     
                     if (!response.ok) {
-                        throw new Error(`HTTP 오류! 상태: ${response.status}`);
+                        const errMsg = `HTTP 오류! 상태: ${response.status}`;
+                        this.logger.error('[번역 API HTTP 오류]', errMsg, request);
+                        request.reject(new Error(errMsg));
+                        continue;
                     }
                     
                     const data = await response.json();
@@ -132,10 +135,12 @@ class TranslationService {
                         // 응답 처리
                         request.resolve(translation);
                     } else {
-                        request.reject(new Error('번역 데이터를 찾을 수 없습니다.'));
+                        const errMsg = '번역 데이터를 찾을 수 없습니다.';
+                        this.logger.error('[번역 API 데이터 없음]', errMsg, request);
+                        request.reject(new Error(errMsg));
                     }
                 } catch (error) {
-                    this.logger.error('번역 API 호출 중 오류 발생:', error);
+                    this.logger.error('[번역 API 호출 중 오류 발생]', error, request);
                     request.reject(error);
                 }
                 
@@ -189,7 +194,9 @@ class TranslationService {
             
             // API 키 확인
             if (!this.apiKey) {
-                throw new Error('Translation API 키가 설정되지 않았습니다.');
+                const errMsg = 'Translation API 키가 설정되지 않았습니다.';
+                this.logger.error('[번역 API 키 없음]', errMsg);
+                throw new Error(errMsg);
             }
             
             // 번역 요청 대기열에 추가
@@ -206,9 +213,9 @@ class TranslationService {
                 this.processQueue();
             });
         } catch (error) {
-            this.logger.error('번역 중 오류 발생:', error);
+            this.logger.error('[번역 중 오류 발생]', error, { text, sourceLanguage, targetLanguage });
             // 오류 발생 시 원본 텍스트 반환
-            return text;
+            return text + ' [번역 실패]';
         }
     }
 
