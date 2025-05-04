@@ -120,7 +120,7 @@ class AuthComponent {
                 name: this.elements.nameInput.value.trim(),
                 email: this.elements.emailInput.value.trim(),
                 role: this.elements.roleSelect.value,
-                language: this.elements.languageSelect.value,
+                language: localStorage.getItem('premium-chat-language') || this.elements.languageSelect.value,
             };
             
             // 관리자 또는 통역사 역할인 경우 비밀번호 추가

@@ -52,18 +52,31 @@ window.addEventListener('DOMContentLoaded', () => {
     const confirmBtn = document.getElementById('confirm-language-btn');
     let lang = localStorage.getItem(langKey) || 'en';
     applyLocale(lang);
+    // 인증 폼 언어 select 동기화 및 disabled 처리
+    const languageSelect = document.querySelector('select#language[data-sync-language]');
+    if (languageSelect) {
+        languageSelect.value = lang;
+        languageSelect.disabled = true;
+    }
     if (!localStorage.getItem(langKey)) {
         modal.style.display = 'flex';
         confirmBtn.onclick = () => {
             lang = selector.value || 'en';
             localStorage.setItem(langKey, lang);
+            // 언어 선택 모달 완전히 숨기고 인증 폼만 보이게
             modal.style.display = 'none';
             applyLocale(lang);
+            // 인증 폼 언어 select 동기화
+            if (languageSelect) {
+                languageSelect.value = lang;
+                languageSelect.disabled = true;
+            }
+            // 인증 폼 표시 (startAppInit에서 보장)
             startAppInit();
         };
     } else {
         modal.style.display = 'none';
-        applyLocale(lang);
+        // 인증 폼 표시 (startAppInit에서 보장)
         startAppInit();
     }
 });
