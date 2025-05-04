@@ -174,15 +174,12 @@ function setupGlobalEventListeners() {
     document.addEventListener('auth:login-success', async (event) => {
         logger.info('로그인 성공 이벤트 수신:', event.detail);
         supabaseClient.setCurrentUser(event.detail.userInfo);
-        // 채팅 인터페이스 표시
+        // 채팅 인터페이스 표시 (반드시 호출)
         showChatInterface();
-        
         // 채팅 관리자 초기화 및 메시지 로드
         await initializeChatManager();
-        
         // 사이드바 데이터 로드
         sidebarComponent.loadData();
-        
         // 환영 메시지 표시
         createToast(`환영합니다, ${event.detail.userInfo.name}님!`, 'success');
     });
@@ -350,19 +347,16 @@ function showAuthInterface() {
  */
 function showChatInterface() {
     logger.info('채팅 인터페이스 표시');
-    
     // 인증 컨테이너 숨기기
     const authContainer = document.getElementById('auth-container');
     if (authContainer) {
         authContainer.classList.add('hidden');
     }
-    
     // 채팅 인터페이스 표시
     const chatInterface = document.getElementById('chat-interface');
     if (chatInterface) {
         chatInterface.classList.remove('hidden');
     }
-    
     // 현재 사용자 정보 표시
     updateUserInfo();
 }
