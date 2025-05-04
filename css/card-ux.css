@@ -1,0 +1,31 @@
+/* 카드형, 그라데이션, 글래스모피즘, 아바타, 애니메이션 */
+.message, .user, #notice-bar, #admin-panel {
+  transition: box-shadow 0.2s, background 0.2s;
+  animation: fadein 0.5s;
+}
+.message {
+  background: linear-gradient(120deg, #e3f0ff 0%, #f7fafc 100%);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+  border-radius: 16px;
+  position: relative;
+  padding-left: 56px;
+}
+.message .avatar {
+  position: absolute; left: 12px; top: 12px; width: 36px; height: 36px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.08); object-fit: cover;
+}
+.user {
+  background: rgba(255,255,255,0.18);
+  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  border-radius: 12px;
+  margin-bottom: 0.7rem;
+  display: flex; align-items: center; gap: 0.7rem;
+  padding-left: 48px;
+  position: relative;
+}
+.user .avatar {
+  position: absolute; left: 8px; top: 8px; width: 32px; height: 32px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.08); object-fit: cover;
+}
+@keyframes fadein {
+  from { opacity: 0; transform: translateY(30px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}

@@ -1,0 +1,11 @@
+.toast {
+  animation: fadein 0.3s, fadeout 0.5s 1.7s;
+}
+@keyframes fadein {
+  from { opacity: 0; transform: translateY(30px) scale(0.95); }
+  to   { opacity: 0.98; transform: translateY(0) scale(1); }
+}
+@keyframes fadeout {
+  from { opacity: 0.98; }
+  to   { opacity: 0; }
+}

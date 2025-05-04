@@ -3,11 +3,11 @@
   const root = document.getElementById('chat-panel');
   if (!root) return;
   root.innerHTML = `
-    <div class="chat-header">통역가 메시지 패널</div>
+    <div class="chat-header">${window.t('interpreter_panel')}</div>
     <div id="messages"></div>
     <form id="chat-form">
-      <input id="chat-input" type="text" placeholder="메시지 입력..." autocomplete="off" required />
-      <button type="submit">전송</button>
+      <input id="chat-input" type="text" placeholder="${window.t('send')}..." autocomplete="off" required />
+      <button type="submit">${window.t('send')}</button>
     </form>
   `;
   const messagesEl = document.getElementById('messages');
@@ -29,7 +29,15 @@
     e.preventDefault();
     const input = document.getElementById('chat-input');
     const text = input.value;
-    await window.chatManager.sendMessage(text, 'interpreter');
-    input.value = '';
+    input.disabled = true;
+    try {
+      await window.chatManager.sendMessage(text, 'interpreter');
+      window.showToast('메시지 전송 성공', 'success');
+      input.value = '';
+    } catch (err) {
+      window.showToast('메시지 전송 실패', 'error');
+    } finally {
+      input.disabled = false;
+    }
   };
 })();

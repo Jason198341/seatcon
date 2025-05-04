@@ -5,13 +5,13 @@
   const panel = document.createElement('div');
   panel.id = 'auth-panel';
   panel.innerHTML = `
-    <h2>로그인</h2>
-    <input id="auth-email" type="email" placeholder="이메일" required />
-    <input id="auth-password" type="password" placeholder="비밀번호" required />
+    <h2>${window.t('login')}</h2>
+    <input id="auth-email" type="email" placeholder="${window.t('email')}" required />
+    <input id="auth-password" type="password" placeholder="${window.t('password')}" required />
     <select id="auth-role">
       ${window.APP_CONFIG.ROLES.map(r => `<option value="${r}">${r}</option>`).join('')}
     </select>
-    <button id="auth-login-btn">로그인</button>
+    <button id="auth-login-btn">${window.t('login')}</button>
   `;
   root.appendChild(panel);
   document.getElementById('auth-login-btn').onclick = async () => {
