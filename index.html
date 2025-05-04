@@ -6,41 +6,13 @@
     <title>2025 글로벌 시트 컨퍼런스</title>
     <meta name="description" content="2025 글로벌 시트 컨퍼런스 실시간 다국어 번역 채팅 시스템">
     
-    <!-- PWA 메타 태그 -->
-    <meta name="theme-color" content="#4361ee">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="컨퍼런스 채팅">
-    
-    <!-- PWA 매니페스트 -->
-    <link rel="manifest" href="manifest.json">
-    
-    <!-- 애플 기기용 아이콘 -->
-    <link rel="apple-touch-icon" href="assets/icons/icon-192x192.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="assets/icons/icon-152x152.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/icon-180x180.png">
-    <link rel="apple-touch-icon" sizes="167x167" href="assets/icons/icon-167x167.png">
-    
-    <!-- 스플래시 스크린 이미지 -->
-    <link rel="apple-touch-startup-image" href="assets/splash/splash-2048x2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
-    <link rel="apple-touch-startup-image" href="assets/splash/splash-1668x2224.png" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
-    <link rel="apple-touch-startup-image" href="assets/splash/splash-1536x2048.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
-    <link rel="apple-touch-startup-image" href="assets/splash/splash-1125x2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
-    <link rel="apple-touch-startup-image" href="assets/splash/splash-1242x2688.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
-    <link rel="apple-touch-startup-image" href="assets/splash/splash-828x1792.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
-    <link rel="apple-touch-startup-image" href="assets/splash/splash-1242x2208.png" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
-    <link rel="apple-touch-startup-image" href="assets/splash/splash-750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
-    <link rel="apple-touch-startup-image" href="assets/splash/splash-640x1136.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
-    
     <!-- 파비콘 -->
     <link rel="icon" href="assets/icons/favicon.ico" type="image/x-icon">
-    <link rel="shortcut icon" href="assets/icons/favicon.ico" type="image/x-icon">
     
     <!-- 스타일시트 -->
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/chat.css">
     <link rel="stylesheet" href="styles/responsive.css">
-    <link rel="stylesheet" href="styles/pwa.css">
     
     <!-- 프리텐다드 폰트 -->
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard-dynamic-subset.css" />
@@ -52,33 +24,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="theme-light">
-    <!-- 네트워크 상태 알림 -->
-    <div id="networkStatus" class="network-status">
-        <div class="network-status-offline">
-            <i class="fas fa-wifi-slash"></i> 오프라인 상태입니다
-        </div>
-        <div class="network-status-online">
-            <i class="fas fa-wifi"></i> 다시 연결되었습니다
-        </div>
-    </div>
-    
-    <!-- PWA 설치 프로모션 -->
-    <div id="installPrompt" class="install-prompt">
-        <div class="install-prompt-content">
-            <div class="install-prompt-icon">
-                <img src="assets/icons/icon-192x192.png" alt="앱 아이콘">
-            </div>
-            <div class="install-prompt-text">
-                <h3>컨퍼런스 채팅 앱 설치</h3>
-                <p>홈 화면에 추가하여 더 나은 경험을 누려보세요</p>
-            </div>
-            <div class="install-prompt-buttons">
-                <button id="installButton" class="button">설치하기</button>
-                <button id="closePromptButton" class="button secondary">나중에</button>
-            </div>
-        </div>
-    </div>
-    
     <!-- 헤더 -->
     <header class="header">
         <div class="header-brand">
@@ -86,20 +31,6 @@
         </div>
         
         <div class="header-nav">
-            <!-- 검색 버튼 -->
-            <div class="header-nav-item">
-                <button id="searchToggle" class="icon-button" aria-label="메시지 검색">
-                    <i class="fas fa-search"></i>
-                </button>
-            </div>
-            
-            <!-- 전시물 정보 버튼 -->
-            <div class="header-nav-item">
-                <button id="exhibitionButton" class="icon-button" aria-label="전시물 정보">
-                    <i class="fas fa-info-circle"></i>
-                </button>
-            </div>
-            
             <!-- 테마 전환 버튼 -->
             <div class="header-nav-item">
                 <button id="themeToggle" class="icon-button" aria-label="테마 전환">
@@ -115,19 +46,6 @@
             </div>
         </div>
     </header>
-    
-    <!-- 검색 바 -->
-    <div id="searchBar" class="search-bar">
-        <div class="search-input-container">
-            <input type="text" id="searchInput" placeholder="메시지 검색..." aria-label="메시지 검색">
-            <button id="clearSearchButton" class="icon-button">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <button id="closeSearchButton" class="icon-button">
-            <i class="fas fa-chevron-up"></i>
-        </button>
-    </div>
     
     <!-- 메인 콘텐츠 -->
     <main class="main-content">
@@ -200,90 +118,6 @@
                         <i class="fas fa-paper-plane"></i>
                     </button>
                 </form>
-                
-                <!-- 오프라인 메시지 알림 -->
-                <div id="offlineMessageAlert" class="offline-message-alert" style="display: none;">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <span>오프라인 상태입니다. 메시지가 저장되었으며 연결 복구 시 자동으로 전송됩니다.</span>
-                </div>
-            </div>
-            
-            <!-- 전시물 정보 컨테이너 -->
-            <div id="exhibitionContainer" class="exhibition-container" style="display: none;">
-                <div class="exhibition-header">
-                    <h2 class="exhibition-title">전시물 및 발표자 정보</h2>
-                    <div class="exhibition-actions">
-                        <button id="closeExhibitionButton" class="icon-button" aria-label="닫기">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="exhibition-tabs">
-                    <button id="exhibitionTabButton" class="tab-button active">전시물</button>
-                    <button id="speakersTabButton" class="tab-button">발표자</button>
-                </div>
-                
-                <div class="exhibition-search">
-                    <div class="search-input-container">
-                        <i class="fas fa-search search-icon"></i>
-                        <input type="text" id="exhibitionSearchInput" placeholder="검색..." aria-label="전시물 검색">
-                        <button id="clearExhibitionSearchButton" class="icon-button" style="display: none;">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                <div id="exhibitionTabContent" class="tab-content">
-                    <div class="exhibition-list-container">
-                        <table class="exhibition-table">
-                            <thead>
-                                <tr>
-                                    <th>No.</th>
-                                    <th>전시명</th>
-                                    <th>회사</th>
-                                    <th>담당자</th>
-                                </tr>
-                            </thead>
-                            <tbody id="exhibitionList">
-                                <!-- 동적으로 추가됨 -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                
-                <div id="speakersTabContent" class="tab-content" style="display: none;">
-                    <div class="speakers-list-container">
-                        <table class="speakers-table">
-                            <thead>
-                                <tr>
-                                    <th>No.</th>
-                                    <th>발표 주제</th>
-                                    <th>발표자</th>
-                                    <th>소속</th>
-                                </tr>
-                            </thead>
-                            <tbody id="speakersList">
-                                <!-- 동적으로 추가됨 -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 상세 정보 모달 -->
-            <div id="detailModal" class="modal">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3 id="detailTitle">상세 정보</h3>
-                        <button id="closeDetailButton" class="icon-button">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <div class="modal-body" id="detailContent">
-                        <!-- 상세 정보가 동적으로 추가됨 -->
-                    </div>
-                </div>
             </div>
         </div>
     </main>
@@ -294,66 +128,22 @@
             <div class="bottom-nav-icon"><i class="fas fa-comments"></i></div>
             <span data-i18n="navChat">Chat</span>
         </a>
-        <a href="#" class="bottom-nav-item" id="exhibitionNav">
-            <div class="bottom-nav-icon"><i class="fas fa-info-circle"></i></div>
-            <span>전시물</span>
-        </a>
         <a href="#" class="bottom-nav-item" id="userInfoNav">
             <div class="bottom-nav-icon"><i class="fas fa-user"></i></div>
             <span data-i18n="navProfile">Profile</span>
         </a>
-        <a href="#" class="bottom-nav-item" id="settingsNav">
-            <div class="bottom-nav-icon"><i class="fas fa-cog"></i></div>
-            <span>설정</span>
+        <a href="#" class="bottom-nav-item" id="languageNav">
+            <div class="bottom-nav-icon"><i class="fas fa-language"></i></div>
+            <span data-i18n="navLanguage">Language</span>
+        </a>
+        <a href="#" class="bottom-nav-item" id="infoNav">
+            <div class="bottom-nav-icon"><i class="fas fa-info-circle"></i></div>
+            <span data-i18n="navInfo">Info</span>
         </a>
     </nav>
     
-    <!-- 알림 권한 요청 대화상자 -->
-    <div id="notificationPrompt" class="notification-prompt">
-        <div class="notification-prompt-content">
-            <div class="notification-icon">
-                <i class="fas fa-bell"></i>
-            </div>
-            <div class="notification-text">
-                <h3>알림 활성화</h3>
-                <p>새 메시지와 중요 정보를 실시간으로 받아보세요!</p>
-            </div>
-            <div class="notification-buttons">
-                <button id="enableNotificationsButton" class="button">허용하기</button>
-                <button id="closeNotificationPromptButton" class="button secondary">나중에</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- 오프라인 메시지 큐 알림 -->
-    <div id="offlineQueueAlert" class="offline-queue-alert">
-        <div class="offline-queue-content">
-            <i class="fas fa-sync"></i>
-            <span id="offlineQueueCount">0개의 메시지가 전송 대기 중입니다</span>
-        </div>
-    </div>
-    
     <!-- 자바스크립트 모듈 -->
     <script type="module" src="js/main.js"></script>
-    <script type="module" src="js/pwa.js"></script>
-    <script type="module" src="js/exhibition.js"></script>
-    <script type="module" src="js/speakers.js"></script>
-    <script type="module" src="js/search.js"></script>
-    
-    <!-- 서비스 워커 등록 -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js')
-                    .then(registration => {
-                        console.log('Service Worker 등록 성공:', registration.scope);
-                    })
-                    .catch(error => {
-                        console.error('Service Worker 등록 실패:', error);
-                    });
-            });
-        }
-    </script>
     
     <!-- 터치 디바이스 감지 -->
     <script>
@@ -378,40 +168,6 @@
                     });
                 });
             }
-            
-            // 네트워크 상태 모니터링
-            function updateNetworkStatus() {
-                const networkStatus = document.getElementById('networkStatus');
-                const isOnline = navigator.onLine;
-                
-                if (networkStatus) {
-                    if (isOnline) {
-                        networkStatus.classList.add('online');
-                        networkStatus.classList.remove('offline');
-                        
-                        // 5초 후 알림 숨김
-                        setTimeout(() => {
-                            networkStatus.classList.remove('online');
-                        }, 5000);
-                    } else {
-                        networkStatus.classList.add('offline');
-                        networkStatus.classList.remove('online');
-                    }
-                }
-                
-                // 오프라인 메시지 알림 표시/숨김
-                const offlineMessageAlert = document.getElementById('offlineMessageAlert');
-                if (offlineMessageAlert) {
-                    offlineMessageAlert.style.display = isOnline ? 'none' : 'flex';
-                }
-            }
-            
-            // 초기 네트워크 상태 확인
-            updateNetworkStatus();
-            
-            // 네트워크 상태 변화 감지
-            window.addEventListener('online', updateNetworkStatus);
-            window.addEventListener('offline', updateNetworkStatus);
         });
     </script>
 </body>

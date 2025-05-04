@@ -321,9 +321,6 @@ class UserManager {
             // 로그아웃 상태 UI
             if (this.userInfoForm) {
                 this.userInfoForm.style.display = 'block';
-                
-                // 폼 초기화
-                this.resetLoginForm();
             }
             
             if (this.logoutButton) {
@@ -334,64 +331,6 @@ class UserManager {
                 this.userInfo.style.display = 'none';
             }
         }
-    }
-
-    /**
-     * 로그인 폼 초기화
-     */
-    resetLoginForm() {
-        if (!this.userInfoForm) return;
-        
-        // 폼 리셋
-        this.userInfoForm.reset();
-        
-        // 이름 및 이메일 필드 비우기
-        const nameInput = this.userInfoForm.querySelector('#userName');
-        const emailInput = this.userInfoForm.querySelector('#userEmail');
-        
-        if (nameInput) nameInput.value = '';
-        if (emailInput) emailInput.value = '';
-        
-        // 선택 항목 초기화
-        if (this.roleSelector) {
-            this.roleSelector.value = '';
-        }
-        
-        if (this.languageSelector) {
-            // 선호 언어 설정
-            const savedLanguage = supabaseClient.getPreferredLanguage();
-            if (savedLanguage && this.languageSelector.querySelector(`option[value="${savedLanguage}"]`)) {
-                this.languageSelector.value = savedLanguage;
-            } else {
-                this.languageSelector.value = '';
-            }
-        }
-        
-        // 스태프 비밀번호 필드 초기화 및 숨김
-        if (this.staffPassword) {
-            this.staffPassword.value = '';
-        }
-        
-        if (this.staffPasswordContainer) {
-            this.staffPasswordContainer.classList.remove('show');
-            this.staffPasswordContainer.style.display = 'none';
-        }
-        
-        // 오류 메시지 제거
-        const errorMessages = this.userInfoForm.querySelectorAll('.error-message, .password-error-message');
-        errorMessages.forEach(element => {
-            if (element.parentNode) {
-                element.parentNode.removeChild(element);
-            }
-        });
-        
-        // 오류 스타일 제거
-        const errorInputs = this.userInfoForm.querySelectorAll('.error');
-        errorInputs.forEach(input => {
-            input.classList.remove('error');
-            input.style.borderColor = '';
-            input.style.boxShadow = '';
-        });
     }
 
     /**
@@ -496,35 +435,13 @@ class UserManager {
             if (CONFIG.APP.DEBUG_MODE) {
                 console.log('User logged in:', user.name);
             }
-            
-            // PWA 관련: 서비스 워커에 사용자 정보 캐싱
-            this.cacheUserInfoInServiceWorker(user);
-            
         } else {
             alert('사용자 정보를 저장하는 중 오류가 발생했습니다.');
         }
     }
 
     /**
-     * 서비스 워커에 사용자 정보 캐싱
-     * @param {Object} user - 사용자 정보 객체
-     */
-    cacheUserInfoInServiceWorker(user) {
-        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-            // 서비스 워커에 캐시 요청 전송
-            navigator.serviceWorker.controller.postMessage({
-                action: 'CACHE_USER_INFO',
-                userInfo: user
-            });
-            
-            if (CONFIG.APP.DEBUG_MODE) {
-                console.log('User info cache request sent to Service Worker');
-            }
-        }
-    }
-
-    /**
-     * 로그아웃 처리 - 개선된 버전
+     * 로그아웃 처리
      */
     handleLogout() {
         const confirmLogout = confirm(i18nService.get('logoutConfirmation'));
@@ -536,65 +453,62 @@ class UserManager {
         // 로그아웃 전 사용자 정보 저장
         const prevUser = this.currentUser;
         
-        try {
-            // PWA 관련: 서비스 워커에 동적 캐시 초기화 요청
-            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                navigator.serviceWorker.controller.postMessage({
-                    action: 'CLEAR_DYNAMIC_CACHE'
-                });
+        // 사용자 정보 삭제
+        supabaseClient.clearUserInfo();
+        this.currentUser = null;
+        
+        // UI 업데이트
+        this.updateUI();
+        
+        // 채팅 화면에서 로그인 화면으로 전환
+        const userInfoFormContainer = document.getElementById('userInfoFormContainer');
+        const chatContainer = document.getElementById('chatContainer');
+        
+        if (userInfoFormContainer && chatContainer) {
+            userInfoFormContainer.style.display = 'block';
+            chatContainer.style.display = 'none';
+            
+            // 입력 폼 완전 초기화
+            const loginForm = document.getElementById('userInfoForm');
+            if (loginForm) {
+                loginForm.reset();
                 
-                if (CONFIG.APP.DEBUG_MODE) {
-                    console.log('Dynamic cache clear request sent to Service Worker');
+                // 역할 선택기 초기화
+                const roleSelector = loginForm.querySelector('#roleSelector');
+                if (roleSelector) {
+                    roleSelector.value = '';
+                }
+                
+                // 스태프 비밀번호 필드 초기화 및 숨김
+                const staffPasswordField = document.getElementById('staffPassword');
+                const staffPasswordContainer = document.getElementById('staffPasswordContainer');
+                if (staffPasswordField) {
+                    staffPasswordField.value = '';
+                }
+                if (staffPasswordContainer) {
+                    staffPasswordContainer.classList.remove('show');
+                    staffPasswordContainer.style.display = 'none';
                 }
             }
-            
-            // 1. 사용자 정보 삭제 - localStorage 초기화
-            supabaseClient.clearUserInfo();
-            this.currentUser = null;
-            
-            // 2. Supabase 구독 정리 - 실시간 연결 해제
-            supabaseClient.cleanup();
-            
-            // 3. 채팅 컨테이너 숨기기
-            const chatContainer = document.getElementById('chatContainer');
-            if (chatContainer) {
-                chatContainer.style.display = 'none';
-            }
-            
-            // 4. 메시지 목록 초기화
-            const messageList = document.getElementById('messageList');
-            if (messageList) {
-                messageList.innerHTML = '';
-            }
-            
-            // 5. 로그인 폼 초기화 및 표시
-            const userInfoFormContainer = document.getElementById('userInfoFormContainer');
-            if (userInfoFormContainer) {
-                userInfoFormContainer.style.display = 'block';
-            }
-            
-            // 6. UI 업데이트 (로그인 폼 초기화 포함)
-            this.updateUI();
-            
-            // 7. 로그아웃 이벤트 콜백 호출
-            if (typeof this.onUserLogout === 'function' && prevUser) {
-                this.onUserLogout(prevUser);
-            }
-            
-            if (CONFIG.APP.DEBUG_MODE) {
-                console.log('User logged out - complete cleanup');
-            }
-            
-            // 페이지 스크롤을 맨 위로 이동
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            
-            // 로그아웃 성공 메시지 표시
-            this.showLogoutSuccessMessage();
-            
-        } catch (error) {
-            console.error('Error during logout process:', error);
-            alert('로그아웃 중 오류가 발생했습니다. 페이지를 새로고침해주세요.');
         }
+        
+        // Supabase 연결 정리
+        supabaseClient.cleanup();
+        
+        // 로그아웃 이벤트 콜백 호출
+        if (typeof this.onUserLogout === 'function' && prevUser) {
+            this.onUserLogout(prevUser);
+        }
+        
+        // 페이지 스크롤을 맨 위로 이동
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        if (CONFIG.APP.DEBUG_MODE) {
+            console.log('User logged out');
+        }
+        
+        // 로그아웃 성공 메시지 표시 (선택 사항)
+        this.showLogoutSuccessMessage();
     }
     
     /**
