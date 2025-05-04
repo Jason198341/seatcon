@@ -97,6 +97,16 @@
 - [x] 데이터베이스 테이블 생성 SQL 스크립트 작성
 - [x] Supabase 데이터베이스 연결 설정 정리
 
+### 해결된 문제점
+- [x] presenters.js 파일 누락 - 발표자 데이터 파일 생성 완료
+- [x] main.js에서 logger 변수 중복 선언 문제 - 코드 수정 완료
+- [x] SCHEDULE_DATA 변수 미정의 문제 - presenters.js 파일에 추가 완료
+- [x] Supabase 연결 오류 처리 - 개발 환경에서 오류 무시 기능 추가 완료
+
+### 현재 남아있는 문제점
+- [ ] Supabase 연결 설정 부족 - Supabase 프로젝트 생성 및 테이블 구조 설정 필요
+- [ ] 미디어 쿼리 사용을 통한 모바일 응답형 전환 개선 필요
+
 ### 데이터 통합 개선
 - [x] 전시업체 데이터 모델 설계 및 구현
 - [x] 발표자 및 일정 데이터 모델 설계 및 구현
@@ -118,6 +128,7 @@
 - [x] project_plan.md
 - [x] README.md
 - [x] README_TROUBLESHOOTING.md
+- [x] README_UPDATES.md
 
 ### SQL 파일
 - [x] sql/tables.sql

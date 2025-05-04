@@ -178,6 +178,13 @@ class SupabaseClient {
             return data.reverse(); // 시간순으로 정렬
         } catch (error) {
             this.logger.error('메시지 가져오기 중 오류 발생:', error);
+            
+            // 개발 환경에서는 오류를 무시하고 빈 배열 반환
+            if (this.config.DEBUG.ENABLED) {
+                this.logger.warn('개발 환경에서는 메시지 로드 오류를 무시하고 빈 배열을 반환합니다.');
+                return [];
+            }
+            
             throw new Error('메시지를 불러오는데 실패했습니다.');
         }
     }

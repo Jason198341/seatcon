@@ -4,7 +4,7 @@
  */
 
 // 전역 객체
-let logger;
+// logger 객체는 LoggerService에서 생성됨
 let supabaseClient;
 let userService;
 let translationService;
@@ -52,8 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
  * 서비스 초기화
  */
 async function initializeServices() {
-    // 로거 초기화
-    logger = new LoggerService(CONFIG.DEBUG.ENABLED, CONFIG.DEBUG.LOG_LEVEL);
+    // 로거는 logger.js에서 초기화되어 있음
     logger.info('서비스 초기화 중...');
     
     // Supabase 클라이언트 초기화
@@ -233,11 +232,28 @@ async function initializeChatManager() {
         // 로딩 스피너 표시
         showLoadingSpinner();
         
-        // 채팅 관리자 초기화
-        await chatManager.init();
+        // 채팅 관리자 초기화 시도
+        try {
+            await chatManager.init();
+        } catch (initError) {
+            logger.warn('채팅 관리자 초기화 중 오류, 계속 진행합니다:', initError);
+            // 개발 환경에서는 오류를 무시하고 계속 진행
+            if (!CONFIG.DEBUG.ENABLED) {
+                throw initError;
+            }
+        }
         
-        // 메시지 로드
-        const messages = await chatManager.loadMessages();
+        // 메시지 로드 시도
+        let messages = [];
+        try {
+            messages = await chatManager.loadMessages();
+        } catch (loadError) {
+            logger.warn('메시지 로드 중 오류, 계속 진행합니다:', loadError);
+            // 개발 환경에서는 빈 배열을 사용
+            if (!CONFIG.DEBUG.ENABLED) {
+                throw loadError;
+            }
+        }
         
         // 메시지 렌더링
         if (chatComponent) {
@@ -245,6 +261,11 @@ async function initializeChatManager() {
         }
         
         logger.info('채팅 관리자 초기화 및 메시지 로드 완료');
+        
+        // 개발 환경에서 Supabase 연결 문제가 있는 경우 사용자에게 알림
+        if (CONFIG.DEBUG.ENABLED && messages.length === 0) {
+            createToast('개발 환경에서는 Supabase 연결 오류가 있을 수 있습니다. 채팅 기능은 일부 제한될 수 있습니다.', 'warning');
+        }
     } catch (error) {
         logger.error('채팅 관리자 초기화 및 메시지 로드 중 오류 발생:', error);
         

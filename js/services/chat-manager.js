@@ -68,8 +68,8 @@ class ChatManager {
             // Supabase에서 메시지 가져오기
             const messages = await this.supabaseClient.getMessages(limit);
             
-            this.messages = messages;
-            this.logger.info(`${messages.length}개 메시지를 로드했습니다.`);
+            this.messages = messages || [];
+            this.logger.info(`${this.messages.length}개 메시지를 로드했습니다.`);
             
             // 현재 사용자 언어로 메시지 번역
             if (this.config.CHAT.AUTO_TRANSLATION && this.userService.getCurrentUser()) {
@@ -85,6 +85,14 @@ class ChatManager {
             return this.messages;
         } catch (error) {
             this.logger.error('메시지 이력 로드 중 오류 발생:', error);
+            
+            // 개발 환경에서는 빈 배열을 반환하고 계속 진행
+            if (this.config.DEBUG.ENABLED) {
+                this.logger.warn('개발 환경에서는 메시지 로드 오류를 무시하고 빈 배열을 반환합니다.');
+                this.messages = [];
+                return this.messages;
+            }
+            
             throw new Error('메시지 이력을 로드하는데 실패했습니다.');
         }
     }
