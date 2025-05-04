@@ -152,6 +152,53 @@ class TranslationService {
         }
     }
 
+    // === [실전 QA] 짧은 메시지 사전 번역 테이블 ===
+    const SHORT_MESSAGE_DICTIONARY = {
+        'ko': {
+            '반가워': { 'zh': '很高兴见到你', 'en': 'Nice to meet you', 'hi': 'आपसे मिलकर खुशी हुई', 'te': 'మీను కలవడం ఆనందంగా ఉంది' },
+            '안녕': { 'zh': '你好', 'en': 'Hello', 'hi': 'नमस्ते', 'te': 'హలో' },
+            '감사합니다': { 'zh': '谢谢', 'en': 'Thank you', 'hi': 'धन्यवाद', 'te': 'ధన్యవాదాలు' },
+            '좋아요': { 'zh': '喜欢', 'en': 'Like', 'hi': 'पसंद', 'te': 'ఇష్టం' },
+            '축하해': { 'zh': '祝贺你', 'en': 'Congrats', 'hi': 'बधाई हो', 'te': 'అభినందనలు' },
+            '미안해': { 'zh': '对不起', 'en': 'Sorry', 'hi': 'माफ़ कीजिए', 'te': 'క్షమించండి' },
+            '고마워': { 'zh': '谢谢', 'en': 'Thanks', 'hi': 'धन्यवाद', 'te': 'ధన్యవాదాలు' },
+            '잘자': { 'zh': '晚安', 'en': 'Good night', 'hi': 'शुभ रात्रि', 'te': 'శుభ రాత్రి' },
+            '화이팅': { 'zh': '加油', 'en': 'Go for it', 'hi': 'शुभकामनाएँ', 'te': 'ఆల్ ది బెస్ట్' },
+            '사랑해': { 'zh': '我爱你', 'en': 'I love you', 'hi': 'मैं तुमसे प्यार करता हूँ', 'te': 'నేను నిన్ను ప్రేమిస్తున్నాను' },
+            '오케이': { 'zh': '好的', 'en': 'Okay', 'hi': 'ठीक है', 'te': 'సరే' },
+            '네': { 'zh': '是', 'en': 'Yes', 'hi': 'हाँ', 'te': 'అవును' },
+            '아니': { 'zh': '不是', 'en': 'No', 'hi': 'नहीं', 'te': 'కాదు' },
+            '대박': { 'zh': '厉害', 'en': 'Awesome', 'hi': 'कमाल है', 'te': 'అద్భుతం' },
+            '헐': { 'zh': '哎呀', 'en': 'OMG', 'hi': 'ओह', 'te': 'అయ్యో' },
+            'ㅋㅋ': { 'zh': '哈哈', 'en': 'LOL', 'hi': 'हाहा', 'te': 'హా హా' },
+            'ㅠㅠ': { 'zh': '呜呜', 'en': 'T_T', 'hi': 'हाय', 'te': 'ఐయో' },
+            'ㅎㅎ': { 'zh': '呵呵', 'en': 'Hehe', 'hi': 'हीही', 'te': 'హీహీ' }
+        },
+        'en': {
+            'hi': { 'ko': '안녕', 'zh': '你好', 'hi': 'नमस्ते', 'te': 'హలో' },
+            'thanks': { 'ko': '고마워', 'zh': '谢谢', 'hi': 'धन्यवाद', 'te': 'ధన్యవాదాలు' },
+            'ok': { 'ko': '오케이', 'zh': '好的', 'hi': 'ठीक है', 'te': 'సరే' },
+            'bye': { 'ko': '잘가', 'zh': '再见', 'hi': 'अलविदा', 'te': 'వీడ్కోలు' },
+            'congrats': { 'ko': '축하해', 'zh': '祝贺你', 'hi': 'बधाई हो', 'te': 'అభినందనలు' },
+            'sorry': { 'ko': '미안해', 'zh': '对不起', 'hi': 'माफ़ कीजिए', 'te': 'క్షమించండి' },
+            'love you': { 'ko': '사랑해', 'zh': '我爱你', 'hi': 'मैं तुमसे प्यार करता हूँ', 'te': 'నేను నిన్ను ప్రేమిస్తున్నాను' }
+        },
+        'zh': {
+            '你好': { 'ko': '안녕', 'en': 'Hello', 'hi': 'नमस्ते', 'te': 'హలో' },
+            '谢谢': { 'ko': '고마워', 'en': 'Thanks', 'hi': 'धन्यवाद', 'te': 'ధన్యవాదాలు' },
+            '再见': { 'ko': '잘가', 'en': 'Bye', 'hi': 'अलविदा', 'te': 'వీడ్కోలు' },
+            '对不起': { 'ko': '미안해', 'en': 'Sorry', 'hi': 'माफ़ कीजिए', 'te': 'క్షమించండి' }
+        },
+        'hi': {
+            'नमस्ते': { 'ko': '안녕', 'en': 'Hello', 'zh': '你好', 'te': 'హలో' },
+            'धन्यवाद': { 'ko': '고마워', 'en': 'Thanks', 'zh': '谢谢', 'te': 'ధన్యవాదాలు' }
+        },
+        'te': {
+            'హలో': { 'ko': '안녕', 'en': 'Hello', 'zh': '你好', 'hi': 'नमस्ते' },
+            'ధన్యవాదాలు': { 'ko': '고마워', 'en': 'Thanks', 'zh': '谢谢', 'hi': 'धन्यवाद' }
+        }
+    };
+
     /**
      * 텍스트 번역
      * @param {string} text - 번역할 텍스트
@@ -160,10 +207,11 @@ class TranslationService {
      * @returns {Promise<string>} - 번역된 텍스트
      */
     async translateText(text, sourceLanguage, targetLanguage) {
-        // === [실전 QA] 입력값 타입 방어 및 추적 ===
-        if (typeof text !== 'string') {
-            console.warn('[translateText] 입력값이 string이 아님:', text, typeof text);
-            text = String(text);
+        if (typeof text !== 'string') text = String(text);
+        // === [실전 QA] 짧은 메시지(5자 이하) 사전 번역 우선 적용 ===
+        if (text.length <= 5 && SHORT_MESSAGE_DICTIONARY[sourceLanguage]?.[text]?.[targetLanguage]) {
+            console.log('[translateText] 사전 번역 적용:', text, '→', SHORT_MESSAGE_DICTIONARY[sourceLanguage][text][targetLanguage]);
+            return SHORT_MESSAGE_DICTIONARY[sourceLanguage][text][targetLanguage];
         }
         console.log('[translateText] 번역 요청:', { text, sourceLanguage, targetLanguage });
         // 입력 확인 - 텍스트가 없거나 소스/타겟 언어가 같으면 원본 그대로 반환
@@ -283,6 +331,9 @@ class TranslationService {
                 
                 // 지원되는 언어인지 확인
                 const isSupported = this.supportedLanguages.some(lang => lang.code === detectedLanguage);
+                
+                // detectLanguage 함수도 짧은 메시지는 입력자 언어로 강제
+                if (text.length <= 5 && !isSupported) return this.defaultLanguage;
                 
                 return isSupported ? detectedLanguage : this.defaultLanguage;
             }
