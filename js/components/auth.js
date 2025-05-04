@@ -117,11 +117,16 @@ class AuthComponent {
             // 로딩 표시
             this.setLoading(true);
             // 폼 데이터 가져오기
+            const supportedLanguages = ['en', 'ko', 'hi', 'te', 'zh'];
+            let language = localStorage.getItem('premium-chat-language') || this.elements.languageSelect.value;
+            if (!supportedLanguages.includes(language)) {
+                language = this.elements.languageSelect.value;
+            }
             const userInfo = {
                 name: this.elements.nameInput.value.trim(),
                 email: this.elements.emailInput.value.trim(),
                 role: this.elements.roleSelect.value,
-                language: localStorage.getItem('premium-chat-language') || this.elements.languageSelect.value,
+                language,
             };
             // 관리자 또는 통역사 역할인 경우 비밀번호 추가
             if (userInfo.role === 'admin' || userInfo.role === 'interpreter') {
