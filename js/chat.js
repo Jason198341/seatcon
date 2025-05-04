@@ -31,6 +31,7 @@ class ChatManager {
         this.shouldScrollToBottom = true;
         this.isSubmitting = false;
         this.lastStaffMessage = null;
+        this.isChangingLanguage = false; // 언어 변경 중복 방지 플래그 추가
         
         // 스피커 ID
         this.currentSpeakerId = 'global-chat';
@@ -1032,13 +1033,52 @@ class ChatManager {
     /**
      * 로딩 상태 설정
      * @param {boolean} isLoading - 로딩 중 여부
+     * @param {string} loadingType - 로딩 타입 (기본값: 'general')
      */
-    setLoadingState(isLoading) {
+    setLoadingState(isLoading, loadingType = 'general') {
         if (this.chatContainer) {
             if (isLoading) {
                 this.chatContainer.classList.add('loading');
+                
+                // 특정 타입의 로딩일 경우 추가 클래스 적용
+                if (loadingType === 'language-change') {
+                    document.body.classList.add('language-changing');
+                    
+                    // 로딩 메시지 표시
+                    const loadingMessage = document.createElement('div');
+                    loadingMessage.className = 'loading-overlay';
+                    loadingMessage.innerHTML = `
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text">언어 변경 중...</div>
+                    `;
+                    
+                    // 기존 로딩 오버레이 제거
+                    const existingOverlay = document.querySelector('.loading-overlay');
+                    if (existingOverlay) {
+                        existingOverlay.remove();
+                    }
+                    
+                    document.body.appendChild(loadingMessage);
+                }
             } else {
                 this.chatContainer.classList.remove('loading');
+                
+                // 로딩 클래스 제거
+                document.body.classList.remove('language-changing');
+                
+                // 로딩 오버레이 제거
+                const loadingOverlay = document.querySelector('.loading-overlay');
+                if (loadingOverlay) {
+                    // CSS 애니메이션을 위한 페이드 아웃
+                    loadingOverlay.classList.add('fade-out');
+                    
+                    // 애니메이션 후 요소 제거
+                    setTimeout(() => {
+                        if (loadingOverlay.parentNode) {
+                            loadingOverlay.parentNode.removeChild(loadingOverlay);
+                        }
+                    }, 300);
+                }
             }
         }
     }
@@ -1181,11 +1221,40 @@ class ChatManager {
     async handleLanguageChange(languageCode) {
         if (!translationService.isSupportedLanguage(languageCode)) return;
         
+        // 언어 변경 중복 방지 플래그
+        if (this.isChangingLanguage) {
+            console.log('Language change already in progress, ignoring');
+            return;
+        }
+        
+        // 언어 변경 진행 중 플래그 설정
+        this.isChangingLanguage = true;
+        
+        // 로딩 상태 표시 - 언어 변경 타입으로 지정
+        this.setLoadingState(true, 'language-change');
+        
         try {
+            console.log(`Changing chat language to: ${languageCode}`);
+            
+            // 약간의 지연을 두어 UI 스레드 차단 방지
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
             // 메시지 다시 로드
             await this.loadMessages();
+            
+            // UI 업데이트를 위한 추가 지연
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            console.log('Language change completed successfully');
         } catch (error) {
             console.error('Error reloading messages after language change:', error);
+            this.showError('언어 변경 중 문제가 발생했습니다. 페이지를 새로고침 해주세요.');
+        } finally {
+            // 로딩 상태 해제
+            this.setLoadingState(false);
+            
+            // 언어 변경 플래그 해제
+            this.isChangingLanguage = false;
         }
     }
 

@@ -15,6 +15,8 @@ class SupabaseClient {
         this.preferredLanguage = 'ko';
         this.messageSubscription = null;
         this.likesSubscription = null;
+        this.processedMessages = new Set(); // 중복 메시지 처리 방지용
+        this.channelMap = {}; // 채널 관리용 맵
         
         // 초기화 진행
         this.init();
@@ -220,7 +222,12 @@ class SupabaseClient {
                 console.log(`Loaded ${messages.length} messages for speaker: ${speakerId}`);
             }
             
-            // 사용자 선호 언어로 메시지 번역
+            // 메시지 ID 처리 세트에 추가 (중복 처리 방지)
+            messages.forEach(message => {
+                this.processedMessages.add(message.id);
+            });
+            
+            // 사용자 선호 언어로 메시지 번역 - 배치 처리 최적화
             const translatedMessages = await translationService.translateMessages(
                 messages,
                 this.preferredLanguage
@@ -234,123 +241,203 @@ class SupabaseClient {
     }
 
     /**
-     * 메시지 구독
+     * 메시지 구독 - 개선된 버전
      * @param {Function} callback - 이벤트 콜백 함수
      */
     subscribeToMessages(callback) {
         console.log('Subscribing to messages...');
         
-        // 기존 구독 해제
-        if (this.messageSubscription) {
-            this.messageSubscription.unsubscribe();
-            console.log('Unsubscribed from previous channel');
-        }
+        // 기존 구독 정리
+        this.cleanupMessageSubscription();
         
-        // 새 메시지 이벤트 구독 (Supabase v2 API 사용)
-        const channel = this.supabase.channel('public:comments');
-        
-        this.messageSubscription = channel
-            .on('postgres_changes', 
-                { event: 'INSERT', schema: 'public', table: 'comments' }, 
-                async payload => {
-                    console.log('Received raw message:', payload);
-                    
-                    const message = payload.new;
-                    
-                    // 이미 표시된 메시지인지 확인 (중복 방지)
-                    const messageElement = document.querySelector(`[data-message-id="${message.id}"]`);
-                    if (messageElement) {
-                        console.log(`Message ${message.id} already displayed, skipping...`);
-                        return;
-                    }
-                    
-                    // 메시지 번역 처리
-                    const translatedMessage = await this.translateMessageIfNeeded(message);
-                    console.log('Translated message ready:', translatedMessage);
-                    
-                    // 콜백 호출 전 약간의 지연 추가 (렌더링 안정화)
-                    setTimeout(() => {
-                        callback('new_message', translatedMessage);
-                    }, 50);
-                }
-            )
-            .subscribe(status => {
-                console.log(`Supabase realtime subscription status: ${status}`);
-            });
+        try {
+            // 새 메시지 이벤트 구독 (Supabase v2 API 사용)
+            const channel = this.supabase.channel('public:comments');
             
-        if (CONFIG.APP.DEBUG_MODE) {
-            console.log('Subscribed to new messages');
+            this.messageSubscription = channel
+                .on('postgres_changes', 
+                    { event: 'INSERT', schema: 'public', table: 'comments' }, 
+                    async payload => {
+                        console.log('Received raw message:', payload);
+                        
+                        const message = payload.new;
+                        
+                        // 중복 메시지 처리 방지
+                        if (this.processedMessages.has(message.id)) {
+                            console.log(`Message ${message.id} already processed, skipping...`);
+                            return;
+                        }
+                        
+                        // 메시지 처리 기록
+                        this.processedMessages.add(message.id);
+                        
+                        // 메시지 번역 처리
+                        const translatedMessage = await this.translateMessageIfNeeded(message);
+                        console.log('Translated message ready:', translatedMessage);
+                        
+                        // DOM 렌더링 확인 (중복 제거)
+                        const messageElement = document.querySelector(`[data-message-id="${message.id}"]`);
+                        if (messageElement) {
+                            console.log(`Message ${message.id} already in DOM, skipping...`);
+                            return;
+                        }
+                        
+                        // 콜백 호출 (약간의 지연으로 UI 스레드 안정화)
+                        setTimeout(() => {
+                            callback('new_message', translatedMessage);
+                        }, 50);
+                    }
+                )
+                .subscribe(status => {
+                    console.log(`Supabase realtime subscription status: ${status}`);
+                    
+                    // 채널 상태 저장
+                    this.channelMap['messages'] = {
+                        channel,
+                        status
+                    };
+                });
+                
+            if (CONFIG.APP.DEBUG_MODE) {
+                console.log('Successfully subscribed to new messages');
+            }
+            
+        } catch (error) {
+            console.error('Error subscribing to messages:', error);
+            this.messageSubscription = null;
         }
     }
 
     /**
-     * 메시지 번역 (필요한 경우)
+     * 메시지 구독 정리
+     */
+    cleanupMessageSubscription() {
+        if (this.messageSubscription) {
+            try {
+                this.messageSubscription.unsubscribe();
+                console.log('Unsubscribed from previous message channel');
+            } catch (error) {
+                console.error('Error unsubscribing from message channel:', error);
+            }
+            this.messageSubscription = null;
+        }
+        
+        // 채널 상태 정리
+        if (this.channelMap['messages']) {
+            delete this.channelMap['messages'];
+        }
+    }
+
+    /**
+     * 메시지 번역 (필요한 경우) - 최적화
      * @param {Object} message - 번역할 메시지
      * @returns {Promise<Object>} - 번역된 메시지
      */
     async translateMessageIfNeeded(message) {
-        // 사용자 언어와 다른 경우에만 번역
-        if (message.language !== this.preferredLanguage) {
-            return await translationService.translateMessage(message, this.preferredLanguage);
+        // 사용자 언어와 같으면 번역 불필요
+        if (message.language === this.preferredLanguage) {
+            return {
+                ...message,
+                translatedContent: null,
+                isTranslated: false
+            };
         }
         
-        return {
-            ...message,
-            translatedContent: null,
-            isTranslated: false
-        };
+        try {
+            // 번역 요청
+            return await translationService.translateMessage(message, this.preferredLanguage);
+        } catch (error) {
+            console.error('Translation error, returning original message:', error);
+            return {
+                ...message,
+                translatedContent: null,
+                isTranslated: false
+            };
+        }
     }
 
     /**
-     * 좋아요 구독
+     * 좋아요 구독 - 개선된 버전
      * @param {Function} callback - 이벤트 콜백 함수
      */
     subscribeToLikes(callback) {
-        // 기존 구독 해제
+        console.log('Subscribing to likes...');
+        
+        // 기존 구독 정리
+        this.cleanupLikesSubscription();
+        
+        try {
+            // 좋아요 이벤트 구독 (Supabase v2 API 사용)
+            const channel = this.supabase.channel('public:message_likes');
+            
+            this.likesSubscription = channel
+                .on('postgres_changes', 
+                    { event: 'INSERT', schema: 'public', table: 'message_likes' }, 
+                    payload => {
+                        const like = payload.new;
+                        
+                        if (CONFIG.APP.DEBUG_MODE) {
+                            console.log('New like received:', {
+                                messageId: like.message_id,
+                                userName: like.user_name
+                            });
+                        }
+                        
+                        callback('new_like', like);
+                    }
+                )
+                .on('postgres_changes', 
+                    { event: 'DELETE', schema: 'public', table: 'message_likes' }, 
+                    payload => {
+                        const oldLike = payload.old;
+                        
+                        if (CONFIG.APP.DEBUG_MODE) {
+                            console.log('Like removed:', {
+                                messageId: oldLike.message_id,
+                                userName: oldLike.user_name
+                            });
+                        }
+                        
+                        callback('remove_like', oldLike);
+                    }
+                )
+                .subscribe(status => {
+                    console.log(`Supabase likes subscription status: ${status}`);
+                    
+                    // 채널 상태 저장
+                    this.channelMap['likes'] = {
+                        channel,
+                        status
+                    };
+                });
+                
+            if (CONFIG.APP.DEBUG_MODE) {
+                console.log('Successfully subscribed to likes');
+            }
+            
+        } catch (error) {
+            console.error('Error subscribing to likes:', error);
+            this.likesSubscription = null;
+        }
+    }
+
+    /**
+     * 좋아요 구독 정리
+     */
+    cleanupLikesSubscription() {
         if (this.likesSubscription) {
-            this.likesSubscription.unsubscribe();
+            try {
+                this.likesSubscription.unsubscribe();
+                console.log('Unsubscribed from previous likes channel');
+            } catch (error) {
+                console.error('Error unsubscribing from likes channel:', error);
+            }
+            this.likesSubscription = null;
         }
         
-        // 좋아요 이벤트 구독 (Supabase v2 API 사용)
-        const channel = this.supabase.channel('public:message_likes');
-        
-        this.likesSubscription = channel
-            .on('postgres_changes', 
-                { event: 'INSERT', schema: 'public', table: 'message_likes' }, 
-                payload => {
-                    const like = payload.new;
-                    
-                    if (CONFIG.APP.DEBUG_MODE) {
-                        console.log('New like received:', {
-                            messageId: like.message_id,
-                            userName: like.user_name
-                        });
-                    }
-                    
-                    callback('new_like', like);
-                }
-            )
-            .on('postgres_changes', 
-                { event: 'DELETE', schema: 'public', table: 'message_likes' }, 
-                payload => {
-                    const oldLike = payload.old;
-                    
-                    if (CONFIG.APP.DEBUG_MODE) {
-                        console.log('Like removed:', {
-                            messageId: oldLike.message_id,
-                            userName: oldLike.user_name
-                        });
-                    }
-                    
-                    callback('remove_like', oldLike);
-                }
-            )
-            .subscribe(status => {
-                console.log(`Supabase likes subscription status: ${status}`);
-            });
-            
-        if (CONFIG.APP.DEBUG_MODE) {
-            console.log('Subscribed to likes');
+        // 채널 상태 정리
+        if (this.channelMap['likes']) {
+            delete this.channelMap['likes'];
         }
     }
 
@@ -538,18 +625,30 @@ class SupabaseClient {
     }
 
     /**
-     * 구독 정리
+     * 모든 구독 정리
      */
     cleanup() {
-        if (this.messageSubscription) {
-            this.messageSubscription.unsubscribe();
-            this.messageSubscription = null;
-        }
+        // 메시지 구독 정리
+        this.cleanupMessageSubscription();
         
-        if (this.likesSubscription) {
-            this.likesSubscription.unsubscribe();
-            this.likesSubscription = null;
+        // 좋아요 구독 정리
+        this.cleanupLikesSubscription();
+        
+        // 처리된 메시지 캐시 초기화
+        this.processedMessages.clear();
+        
+        // 채널 맵 초기화
+        for (const key in this.channelMap) {
+            try {
+                const channelInfo = this.channelMap[key];
+                if (channelInfo && channelInfo.channel) {
+                    channelInfo.channel.unsubscribe();
+                }
+            } catch (error) {
+                console.error(`Error cleaning up channel ${key}:`, error);
+            }
         }
+        this.channelMap = {};
         
         if (CONFIG.APP.DEBUG_MODE) {
             console.log('SupabaseClient cleanup completed');

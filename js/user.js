@@ -28,6 +28,9 @@ class UserManager {
         this.onUserLogin = null;
         this.onUserLogout = null;
         this.onLanguageChange = null;
+        
+        // 언어 변경 상태
+        this.isChangingLanguage = false;
     }
 
     /**
@@ -118,10 +121,7 @@ class UserManager {
             this.languageSelector.value = '';
         }
         
-        // 언어 변경 이벤트 처리
-        this.languageSelector.addEventListener('change', () => {
-            this.handleLanguageChange();
-        });
+        // 언어 변경 이벤트 처리 (이벤트 리스너는 setupEventListeners에서 설정)
     }
 
     /**
@@ -253,7 +253,7 @@ class UserManager {
                 this.languageSelector.removeEventListener('change', oldHandler);
             }
             
-            // 새 이벤트 리스너 저장 및 추가
+            // 새 이벤트 리스너 설정
             const newHandler = () => {
                 this.handleLanguageChange();
             };
@@ -524,12 +524,17 @@ class UserManager {
     }
 
     /**
-     * 언어 변경 처리
+     * 언어 변경 처리 - 최적화된 버전
      */
     handleLanguageChange() {
-        if (!this.languageSelector) return;
+        if (!this.languageSelector || this.isChangingLanguage) return;
         
         const newLanguage = this.languageSelector.value;
+        
+        // 현재 언어와 같으면 중복 처리 방지
+        if (newLanguage === supabaseClient.getPreferredLanguage()) {
+            return;
+        }
         
         // 유효한 언어 코드인지 확인
         if (!translationService.isSupportedLanguage(newLanguage)) {
@@ -537,30 +542,97 @@ class UserManager {
             return;
         }
         
-        // 선호 언어 변경
-        supabaseClient.setPreferredLanguage(newLanguage);
+        // 로딩 상태 표시 (UI 피드백)
+        this.showLanguageChangeLoading(true);
+        this.isChangingLanguage = true;
         
-        // i18n 언어 변경 - 이벤트 발생 없이 조용히 변경
-        i18nService.currentLanguage = newLanguage;
-        localStorage.setItem('preferredLanguage', newLanguage);
-        
-        // 모든 UI 텍스트 업데이트
-        i18nService.updateAllTexts();
-        
-        // 역할 선택지 업데이트
-        this.setupRoleOptions();
-        
-        // 비밀번호 필드 업데이트
-        this.setupStaffPasswordField();
-        
-        // 언어 변경 이벤트 콜백 호출 - 특별히 이벤트 발생 없이
-        if (typeof this.onLanguageChange === 'function') {
-            this.onLanguageChange(newLanguage);
+        // 언어 변경 비동기 처리로 전환 - UI 블로킹 방지
+        setTimeout(() => {
+            try {
+                // 선호 언어 변경
+                supabaseClient.setPreferredLanguage(newLanguage);
+                
+                // i18n 언어 변경 (이벤트 발생 방지)
+                i18nService.setLanguage(newLanguage, false);
+                
+                // UI 업데이트 순서 제어
+                i18nService.updateAllTexts();
+                
+                // 역할 선택지 업데이트 (마지막에 처리)
+                this.setupRoleOptions();
+                
+                // 비밀번호 필드 업데이트
+                this.setupStaffPasswordField();
+                
+                // 언어 변경 이벤트 콜백 호출 (한 번만)
+                if (typeof this.onLanguageChange === 'function') {
+                    this.onLanguageChange(newLanguage);
+                }
+                
+                if (CONFIG.APP.DEBUG_MODE) {
+                    console.log(`Language changed to: ${newLanguage}`);
+                }
+            } catch (error) {
+                console.error('Error during language change:', error);
+                this.showError('언어 변경 중 오류가 발생했습니다.');
+                
+                // 언어 선택기를 이전 값으로 다시 설정
+                const previousLanguage = supabaseClient.getPreferredLanguage();
+                if (this.languageSelector && previousLanguage) {
+                    this.languageSelector.value = previousLanguage;
+                }
+            } finally {
+                // 로딩 상태 해제
+                this.showLanguageChangeLoading(false);
+                this.isChangingLanguage = false;
+            }
+        }, 100); // 약간의 지연을 두어 UI 스레드 블로킹 방지
+    }
+
+    /**
+     * 언어 변경 로딩 표시 함수
+     * @param {boolean} isLoading - 로딩 중 여부
+     */
+    showLanguageChangeLoading(isLoading) {
+        // UI에 로딩 상태 표시
+        const languageSelector = this.languageSelector;
+        if (languageSelector) {
+            languageSelector.disabled = isLoading;
         }
         
-        if (CONFIG.APP.DEBUG_MODE) {
-            console.log(`Language changed to: ${newLanguage}`);
+        // 바디에 언어 변경 중 클래스 추가
+        if (isLoading) {
+            document.body.classList.add('language-changing');
+        } else {
+            document.body.classList.remove('language-changing');
         }
+    }
+
+    /**
+     * 오류 메시지 표시
+     * @param {string} message - 오류 메시지
+     */
+    showError(message) {
+        // 토스트 형태의 오류 메시지
+        const toast = document.createElement('div');
+        toast.className = 'toast error';
+        toast.textContent = message;
+        
+        document.body.appendChild(toast);
+        
+        // 2초 후 자동 제거
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    document.body.removeChild(toast);
+                }
+            }, 300);
+        }, 2000);
     }
 
     /**
