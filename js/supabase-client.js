@@ -246,9 +246,10 @@ class SupabaseClient {
             console.log('Unsubscribed from previous channel');
         }
         
-        // 새 메시지 이벤트 구독
-        this.messageSubscription = this.supabase
-            .channel('public:comments')
+        // 새 메시지 이벤트 구독 (Supabase v2 API 사용)
+        const channel = this.supabase.channel('public:comments');
+        
+        this.messageSubscription = channel
             .on('postgres_changes', 
                 { event: 'INSERT', schema: 'public', table: 'comments' }, 
                 async payload => {
@@ -273,7 +274,7 @@ class SupabaseClient {
                     }, 50);
                 }
             )
-            .subscribe((status) => {
+            .subscribe(status => {
                 console.log(`Supabase realtime subscription status: ${status}`);
             });
             
@@ -310,9 +311,10 @@ class SupabaseClient {
             this.likesSubscription.unsubscribe();
         }
         
-        // 좋아요 이벤트 구독
-        this.likesSubscription = this.supabase
-            .channel('public:message_likes')
+        // 좋아요 이벤트 구독 (Supabase v2 API 사용)
+        const channel = this.supabase.channel('public:message_likes');
+        
+        this.likesSubscription = channel
             .on('postgres_changes', 
                 { event: 'INSERT', schema: 'public', table: 'message_likes' }, 
                 payload => {
@@ -343,7 +345,9 @@ class SupabaseClient {
                     callback('remove_like', oldLike);
                 }
             )
-            .subscribe();
+            .subscribe(status => {
+                console.log(`Supabase likes subscription status: ${status}`);
+            });
             
         if (CONFIG.APP.DEBUG_MODE) {
             console.log('Subscribed to likes');

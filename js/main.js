@@ -52,10 +52,17 @@ class ConferenceChatApp {
             // Supabase 실시간 구독 활성화 확인
             console.log('Checking Supabase realtime capability...');
             try {
-                const status = await supabaseClient.supabase.channel('test').subscribe((status) => {
+                const channel = supabaseClient.supabase.channel('test');
+                channel.subscribe(status => {
                     console.log(`Supabase realtime test status: ${status}`);
+                    if (status === 'SUBSCRIBED') {
+                        console.log('Supabase realtime is working.');
+                        // 테스트 후 구독 해제
+                        setTimeout(() => {
+                            channel.unsubscribe();
+                        }, 1000);
+                    }
                 });
-                console.log('Supabase realtime is working.');
             } catch (realtimeError) {
                 console.warn('실시간 구독 테스트 오류:', realtimeError);
             }
