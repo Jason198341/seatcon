@@ -19,16 +19,18 @@
     border: 1px solid var(--border);
 }
 
-/* 채팅 상단 바 - 더 얇게 수정 */
+/* 채팅 상단 바 - 더 얇게 수정 & 세련된 그라데이션 적용 */
 .chat-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 5px 12px;
-    background-color: var(--background);
-    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, #3a7bd5, #3a6073);
+    border-bottom: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     transition: all 200ms ease;
     height: 35px;
+    color: white;
 }
 
 .chat-title-container {
@@ -39,14 +41,32 @@
 .chat-title {
     font-weight: 600;
     font-size: 14px;
-    color: var(--foreground);
+    color: white;
     margin: 0;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
 }
 
 .chat-actions {
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+.chat-header .icon-button {
+    color: white;
+    background: rgba(255, 255, 255, 0.2);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.chat-header .icon-button:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
 }
 
 /* 채팅 메시지 목록 */
@@ -89,14 +109,14 @@
     border-left: 3px solid #2ecc71;
 }
 
-/* 고정 메시지 컨테이너 */
+/* 고정 메시지 컨테이너 - 눈에 띄는 디자인 */
 .pinned-message-container {
-    background-color: #f8f9fa;
+    background: linear-gradient(to right, rgba(255, 193, 7, 0.07), rgba(255, 193, 7, 0.15));
     border-radius: 8px;
     padding: 10px 15px;
     margin-bottom: 15px;
-    border-left: 4px solid #2ecc71;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid #FFC107;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     position: sticky;
     top: 0;
     z-index: 10;
@@ -104,8 +124,9 @@
 }
 
 .theme-dark .pinned-message-container {
-    background-color: #2A2F35;
-    border-color: #2ecc71;
+    background: linear-gradient(to right, rgba(255, 193, 7, 0.1), rgba(255, 193, 7, 0.2));
+    border-color: #FFC107;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
 }
 
 .pinned-message-header {
@@ -113,11 +134,12 @@
     align-items: center;
     margin-bottom: 5px;
     font-size: 13px;
-    color: #555;
+    color: #795548;
+    font-weight: 600;
 }
 
 .theme-dark .pinned-message-header {
-    color: #aaa;
+    color: #E9CB90;
 }
 
 .pinned-message-header strong {
@@ -127,16 +149,23 @@
 .pinned-timestamp {
     margin-left: auto;
     font-size: 11px;
-    color: #777;
+    color: #795548;
+    opacity: 0.8;
 }
 
 .theme-dark .pinned-timestamp {
-    color: #888;
+    color: #E9CB90;
+    opacity: 0.7;
 }
 
 .pinned-message-content {
     font-size: 14px;
-    line-height: 1.4;
+    line-height: 1.5;
+    color: #333;
+}
+
+.theme-dark .pinned-message-content {
+    color: #FFF8E1;
 }
 
 /* 역할별 메시지 스타일 */
