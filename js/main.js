@@ -12,6 +12,8 @@ import userManager from './user.js';
 import chatManager from './chat.js';
 import mobileUI from './mobile-ui.js';
 import i18nService from './i18n.js';
+import exhibitionManager from './exhibition.js';
+import speakersManager from './speakers.js';
 import * as utils from './utils.js';
 
 /**
@@ -27,6 +29,10 @@ class ConferenceChatApp {
         
         // 컨퍼런스 정보
         this.conferenceData = null;
+        
+        // 전시물 및 발표자 데이터
+        this.exhibitionData = [];
+        this.speakersData = [];
         
         // DOM 요소 참조
         this.themeToggle = null;
@@ -154,35 +160,129 @@ class ConferenceChatApp {
      */
     async loadConferenceData() {
         try {
-            // 실제 구현에서는 서버나 Supabase에서 데이터를 가져옵니다.
-            // 현재는 예시 데이터를 사용합니다.
+            // 전시물 데이터 파싱
+            const exhibitionItems = [
+                { no: 1, title: "차세대 코어 메커니즘 개발 (트랙, 리클라이너, 기어박스, 펌핑디바이스, 랫치)", company: "대원정밀공업", name: "진우재 팀장", phone: "010 8761 5269", email: "woojae_jin@dwjm.co.kr" },
+                { no: 2, title: "LCD 터치 디스플레이 백 시트 공기 청정기", company: "대유에이텍", name: "김상현 매니저", phone: "010 9463 3658", email: "shkim@dayou.co.kr" },
+                { no: 3, title: "후석 공압식 시트", company: "대유에이텍", name: "문지환 매니저", phone: "010 3123 6929", email: "mason@dayou.co.kr" },
+                { no: 4, title: "후석 공압식 시트_발판", company: "대유에이텍", name: "문지환 매니저", phone: "010 3123 6929", email: "mason@dayou.co.kr" },
+                { no: 5, title: "롤러식 마사지 모듈적용 라운지 릴렉스 시트", company: "대원산업", name: "신재광 책임", phone: "010 8720 4434", email: "jkshin@dwsu.co.kr" },
+                { no: 6, title: "롤러식 마사지 모듈적용 라운지 릴렉스 시트", company: "대원산업", name: "신재광 책임", phone: "010 8720 4434", email: "jkshin@dwsu.co.kr" },
+                { no: 7, title: "Seat Components: Cushion Extension (Manual)", company: "Brose India", name: "Pradnyesh Patil, Jeong, Gwang-Ho", phone: "+91 9552537275, +91 7720095473", email: "Pradnyesh.patil@brose.com, Gwang-Ho.Jeong@brose.com" },
+                { no: 8, title: "Seat Components: Calf Rest (Legrest)", company: "Brose India", name: "", phone: "", email: "" },
+                { no: 9, title: "Seat Components: Rear Power Striker", company: "Brose India", name: "", phone: "", email: "" },
+                { no: 10, title: "Seat Components: Lumbar Support (Power mechanical)", company: "Brose India", name: "", phone: "", email: "" },
+                { no: 11, title: "Seat structure: 8 way Power seat with BLDC", company: "Brose India", name: "", phone: "", email: "" },
+                { no: 12, title: "Seat Structure: Reference seat (Light weight & cost efficient)", company: "Brose India", name: "", phone: "", email: "" },
+                { no: 13, title: "Seat Structure: Relax seat (combined with all comfrot features)", company: "Brose India", name: "", phone: "", email: "" },
+                { no: 14, title: "Complete seat: Slim seat with belt integration", company: "Brose India", name: "", phone: "", email: "" },
+                { no: 15, title: "Seat Components: Power Cushion Extension", company: "Brose India", name: "", phone: "", email: "" },
+                { no: 16, title: "롤러 마사지 시트", company: "디에스시동탄", name: "최민식 책임", phone: "010-4582-4830", email: "mschoi2@godsc.co.kr" },
+                { no: 17, title: "파워스트라이크 적용시트", company: "디에스시동탄", name: "황인창 책임", phone: "010-2547-7249", email: "ichwang@godsc.co.kr" },
+                { no: 18, title: "개인특화 엔터테인먼트 시트", company: "디에스시동탄", name: "박문수 매니저", phone: "010-7232-8140", email: "mspark@godsc.co.kr" },
+                { no: 19, title: "파워롱레일+파워스위블 적용 시트 (스위블 브레이크 모듈 별도 전시)", company: "다스", name: "이재갑 책임", phone: "010 9681 4567", email: "LJG4444@i-das.com" },
+                { no: 20, title: "매뉴얼 릴렉션 시트#1 - 레버타입(틸팅 & 릴렉션)", company: "다스", name: "이재갑 책임", phone: "010 9681 4567", email: "LJG4444@i-das.com" },
+                { no: 21, title: "매뉴얼 릴렉션 시트#2 - 버튼타입", company: "다스", name: "이재갑 책임", phone: "010 9681 4567", email: "LJG4444@i-das.com" },
+                { no: 22, title: "파워 릴렉션 시트#1 - 4절 링크타입", company: "다스", name: "이재갑 책임", phone: "010 9681 4567", email: "LJG4444@i-das.com" },
+                { no: 23, title: "파워 릴렉션 시트#2 - 5절 링크타입", company: "다스", name: "이재갑 책임", phone: "010 9681 4567", email: "LJG4444@i-das.com" },
+                { no: 24, title: "백 연동 다단 암레스트 시트", company: "다스", name: "이재갑 책임", phone: "010 9681 4567", email: "LJG4444@i-das.com" },
+                { no: 25, title: "CORE (DTP10h/DRM10h/DRP10h)", company: "다스", name: "이재갑 책임", phone: "010 9681 4567", email: "LJG4444@i-das.com" },
+                { no: 26, title: "고강도 래치 (2단 / 1단 - 2종 전시)", company: "다스", name: "이재갑 책임", phone: "010 9681 4567", email: "LJG4444@i-das.com" },
+                { no: 27, title: "무빙 블레이드 매뉴얼 롱레일", company: "다스", name: "이재갑 책임", phone: "010 9681 4567", email: "LJG4444@i-das.com" },
+                { no: 28, title: "고성능 스마트 릴리즈 액츄에이터", company: "다스", name: "이재갑 책임", phone: "010 9681 4567", email: "LJG4444@i-das.com" },
+                { no: 29, title: "경형 표준프레임 1열 (MQ4i 현지화 대응)", company: "다스", name: "이재갑 책임", phone: "010 9681 4567", email: "LJG4444@i-das.com" },
+                { no: 30, title: "신흥국 2열 프레임 - 6측 프레임 (MQ4i 현지화 대응)", company: "다스", name: "이재갑 책임", phone: "010 9681 4567", email: "LJG4444@i-das.com" },
+                { no: 31, title: "신흥국 2열 프레임 - 4측 프레임 (MQ4i 현지화 대응)", company: "다스", name: "이재갑 책임", phone: "010 9681 4567", email: "LJG4444@i-das.com" },
+                { no: 32, title: "신흥국 2열 프레임 - 릴렉션 (MQ4i 현지화 대응)", company: "다스", name: "이재갑 책임", phone: "010 9681 4567", email: "LJG4444@i-das.com" },
+                { no: 33, title: "신흥국 3열 프레임 (MQ4i 현지화 대응)", company: "다스", name: "이재갑 책임", phone: "010 9681 4567", email: "LJG4444@i-das.com" },
+                { no: 34, title: "Air-tube형 통풍시트 원단", company: "케이엠모터스㈜", name: "안윤희 전무 (연구소장)", phone: "010 3000 5686", email: "hiyhahn@naver.com" },
+                { no: 35, title: "통풍 시트", company: "AEW", name: "이진성 총감", phone: "010 5588 8981", email: "james.lee@aew-group.com" },
+                { no: 36, title: "Rubbing Massage 시트", company: "AEW", name: "이진성 총감", phone: "010 5588 8981", email: "james.lee@aew-group.com" },
+                { no: 37, title: "Adaptive 시트", company: "AEW", name: "이진성 총감", phone: "010 5588 8981", email: "james.lee@aew-group.com" },
+                { no: 38, title: "통풍+맛사지 시트", company: "AEW", name: "이진성 총감", phone: "010 5588 8981", email: "james.lee@aew-group.com" },
+                { no: 39, title: "Multi function seat", company: "AEW", name: "이진성 총감", phone: "010 5588 8981", email: "james.lee@aew-group.com" },
+                { no: 40, title: "CDS 부품", company: "AEW", name: "이진성 총감", phone: "010 5588 8981", email: "james.lee@aew-group.com" },
+                { no: 41, title: "CHS 부품", company: "AEW", name: "이진성 총감", phone: "010 5588 8981", email: "james.lee@aew-group.com" },
+                { no: 42, title: "OCS 부품", company: "AEW", name: "이진성 총감", phone: "010 5588 8981", email: "james.lee@aew-group.com" },
+                { no: 43, title: "통풍 부품", company: "AEW", name: "이진성 총감", phone: "010 5588 8981", email: "james.lee@aew-group.com" },
+                { no: 44, title: "공압 제품", company: "AEW", name: "이진성 총감", phone: "010 5588 8981", email: "james.lee@aew-group.com" },
+                { no: 45, title: "SBR", company: "AEW", name: "이진성 총감", phone: "010 5588 8981", email: "james.lee@aew-group.com" },
+                { no: 46, title: "Seat Heater", company: "AEW", name: "이진성 총감", phone: "010 5588 8981", email: "james.lee@aew-group.com" },
+                { no: 47, title: "공압", company: "AEW", name: "이진성 총감", phone: "010 5588 8981", email: "james.lee@aew-group.com" },
+                { no: 48, title: "통풍", company: "AEW", name: "이진성 총감", phone: "010 5588 8981", email: "james.lee@aew-group.com" },
+                { no: 49, title: "공압", company: "AEW", name: "이진성 총감", phone: "010 5588 8981", email: "james.lee@aew-group.com" },
+                { no: 50, title: "히터 및 기타", company: "AEW", name: "이진성 총감", phone: "010 5588 8981", email: "james.lee@aew-group.com" },
+                { no: 51, title: "Lear ComfortMaxR & Core Mechanism", company: "리어코리아", name: "김용환 책임", phone: "010 3778 6934", email: "jkim@lear.com" },
+                { no: 52, title: "경형프레임 매뉴얼 레그레스트", company: "현대트랜시스", name: "황성준 연구", phone: "010-2773-3723", email: "sungjunh@hyundai-transys.com" },
+                { no: 53, title: "2세대 경형 슬림 백 프레임", company: "현대트랜시스", name: "황성준 연구", phone: "010-2773-3723", email: "sungjunh@hyundai-transys.com" },
+                { no: 54, title: "경형 프레임(MNL/PWR)", company: "현대트랜시스", name: "황성준 연구", phone: "010-2773-3723", email: "sungjunh@hyundai-transys.com" },
+                { no: 55, title: "콘솔 레일", company: "현대트랜시스", name: "손동현 책임", phone: "010-5241-7542", email: "dhyeon.son@hyundai-transys.com" },
+                { no: 56, title: "매뉴얼 리클라이너", company: "현대트랜시스", name: "손동현 책임", phone: "010-5241-7542", email: "dhyeon.son@hyundai-transys.com" },
+                { no: 57, title: "파워 리클라이너", company: "현대트랜시스", name: "손동현 책임", phone: "010-5241-7542", email: "dhyeon.son@hyundai-transys.com" },
+                { no: 58, title: "대칭 매뉴얼/파워 레일", company: "현대트랜시스", name: "손동현 책임", phone: "010-5241-7542", email: "dhyeon.son@hyundai-transys.com" },
+                { no: 59, title: "비대칭 매뉴얼/파워 레일", company: "현대트랜시스", name: "손동현 책임", phone: "010-5241-7542", email: "dhyeon.son@hyundai-transys.com" },
+                { no: 60, title: "펌핑", company: "현대트랜시스", name: "손동현 책임", phone: "010-5241-7542", email: "dhyeon.son@hyundai-transys.com" },
+                { no: 61, title: "제어기 일체형 블로워 모듈", company: "현대트랜시스", name: "이화준 연구", phone: "031-5177-9246", email: "82104532@hyundai-transys.com" },
+                { no: 62, title: "후석 센터 암레스트 직구동 파워사양 선행 연구", company: "현대트랜시스", name: "송혁 책임", phone: "010-2640-8509", email: "good4jay@hyundai-transys.com" },
+                { no: 63, title: "SUV차종 2열 워크쓰루 공간 확보를 위한 독립시트 암레스트 백 수납 구조 개발", company: "현대트랜시스", name: "조용진 연구", phone: "010-2656-5415", email: "dragonj0@hyundai-transys.com" }
+            ];
+            
+            // 발표자 데이터 파싱
+            const speakerItems = [
+                { no: 1, topic: "24~25년 시트 TRM 기술 트랜드 분석", group: "남양", department: "MLV내장설계1팀", presenter: "나선채 책임" },
+                { no: 2, topic: "Feature 기반 시트 중장기 개발 전략", group: "남양", department: "바디선행개발팀", presenter: "이상학 책임" },
+                { no: 3, topic: "바디 아키텍처 운영 전략", group: "남양", department: "아키텍처시스템기획팀", presenter: "백설 책임" },
+                { no: 4, topic: "SDV 개발전략과 바디부문 대응방안", group: "남양", department: "바디융합선행개발팀", presenter: "이상현 책임" },
+                { no: 5, topic: "현대내장디자인 미래 운영전략", group: "남양", department: "현대내장디자인실", presenter: "하성동 님" },
+                { no: 6, topic: "기아 시트 미래 운영전략", group: "남양", department: "기아넥스트내장DeX팀", presenter: "노태형 책임" },
+                { no: 7, topic: "시트관련 미래 재료운영전략", group: "남양", department: "내외장재료개발팀", presenter: "서원진 책임" },
+                { no: 8, topic: "유럽지역 경쟁사 트랜드 및 고객 기술니즈", group: "해외연구소", department: "유럽 디자인센터", presenter: "김민호 책임" },
+                { no: 9, topic: "중국지역 경쟁사 트랜드 및 고객 기술니즈", group: "해외연구소", department: "중국기술연구소", presenter: "장우영 책임" },
+                { no: 10, topic: "인도네시아 경쟁사 트랜드 및 고객 기술니즈", group: "해외연구소", department: "인도네시아연구소", presenter: "김태완 책임" }
+            ];
+            
+            // 데이터 저장
+            this.exhibitionData = exhibitionItems;
+            this.speakersData = speakerItems;
+            
+            // 컨퍼런스 정보 생성
             this.conferenceData = {
                 title: '2025 글로벌 시트 컨퍼런스',
                 date: '2025년 6월 16일~19일',
                 location: '인도 하이데라바드 인도기술연구소',
+                topics: speakerItems.map(item => item.topic),
                 speakers: [
                     { id: 'global-chat', name: '전체 채팅', role: 'global' },
-                    { id: 'speaker-1', name: '나선채 책임 - 시트 TRM 기술 트랜드 분석', role: 'speaker' },
-                    { id: 'speaker-2', name: '이상학 책임 - Feature 기반 시트 개발 전략', role: 'speaker' },
-                    { id: 'speaker-3', name: '백설 책임 - 바디 아키텍처 운영 전략', role: 'speaker' },
-                    { id: 'speaker-4', name: '이상현 책임 - SDV 개발전략과 바디부문 대응방안', role: 'speaker' },
-                    { id: 'speaker-5', name: '하성동 님 - 현대내장디자인 미래 운영전략', role: 'speaker' },
-                    { id: 'speaker-6', name: '노태형 책임 - 기아 시트 미래 운영전략', role: 'speaker' },
-                    { id: 'speaker-7', name: '서원진 책임 - 시트관련 미래 재료 운영전략', role: 'speaker' },
-                    { id: 'speaker-8', name: '진우재 팀장 - 차세대 코어 메커니즘 개발', role: 'exhibitor' },
-                    { id: 'speaker-9', name: '김상현 매니저 - LCD 터치 디스플레이 백 시트 공기 청정기', role: 'exhibitor' },
-                    { id: 'speaker-10', name: '문지환 매니저 - 후석 공압식 시트', role: 'exhibitor' }
-                ],
-                topics: [
-                    '시트 TRM 기술 트랜드 분석',
-                    'Feature 기반 시트 중장기 개발 전략',
-                    '바디 아키텍처 운영 전략',
-                    'SDV 개발전략과 바디부문 대응방안',
-                    '현대내장디자인 미래 운영전략',
-                    '기아 시트 미래 운영전략',
-                    '시트관련 미래 재료 운영전략'
+                    ...speakerItems.map((item, index) => ({
+                        id: `speaker-${index + 1}`,
+                        name: `${item.presenter} - ${item.topic}`, 
+                        role: 'speaker'
+                    })),
+                    ...exhibitionItems.slice(0, 10).map((item, index) => ({
+                        id: `exhibitor-${index + 1}`,
+                        name: `${item.name} - ${item.title}`,
+                        role: 'exhibitor'
+                    }))
                 ]
             };
+            
+            // 전시물 관리자 초기화
+            exhibitionManager.init({
+                buttonId: 'exhibitionButton',
+                exhibitionItems: this.exhibitionData, 
+                onExhibitionSelect: (exhibition) => {
+                    console.log('전시물 선택:', exhibition);
+                }
+            });
+            
+            // 발표자 관리자 초기화
+            speakersManager.init({
+                buttonId: 'speakersButton',
+                speakerItems: this.speakersData,
+                onSpeakerSelect: (speaker) => {
+                    console.log('발표자 선택:', speaker);
+                }
+            });
             
             // 페이지 타이틀 업데이트
             document.title = this.conferenceData.title;
@@ -203,6 +303,23 @@ class ConferenceChatApp {
      */
     updateConferenceInfo() {
         if (!this.conferenceData) return;
+        
+        // 컨퍼런스 정보 표시
+        const conferenceTitle = document.getElementById('conferenceTitle');
+        const conferenceDate = document.getElementById('conferenceDate');
+        const conferenceLocation = document.getElementById('conferenceLocation');
+        
+        if (conferenceTitle) {
+            conferenceTitle.textContent = i18nService.get('conferenceTitle');
+        }
+        
+        if (conferenceDate) {
+            conferenceDate.textContent = i18nService.get('conferenceDate');
+        }
+        
+        if (conferenceLocation) {
+            conferenceLocation.textContent = i18nService.get('conferenceLocation');
+        }
         
         // 모든 i18n 태그가 있는 요소는 i18nService에서 자동으로 업데이트
         i18nService.updateAllTexts();
