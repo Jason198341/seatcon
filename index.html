@@ -22,6 +22,26 @@
     
     <!-- Supabase 클라이언트 라이브러리 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- 환경 변수 설정 확인 스크립트 -->
+    <script>
+        // 서버 측 환경 변수 확인 (window.ENV_VARS는 서버 스크립트에서 주입)
+        if (window.ENV_VARS) {
+            console.log('서버 측 환경 변수가 로드되었습니다.');
+        } else {
+            // 개발 환경에서 환경 변수 안내
+            const isLocalhost = window.location.hostname === 'localhost' || 
+                               window.location.hostname === '127.0.0.1' ||
+                               window.location.hostname.includes('192.168');
+            
+            if (isLocalhost) {
+                const devEnvVars = localStorage.getItem('dev_env_vars');
+                if (!devEnvVars) {
+                    console.warn('환경 변수가 설정되지 않았습니다. env-setup.html에서 API 키를 설정하세요.');
+                }
+            }
+        }
+    </script>
 </head>
 <body class="theme-light">
     <!-- 헤더 -->
@@ -31,6 +51,13 @@
         </div>
         
         <div class="header-nav">
+            <!-- 환경 설정 버튼 (개발 모드에서만 표시) -->
+            <div class="header-nav-item dev-only" style="display: none;">
+                <a href="env-setup.html" class="button secondary" id="envSetupButton">
+                    <i class="fas fa-cog mr-1"></i> <span>API 설정</span>
+                </a>
+            </div>
+            
             <!-- 테마 전환 버튼 -->
             <div class="header-nav-item">
                 <button id="themeToggle" class="icon-button" aria-label="테마 전환">
@@ -84,6 +111,15 @@
                     
                     <button type="submit" id="loginButton" class="button mt-4 w-100" data-i18n="startChatButton">Start Chat</button>
                 </form>
+                
+                <!-- API 키 설정 알림 (개발 환경에서만 표시) -->
+                <div id="apiKeyWarning" class="api-key-warning" style="display: none; margin-top: 20px; padding: 10px; background-color: #fff3cd; border-radius: 4px; border-left: 4px solid #ffc107;">
+                    <p style="margin: 0; font-size: 14px;">
+                        <i class="fas fa-exclamation-triangle" style="color: #ffc107;"></i>
+                        <strong>API 키 설정 필요:</strong> 애플리케이션을 사용하기 전에 API 키를 설정해야 합니다. 
+                        <a href="env-setup.html" style="font-weight: bold; text-decoration: underline;">여기</a>를 클릭하여 설정 페이지로 이동하세요.
+                    </p>
+                </div>
             </div>
             
             <!-- 채팅 컨테이너 -->
@@ -142,16 +178,17 @@
         </a>
     </nav>
     
+    <!-- 환경 변수 모듈 -->
+    <script type="module" src="js/env.js"></script>
+    
     <!-- 자바스크립트 모듈 -->
     <script type="module" src="js/main.js"></script>
     
-    <!-- 터치 디바이스 감지 -->
+    <!-- 터치 디바이스 감지 및 개발 환경 처리 -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // 터치 디바이스 감지
             const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-            
-            // 터치 디바이스일 경우 클래스 추가
             if (isTouchDevice) {
                 document.body.classList.add('touch-device');
             }
@@ -159,7 +196,6 @@
             // 스크롤 버튼 처리
             const scrollToBottomButton = document.getElementById('scrollToBottom');
             const messageList = document.getElementById('messageList');
-            
             if (scrollToBottomButton && messageList) {
                 scrollToBottomButton.addEventListener('click', function() {
                     messageList.scrollTo({
@@ -167,6 +203,28 @@
                         behavior: 'smooth'
                     });
                 });
+            }
+            
+            // 개발 환경 확인
+            const isLocalhost = window.location.hostname === 'localhost' || 
+                               window.location.hostname === '127.0.0.1' ||
+                               window.location.hostname.includes('192.168');
+            
+            // 개발 환경 전용 UI 요소 설정
+            if (isLocalhost) {
+                // 개발 환경 버튼 표시
+                const devElements = document.querySelectorAll('.dev-only');
+                devElements.forEach(el => {
+                    el.style.display = 'block';
+                });
+                
+                // API 키 설정 확인
+                const devEnvVars = localStorage.getItem('dev_env_vars');
+                const apiKeyWarning = document.getElementById('apiKeyWarning');
+                
+                if (!devEnvVars && apiKeyWarning) {
+                    apiKeyWarning.style.display = 'block';
+                }
             }
         });
     </script>

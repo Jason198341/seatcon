@@ -49,6 +49,16 @@ class ConferenceChatApp {
             // 환경 호환성 검사
             this.checkEnvironment();
             
+            // 설정 로드 대기
+            console.log('환경 변수 설정을 로드하는 중...');
+            try {
+                await CONFIG.waitForConfig();
+                console.log('환경 변수 설정 로드 완료');
+            } catch (configError) {
+                console.error('환경 변수 설정 로드 실패:', configError);
+                this.showErrorDialog('설정 로드 실패', '환경 변수를 로드할 수 없습니다. 서버가 실행 중인지 확인하세요.');
+            }
+            
             // Supabase 연결 확인
             if (!supabaseClient.supabase) {
                 console.error('Supabase 클라이언트가 초기화되지 않았습니다.');
