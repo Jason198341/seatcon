@@ -97,41 +97,17 @@ class SupabaseClient {
     }
 
     /**
-     * 사용자 정보 및 관련 상태 완전 초기화 (로그아웃) - 개선된 버전
+     * 사용자 정보 삭제 (로그아웃)
      */
     clearUserInfo() {
-        try {
-            console.log('Clearing user info and related states...');
-            
-            // 1. 메모리 상의 사용자 정보 초기화
-            this.currentUser = null;
-            
-            // 2. 로컬 스토리지에서 사용자 정보 제거
-            localStorage.removeItem('currentUser');
-            
-            // 3. 처리된 메시지 캐시 초기화
-            this.processedMessages.clear();
-            
-            // 4. 언어 설정은 그대로 유지
-            // 언어 변경은 로그아웃과 독립적인 기능이므로 초기화하지 않음
-            
-            // 5. 로그아웃 시 수행해야 할 추가 정리 작업
-            // 이 부분은 필요에 따라 확장 가능
-            
-            // 로그에 정리 완료 표시
-            if (CONFIG.APP.DEBUG_MODE) {
-                console.log('User info and states cleared completely');
-            }
-            
-            return true;
-        } catch (error) {
-            console.error('Error clearing user info:', error);
-            
-            // 오류 발생 시에도 사용자 정보는 반드시 초기화
-            this.currentUser = null;
-            localStorage.removeItem('currentUser');
-            
-            return false;
+        this.currentUser = null;
+        localStorage.removeItem('currentUser');
+        
+        // 처리된 메시지 캐시 초기화
+        this.processedMessages.clear();
+        
+        if (CONFIG.APP.DEBUG_MODE) {
+            console.log('User info cleared and message cache reset');
         }
     }
 
@@ -652,58 +628,33 @@ class SupabaseClient {
     }
 
     /**
-     * 모든 구독 및 상태 철저히 정리
-     * 로그아웃 및 애플리케이션 종료 시 호출
+     * 모든 구독 정리
      */
     cleanup() {
-        console.log('Performing thorough cleanup...');
+        // 메시지 구독 정리
+        this.cleanupMessageSubscription();
         
-        try {
-            // 1. 메시지 구독 정리
-            this.cleanupMessageSubscription();
-            
-            // 2. 좋아요 구독 정리
-            this.cleanupLikesSubscription();
-            
-            // 3. 처리된 메시지 캐시 초기화
-            this.processedMessages.clear();
-            
-            // 4. 모든 채널 정리
-            for (const key in this.channelMap) {
-                try {
-                    const channelInfo = this.channelMap[key];
-                    if (channelInfo && channelInfo.channel) {
-                        channelInfo.channel.unsubscribe();
-                        console.log(`Channel ${key} unsubscribed`);
-                    }
-                } catch (error) {
-                    console.error(`Error cleaning up channel ${key}:`, error);
+        // 좋아요 구독 정리
+        this.cleanupLikesSubscription();
+        
+        // 처리된 메시지 캐시 초기화
+        this.processedMessages.clear();
+        
+        // 채널 맵 초기화
+        for (const key in this.channelMap) {
+            try {
+                const channelInfo = this.channelMap[key];
+                if (channelInfo && channelInfo.channel) {
+                    channelInfo.channel.unsubscribe();
                 }
+            } catch (error) {
+                console.error(`Error cleaning up channel ${key}:`, error);
             }
-            this.channelMap = {};
-            
-            // 5. 새로운 Supabase 인스턴스 생성 - 세션 완전 초기화
-            if (this.supabase) {
-                // 새 인스턴스 생성
-                this.supabase = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
-                console.log('Created fresh Supabase instance');
-            }
-            
-            if (CONFIG.APP.DEBUG_MODE) {
-                console.log('SupabaseClient cleanup completed successfully');
-            }
-            
-            return true;
-        } catch (error) {
-            console.error('Error during cleanup:', error);
-            
-            // 오류 발생 시에도 기본 정리는 수행
-            this.processedMessages.clear();
-            this.messageSubscription = null;
-            this.likesSubscription = null;
-            this.channelMap = {};
-            
-            return false;
+        }
+        this.channelMap = {};
+        
+        if (CONFIG.APP.DEBUG_MODE) {
+            console.log('SupabaseClient cleanup completed');
         }
     }
 }
