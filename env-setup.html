@@ -146,6 +146,12 @@
             color: var(--warning-color);
         }
         
+        .message.info {
+            background-color: rgba(52, 152, 219, 0.1);
+            border: 1px solid var(--info-color);
+            color: var(--info-color);
+        }
+        
         .help-block {
             margin-top: 2rem;
             background-color: rgba(52, 152, 219, 0.1);
@@ -196,6 +202,26 @@
             font-size: 1rem;
         }
         
+        /* 서버 상태 뱃지 */
+        .server-status {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 2rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+        
+        .server-status.online {
+            background-color: rgba(46, 204, 113, 0.2);
+            color: var(--success-color);
+        }
+        
+        .server-status.offline {
+            background-color: rgba(231, 76, 60, 0.2);
+            color: var(--error-color);
+        }
+        
         @media (max-width: 768px) {
             .container {
                 padding: 1rem;
@@ -221,6 +247,9 @@
         <header>
             <h1>환경 변수 설정</h1>
             <p class="subtitle">컨퍼런스 실시간 번역 채팅 시스템</p>
+            <div id="server-status-container" style="display: none;">
+                서버 상태: <span id="server-status-badge" class="server-status">확인 중...</span>
+            </div>
         </header>
         
         <div id="successMessage" class="message success">
@@ -235,6 +264,10 @@
             서버 모드에서 실행 중입니다. 브라우저 설정은 서버 환경 변수보다 우선순위가 낮습니다.
         </div>
         
+        <div id="infoMessage" class="message info">
+            .env 파일에 설정된 환경 변수가 감지되었습니다. 이 페이지에서 설정한 값은 개발 환경에서만 사용됩니다.
+        </div>
+        
         <div class="card">
             <h2>API 키 설정</h2>
             <p>애플리케이션 실행에 필요한 API 키를 입력하세요. 이 정보는 로컬 스토리지에 저장되며 서버로 전송되지 않습니다.</p>
@@ -242,14 +275,14 @@
             <form id="envForm">
                 <div class="form-group">
                     <label for="supabaseUrl">Supabase URL</label>
-                    <input type="text" id="supabaseUrl" name="supabaseUrl" placeholder="https://example.supabase.co" required>
+                    <input type="text" id="supabaseUrl" name="SUPABASE_URL" placeholder="https://example.supabase.co" required>
                     <p class="form-desc">Supabase 프로젝트 설정에서 찾을 수 있는 URL입니다.</p>
                 </div>
                 
                 <div class="form-group">
                     <label for="supabaseKey">Supabase Anonymous Key</label>
                     <div class="masked-field">
-                        <input type="password" id="supabaseKey" name="supabaseKey" placeholder="eyJhbGci...0Mn0.VGTi..." required>
+                        <input type="password" id="supabaseKey" name="SUPABASE_KEY" placeholder="eyJhbGci...0Mn0.VGTi..." required>
                         <button type="button" class="toggle-mask" data-target="supabaseKey">
                             <i class="fas fa-eye"></i> 표시
                         </button>
@@ -260,7 +293,7 @@
                 <div class="form-group">
                     <label for="translationApiKey">Google Cloud Translation API Key</label>
                     <div class="masked-field">
-                        <input type="password" id="translationApiKey" name="translationApiKey" placeholder="AIzaSyC..." required>
+                        <input type="password" id="translationApiKey" name="TRANSLATION_API_KEY" placeholder="AIzaSyC..." required>
                         <button type="button" class="toggle-mask" data-target="translationApiKey">
                             <i class="fas fa-eye"></i> 표시
                         </button>
@@ -270,6 +303,7 @@
                 
                 <div class="buttons">
                     <button type="button" id="resetButton" class="button secondary">초기화</button>
+                    <button type="button" id="testButton" class="button secondary">연결 테스트</button>
                     <button type="submit" class="button primary">저장</button>
                 </div>
             </form>
@@ -285,15 +319,28 @@
                 <li>클라우드 서비스 설정에서 환경 변수 관리</li>
             </ol>
             <p>프로덕션 환경에서는 이 페이지를 제거하거나 접근을 제한하세요.</p>
+            
+            <h4>.env 파일 예시</h4>
+            <pre style="background-color: #f1f3f5; padding: 1rem; border-radius: 4px; overflow-x: auto;">
+# Supabase 설정
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-anon-key
+
+# Google Cloud Translation API 설정
+TRANSLATION_API_KEY=your-api-key</pre>
         </div>
     </div>
     
     <footer>
         <p>2025 글로벌 시트 컨퍼런스 채팅 시스템 &copy; 2025</p>
+        <p><a href="/">메인 페이지로 돌아가기</a></p>
     </footer>
     
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // 서버 상태 확인
+            checkServerStatus();
+            
             // 기존 설정 불러오기
             loadStoredSettings();
             
@@ -310,6 +357,12 @@
                 if (confirm('저장된 설정을 초기화하시겠습니까?')) {
                     clearSettings();
                 }
+            });
+            
+            // 연결 테스트 버튼
+            const testButton = document.getElementById('testButton');
+            testButton.addEventListener('click', function() {
+                testConnection();
             });
             
             // 마스크 토글 버튼
@@ -329,64 +382,143 @@
                 });
             });
             
-            // 서버 모드 체크
-            checkServerMode();
+            // 환경 변수 제공 여부 확인
+            checkEnvAvailability();
         });
         
-        // 서버 모드 체크
-        function checkServerMode() {
-            fetch('/api/config')
-                .then(response => {
-                    if (response.ok) {
-                        // 서버가 응답하면 경고 표시
-                        document.getElementById('warningMessage').style.display = 'block';
+        // 서버 상태 확인
+        async function checkServerStatus() {
+            const statusContainer = document.getElementById('server-status-container');
+            const statusBadge = document.getElementById('server-status-badge');
+            
+            try {
+                const response = await fetch('/api/status');
+                if (response.ok) {
+                    const data = await response.json();
+                    statusContainer.style.display = 'block';
+                    
+                    if (data.status === 'ok') {
+                        statusBadge.textContent = '온라인';
+                        statusBadge.className = 'server-status online';
+                    } else {
+                        statusBadge.textContent = '경고: ' + data.message;
+                        statusBadge.className = 'server-status warning';
+                        
+                        if (data.missingEnvVars && data.missingEnvVars.length > 0) {
+                            const infoMessage = document.getElementById('infoMessage');
+                            infoMessage.textContent = `서버에 일부 환경 변수가 설정되지 않았습니다: ${data.missingEnvVars.join(', ')}`;
+                            infoMessage.style.display = 'block';
+                        }
                     }
-                })
-                .catch(() => {
-                    // 서버가 응답하지 않으면 클라이언트 모드로 간주
-                    console.log('클라이언트 모드로 실행 중');
-                });
+                } else {
+                    throw new Error('서버 응답 오류');
+                }
+            } catch (error) {
+                statusContainer.style.display = 'block';
+                statusBadge.textContent = '오프라인';
+                statusBadge.className = 'server-status offline';
+            }
+        }
+        
+        // 환경 변수 제공 여부 확인
+        async function checkEnvAvailability() {
+            try {
+                const response = await fetch('/api/config');
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // 유효한 환경 변수가 있는지 확인
+                    const hasValidVars = Object.values(data).some(val => !!val);
+                    
+                    if (hasValidVars) {
+                        const infoMessage = document.getElementById('infoMessage');
+                        infoMessage.style.display = 'block';
+                        
+                        const warningMessage = document.getElementById('warningMessage');
+                        warningMessage.style.display = 'block';
+                    }
+                }
+            } catch (error) {
+                console.log('환경 변수 제공 API를 사용할 수 없습니다.');
+            }
         }
         
         // 저장된 설정 불러오기
         function loadStoredSettings() {
-            const supabaseUrl = localStorage.getItem('env_supabaseUrl');
-            const supabaseKey = localStorage.getItem('env_supabaseKey');
-            const translationApiKey = localStorage.getItem('env_translationApiKey');
-            
-            if (supabaseUrl) {
-                document.getElementById('supabaseUrl').value = supabaseUrl;
-            }
-            
-            if (supabaseKey) {
-                document.getElementById('supabaseKey').value = supabaseKey;
-            }
-            
-            if (translationApiKey) {
-                document.getElementById('translationApiKey').value = translationApiKey;
+            try {
+                const devEnvVars = localStorage.getItem('dev_env_vars');
+                if (devEnvVars) {
+                    const parsedVars = JSON.parse(devEnvVars);
+                    
+                    if (parsedVars.SUPABASE_URL) {
+                        document.getElementById('supabaseUrl').value = parsedVars.SUPABASE_URL;
+                    }
+                    
+                    if (parsedVars.SUPABASE_KEY) {
+                        document.getElementById('supabaseKey').value = parsedVars.SUPABASE_KEY;
+                    }
+                    
+                    if (parsedVars.TRANSLATION_API_KEY) {
+                        document.getElementById('translationApiKey').value = parsedVars.TRANSLATION_API_KEY;
+                    }
+                }
+                
+                // 레거시 형식 확인 (env_supabaseUrl 등)
+                const legacyKeys = {
+                    'SUPABASE_URL': 'env_supabaseUrl',
+                    'SUPABASE_KEY': 'env_supabaseKey',
+                    'TRANSLATION_API_KEY': 'env_translationApiKey'
+                };
+                
+                for (const [envKey, storageKey] of Object.entries(legacyKeys)) {
+                    const value = localStorage.getItem(storageKey);
+                    if (value) {
+                        document.querySelector(`[name="${envKey}"]`).value = value;
+                    }
+                }
+            } catch (error) {
+                console.error('저장된 설정을 불러오는 중 오류 발생:', error);
             }
         }
         
         // 설정 저장하기
         function saveSettings() {
-            const supabaseUrl = document.getElementById('supabaseUrl').value.trim();
-            const supabaseKey = document.getElementById('supabaseKey').value.trim();
-            const translationApiKey = document.getElementById('translationApiKey').value.trim();
+            const form = document.getElementById('envForm');
+            const formData = new FormData(form);
             
-            // 유효성 검사
-            if (!supabaseUrl || !supabaseKey || !translationApiKey) {
+            // 필드 유효성 검사
+            let isValid = true;
+            const vars = {};
+            
+            for (const [key, value] of formData.entries()) {
+                const trimmedValue = value.trim();
+                if (!trimmedValue) {
+                    isValid = false;
+                    document.querySelector(`[name="${key}"]`).classList.add('error');
+                } else {
+                    vars[key] = trimmedValue;
+                    document.querySelector(`[name="${key}"]`).classList.remove('error');
+                }
+            }
+            
+            if (!isValid) {
                 showError('모든 필드를 입력해야 합니다.');
                 return;
             }
             
             try {
-                // 설정 저장
-                localStorage.setItem('env_supabaseUrl', supabaseUrl);
-                localStorage.setItem('env_supabaseKey', supabaseKey);
-                localStorage.setItem('env_translationApiKey', translationApiKey);
+                // 로컬 스토리지에 환경 변수 저장
+                localStorage.setItem('dev_env_vars', JSON.stringify(vars));
                 
                 // 성공 메시지 표시
-                showSuccess();
+                showSuccess('설정이 성공적으로 저장되었습니다.');
+                
+                // 3초 후 메인 페이지로 리디렉션 (옵션)
+                setTimeout(() => {
+                    if (confirm('설정이 저장되었습니다. 메인 페이지로 이동하시겠습니까?')) {
+                        window.location.href = '/';
+                    }
+                }, 3000);
             } catch (error) {
                 showError('설정을 저장하는 중 오류가 발생했습니다: ' + error.message);
             }
@@ -394,25 +526,62 @@
         
         // 설정 초기화
         function clearSettings() {
-            localStorage.removeItem('env_supabaseUrl');
-            localStorage.removeItem('env_supabaseKey');
-            localStorage.removeItem('env_translationApiKey');
-            
             // 폼 초기화
             document.getElementById('envForm').reset();
+            
+            // 로컬 스토리지에서 환경 변수 제거
+            localStorage.removeItem('dev_env_vars');
+            
+            // 레거시 형식 제거
+            const legacyKeys = ['env_supabaseUrl', 'env_supabaseKey', 'env_translationApiKey'];
+            legacyKeys.forEach(key => localStorage.removeItem(key));
             
             // 성공 메시지 표시
             showSuccess('설정이 초기화되었습니다.');
         }
         
+        // 연결 테스트
+        async function testConnection() {
+            const form = document.getElementById('envForm');
+            const formData = new FormData(form);
+            const vars = {};
+            
+            for (const [key, value] of formData.entries()) {
+                vars[key] = value.trim();
+            }
+            
+            if (!vars.SUPABASE_URL || !vars.SUPABASE_KEY) {
+                showError('Supabase URL과 Anonymous Key를 입력해야 합니다.');
+                return;
+            }
+            
+            showInfo('연결 테스트 중...');
+            
+            try {
+                // Supabase 연결 테스트
+                const response = await fetch(`${vars.SUPABASE_URL}/rest/v1/?apikey=${vars.SUPABASE_KEY}`);
+                
+                if (response.ok) {
+                    showSuccess('Supabase 연결 테스트 성공!');
+                } else {
+                    const errorText = await response.text();
+                    throw new Error(`Supabase 응답 오류: ${response.status} - ${errorText}`);
+                }
+            } catch (error) {
+                showError('연결 테스트 실패: ' + error.message);
+            }
+        }
+        
         // 성공 메시지 표시
         function showSuccess(message) {
             const successEl = document.getElementById('successMessage');
-            if (message) {
-                successEl.textContent = message;
+            successEl.textContent = message;
+            if (message.includes('저장되었습니다')) {
+                successEl.innerHTML = message + ' <a href="/">메인 페이지로 이동</a>하여 애플리케이션을 사용하세요.';
             }
             successEl.style.display = 'block';
             document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('infoMessage').style.display = 'none';
             
             // 5초 후 메시지 숨기기
             setTimeout(() => {
@@ -430,6 +599,20 @@
             // 5초 후 메시지 숨기기
             setTimeout(() => {
                 errorEl.style.display = 'none';
+            }, 5000);
+        }
+        
+        // 정보 메시지 표시
+        function showInfo(message) {
+            const infoEl = document.getElementById('infoMessage');
+            infoEl.textContent = message;
+            infoEl.style.display = 'block';
+            document.getElementById('successMessage').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+            
+            // 5초 후 메시지 숨기기
+            setTimeout(() => {
+                infoEl.style.display = 'none';
             }, 5000);
         }
     </script>

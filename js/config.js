@@ -7,44 +7,132 @@
  * 환경 변수를 통해 API 키를 안전하게 관리합니다.
  */
 
-// 환경 변수에서 설정 가져오기
+// 환경 변수에서 설정 가져오기 - 빈 값으로 초기화
 let SUPABASE_URL = '';
 let SUPABASE_KEY = '';
 let TRANSLATION_API_KEY = '';
 
+// 로컬 스토리지 키 상수
+const ENV_STORAGE_KEY = 'dev_env_vars';
+
 // 설정 로드 시도
 async function loadConfig() {
     try {
-        // 서버에서 제공하는 API로부터 설정 로드
-        const response = await fetch('/api/config');
-        if (!response.ok) {
-            throw new Error('서버 설정을 로드할 수 없습니다.');
+        // 1. window.ENV_VARS에서 서버 제공 환경 변수 확인 (프로덕션 환경)
+        if (window.ENV_VARS) {
+            console.log('서버에서 제공된 환경 변수 사용');
+            
+            SUPABASE_URL = window.ENV_VARS.SUPABASE_URL || '';
+            SUPABASE_KEY = window.ENV_VARS.SUPABASE_KEY || '';
+            TRANSLATION_API_KEY = window.ENV_VARS.TRANSLATION_API_KEY || '';
+            
+            if (CONFIG.isConfigLoaded()) {
+                window.dispatchEvent(new CustomEvent('config-loaded'));
+                return;
+            }
+            
+            throw new Error('서버 환경 변수가 불완전합니다.');
         }
         
-        const configData = await response.json();
-        
-        // 설정 값 저장
-        SUPABASE_URL = configData.SUPABASE_URL;
-        SUPABASE_KEY = configData.SUPABASE_KEY;
-        TRANSLATION_API_KEY = configData.TRANSLATION_API_KEY;
-        
-        console.log('서버에서 환경 변수 로드 성공');
-        
-        // 이벤트 발생 - 설정 로드 완료 알림
-        window.dispatchEvent(new CustomEvent('config-loaded'));
-        
+        // 2. 서버 API에서 환경 변수 로드 시도
+        try {
+            const response = await fetch('/api/config');
+            if (!response.ok) {
+                throw new Error(`서버 응답 오류: ${response.status}`);
+            }
+            
+            const configData = await response.json();
+            
+            SUPABASE_URL = configData.SUPABASE_URL || '';
+            SUPABASE_KEY = configData.SUPABASE_KEY || '';
+            TRANSLATION_API_KEY = configData.TRANSLATION_API_KEY || '';
+            
+            console.log('서버 API에서 환경 변수 로드 성공');
+            
+            if (CONFIG.isConfigLoaded()) {
+                window.dispatchEvent(new CustomEvent('config-loaded'));
+                return;
+            }
+            
+            throw new Error('서버 API 환경 변수가 불완전합니다.');
+        } catch (apiError) {
+            console.warn('서버 API에서 환경 변수를 로드할 수 없습니다:', apiError.message);
+            throw apiError; // 다음 단계로 진행
+        }
     } catch (error) {
-        console.error('설정 로드 중 오류 발생:', error);
-        console.warn('로컬 개발용 백업 설정을 사용합니다.');
+        console.warn('서버 환경 변수 로드 실패, 로컬 개발 환경 확인 중');
         
-        // 로컬 개발 환경을 위한 백업 설정
-        // 주의: 실제 배포 시 이 값들은 사용되지 않아야 합니다!
-        SUPABASE_URL = 'https://veudhigojdukbqfgjeyh.supabase.co';
-        SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZldWRoaWdvamR1a2JxZmdqZXloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzODgwNjIsImV4cCI6MjA2MDk2NDA2Mn0.Vh0TUArZacAuRiLeoxml26u9GJxSOrziUhC3vURJVao';
-        TRANSLATION_API_KEY = 'AIzaSyC8ugZVxiEk26iwvUnIQCzNcTUiYpxkigs';
-        
-        // 이벤트 발생 - 설정 로드 실패 알림
-        window.dispatchEvent(new CustomEvent('config-load-failed'));
+        // 3. 로컬 스토리지에서 환경 변수 로드 (개발 환경)
+        try {
+            const isLocalhost = window.location.hostname === 'localhost' || 
+                               window.location.hostname === '127.0.0.1' ||
+                               window.location.hostname.includes('192.168');
+                               
+            if (!isLocalhost) {
+                throw new Error('로컬호스트 환경이 아닙니다. 서버 환경 변수가 필요합니다.');
+            }
+            
+            const storedEnvVars = localStorage.getItem(ENV_STORAGE_KEY);
+            if (!storedEnvVars) {
+                throw new Error('로컬 스토리지에 저장된 환경 변수가 없습니다.');
+            }
+            
+            try {
+                const parsedVars = JSON.parse(storedEnvVars);
+                
+                SUPABASE_URL = parsedVars.SUPABASE_URL || '';
+                SUPABASE_KEY = parsedVars.SUPABASE_KEY || '';
+                TRANSLATION_API_KEY = parsedVars.TRANSLATION_API_KEY || '';
+                
+                console.log('로컬 스토리지에서 환경 변수 로드 성공');
+                
+                if (CONFIG.isConfigLoaded()) {
+                    window.dispatchEvent(new CustomEvent('config-loaded'));
+                    return;
+                }
+                
+                throw new Error('로컬 스토리지 환경 변수가 불완전합니다.');
+            } catch (parseError) {
+                console.error('환경 변수 파싱 오류:', parseError);
+                throw new Error('로컬 스토리지 환경 변수 파싱에 실패했습니다.');
+            }
+        } catch (localError) {
+            console.error('환경 변수 로드 실패:', localError.message);
+            
+            // 4. 로컬 스토리지 및 서버 로드 모두 실패 - env-setup.html로 리디렉션 제안
+            window.dispatchEvent(new CustomEvent('config-load-failed', { 
+                detail: { error: localError.message } 
+            }));
+            
+            // API 키 설정 안내 표시 (개발 환경에서만)
+            const isLocalhost = window.location.hostname === 'localhost' || 
+                               window.location.hostname === '127.0.0.1' ||
+                               window.location.hostname.includes('192.168');
+                               
+            if (isLocalhost) {
+                console.warn('개발 환경: API 키 설정이 필요합니다.');
+                
+                // 현재 env-setup.html 페이지가 아닌 경우에만 경고 표시
+                if (!window.location.pathname.includes('env-setup.html')) {
+                    // API 키 경고 요소가 있으면 표시
+                    const apiKeyWarning = document.getElementById('apiKeyWarning');
+                    if (apiKeyWarning) {
+                        apiKeyWarning.style.display = 'block';
+                    }
+                    
+                    // 5초 후 자동으로 설정 페이지로 리디렉션 (선택적)
+                    /*
+                    setTimeout(() => {
+                        if (confirm('API 키 설정이 필요합니다. 설정 페이지로 이동하시겠습니까?')) {
+                            window.location.href = 'env-setup.html';
+                        }
+                    }, 5000);
+                    */
+                }
+            } else {
+                console.error('프로덕션 환경: 서버 측 환경 변수 설정이 필요합니다.');
+            }
+        }
     }
 }
 
@@ -92,14 +180,8 @@ const CONFIG = {
             }, { once: true });
             
             // 설정 로드 실패 이벤트 리스너
-            window.addEventListener('config-load-failed', () => {
-                // 백업 설정이 존재하면 일단 계속 진행
-                if (CONFIG.isConfigLoaded()) {
-                    console.warn('백업 설정을 사용하여 진행합니다.');
-                    resolve();
-                } else {
-                    reject(new Error('설정을 로드할 수 없습니다.'));
-                }
+            window.addEventListener('config-load-failed', (event) => {
+                reject(new Error(event.detail?.error || '설정을 로드할 수 없습니다.'));
             }, { once: true });
             
             // 타임아웃 - 10초 후에도 로드되지 않으면 실패
