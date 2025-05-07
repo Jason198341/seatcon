@@ -17,6 +17,10 @@ async function initializeApp() {
     try {
         console.log('애플리케이션 초기화 중...');
         
+        // 모든 모달 숨기기 (중요: 관리자 모달 포함)
+        document.getElementById('admin-modal').hidden = true;
+        document.getElementById('login-modal').hidden = true;
+        
         // 로그인 상태 확인
         const isLoggedIn = window.authService.authState.load();
         
@@ -110,6 +114,12 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
     
     const loadedServices = new Set();
+    
+    // 모든 모달이 숨겨진 상태로 시작함을 확인
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        modal.hidden = true;
+    });
     
     // 각 서비스 로드 이벤트 리스너
     requiredServices.forEach(service => {
