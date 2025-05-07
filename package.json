@@ -1,22 +1,16 @@
 {
   "name": "conference-chat",
   "version": "1.0.0",
-  "description": "현대자동차그룹 시트기술 컨퍼런스 실시간 번역 채팅 시스템",
-  "main": "index.html",
+  "description": "실시간 다국어 번역 컨퍼런스 채팅 시스템",
+  "main": "index.js",
   "scripts": {
-    "start": "http-server -p 8090 -c-1",
+    "start": "http-server -c-1",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [
-    "conference",
-    "chat",
-    "translation",
-    "realtime"
-  ],
-  "author": "Your Company",
-  "license": "UNLICENSED",
-  "private": true,
-  "devDependencies": {
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.38.0",
     "http-server": "^14.1.1"
   }
 }

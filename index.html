@@ -2,173 +2,173 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>2025 글로벌 시트 컨퍼런스</title>
-    <meta name="description" content="2025 글로벌 시트 컨퍼런스 실시간 다국어 번역 채팅 시스템">
-    
-    <!-- 파비콘 -->
-    <link rel="icon" href="assets/icons/favicon.ico" type="image/x-icon">
-    
-    <!-- 스타일시트 -->
-    <link rel="stylesheet" href="styles/main.css">
-    <link rel="stylesheet" href="styles/chat.css">
-    <link rel="stylesheet" href="styles/responsive.css">
-    
-    <!-- 프리텐다드 폰트 -->
-    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard-dynamic-subset.css" />
-    
-    <!-- Font Awesome 아이콘 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2025 글로벌 시트 컨퍼런스 채팅</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/dark-theme.css" id="theme-style" disabled>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Supabase 클라이언트 라이브러리 -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.0/dist/umd/supabase.min.js"></script>
 </head>
-<body class="theme-light">
-    <!-- 헤더 -->
-    <header class="header">
-        <div class="header-brand">
-            <span id="conferenceTitle" data-i18n="conferenceTitle">2025 Global Seat Conference</span>
-        </div>
-        
-        <div class="header-nav">
-            <!-- 테마 전환 버튼 -->
-            <div class="header-nav-item">
-                <button id="themeToggle" class="icon-button" aria-label="테마 전환">
-                    <i class="fas fa-moon"></i>
-                </button>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <div class="logo">
+                <img src="img/logo.png" alt="컨퍼런스 로고" class="logo-img">
+                <h1>2025 글로벌 시트 컨퍼런스 채팅</h1>
             </div>
-            
-            <!-- 로그아웃 버튼 -->
-            <div class="header-nav-item">
-                <button id="logoutButton" class="button secondary" style="display: none;" data-i18n="logoutButton">
-                    <i class="fas fa-sign-out-alt mr-1"></i> Logout
-                </button>
+            <div class="header-controls">
+                <div class="language-selector">
+                    <label for="language">언어 선택:</label>
+                    <select id="language">
+                        <option value="ko">한국어</option>
+                        <option value="en">English</option>
+                        <option value="hi">हिन्दी</option>
+                        <option value="zh">中文</option>
+                    </select>
+                </div>
+                <div class="theme-toggle">
+                    <button id="theme-toggle-btn">
+                        <i class="fas fa-moon"></i>
+                        <span>다크 모드</span>
+                    </button>
+                </div>
+                <div class="user-controls">
+                    <button id="login-btn" class="btn">로그인</button>
+                    <div id="user-info" class="user-info hidden">
+                        <span id="username"></span>
+                        <img id="user-avatar" alt="프로필 이미지" class="avatar">
+                        <button id="logout-btn" class="btn btn-small">로그아웃</button>
+                    </div>
+                </div>
             </div>
-        </div>
-    </header>
-    
-    <!-- 메인 콘텐츠 -->
-    <main class="main-content">
-        <div class="content">
-            <!-- 사용자 정보 입력 폼 -->
-            <div id="userInfoFormContainer" class="card user-info-form">
-                <h2 data-i18n="startChatHeading">Start Chatting</h2>
-                <p class="mb-4" data-i18n="startChatSubtext">Please enter your information to join the chat.</p>
-                
-                <form id="userInfoForm">
-                    <div class="form-group">
-                        <label for="userName" data-i18n="nameLabel">Name</label>
-                        <input type="text" id="userName" name="userName" required data-i18n-placeholder="namePlaceholder" placeholder="Enter your name">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="userEmail" data-i18n="emailLabel">Email</label>
-                        <input type="email" id="userEmail" name="userEmail" required data-i18n-placeholder="emailPlaceholder" placeholder="Enter your email">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="roleSelector" data-i18n="roleLabel">Role</label>
-                        <select id="roleSelector" name="roleSelector" required data-i18n-placeholder="rolePlaceholder">
-                            <option value="" disabled selected data-i18n="rolePlaceholder">Select your role</option>
-                            <!-- JS에서 동적으로 추가됨 -->
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="languageSelector" data-i18n="languageLabel">Preferred Language</label>
-                        <select id="languageSelector" name="languageSelector" required data-i18n-placeholder="languagePlaceholder">
-                            <option value="" disabled selected data-i18n="languagePlaceholder">Select language</option>
-                            <!-- JS에서 동적으로 추가됨 -->
-                        </select>
-                    </div>
-                    
-                    <button type="submit" id="loginButton" class="button mt-4 w-100" data-i18n="startChatButton">Start Chat</button>
-                </form>
-            </div>
-            
-            <!-- 채팅 컨테이너 -->
-            <div id="chatContainer" class="chat-container" style="display: none;">
+        </header>
+
+        <div class="content-container">
+            <aside class="sidebar">
+                <div class="rooms-header">
+                    <h2>채팅방</h2>
+                    <button id="create-room-btn" class="btn btn-small"><i class="fas fa-plus"></i></button>
+                </div>
+                <div class="room-categories">
+                    <!-- 카테고리 및 채팅방은 자바스크립트로 동적 생성 -->
+                </div>
+            </aside>
+
+            <main class="chat-container">
                 <div class="chat-header">
-                    <div>
-                        <h2 class="chat-title" data-i18n="chatTitle">Live Chat</h2>
-                        <div class="chat-subtitle">
-                            <span id="conferenceDate" data-i18n="conferenceDate">June 16-19, 2025</span> | <span id="conferenceLocation" data-i18n="conferenceLocation">Indian Institute of Technology, Hyderabad</span>
+                    <h2 id="current-room-name">채팅방 이름</h2>
+                    <p id="current-room-description">채팅방 설명</p>
+                </div>
+
+                <div class="notification-area">
+                    <!-- 알림 메시지는 자바스크립트로 동적 생성 -->
+                </div>
+
+                <div class="pinned-messages">
+                    <!-- 고정된 메시지는 자바스크립트로 동적 생성 -->
+                </div>
+
+                <div class="messages-container">
+                    <!-- 메시지는 자바스크립트로 동적 생성 -->
+                </div>
+
+                <div class="new-messages-notification" id="new-messages-alert" hidden>
+                    <button id="scroll-to-bottom-btn">
+                        <i class="fas fa-arrow-down"></i>
+                        <span>새 메시지</span>
+                    </button>
+                </div>
+
+                <div class="reply-container" id="reply-box" hidden>
+                    <div class="reply-preview">
+                        <div class="reply-info">
+                            <span class="reply-to">회신 대상: <span id="reply-username"></span></span>
+                            <p id="reply-text"></p>
                         </div>
+                        <button id="cancel-reply-btn" class="btn-icon"><i class="fas fa-times"></i></button>
                     </div>
-                    <div class="chat-actions">
-                        <button id="scrollToBottom" class="icon-button" aria-label="Scroll to bottom">
-                            <i class="fas fa-arrow-down"></i>
+                </div>
+
+                <div class="chat-input-container">
+                    <textarea id="message-input" placeholder="메시지를 입력하세요..." rows="1"></textarea>
+                    <div class="input-actions">
+                        <button id="send-message-btn" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i>
+                            <span>보내기</span>
                         </button>
                     </div>
                 </div>
-                
-                <div id="messageList" class="message-list">
-                    <!-- 메시지 목록이 동적으로 추가됨 -->
-                </div>
-                
-                <button id="loadMoreButton" class="load-more-button" style="display: none;" data-i18n="loadMoreButton">
-                    Load More Messages
-                </button>
-                
-                <form id="messageForm" class="message-form">
-                    <div class="message-input-container">
-                        <textarea id="messageInput" class="message-input" data-i18n-placeholder="messagePlaceholder" placeholder="Type your message..." maxlength="1000"></textarea>
-                    </div>
-                    <button type="submit" id="sendButton" class="send-button" aria-label="Send message">
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
-                </form>
-            </div>
+            </main>
         </div>
-    </main>
-    
-    <!-- 하단 네비게이션 바 (모바일 전용) -->
-    <nav class="bottom-nav">
-        <a href="#" class="bottom-nav-item active" id="chatNav">
-            <div class="bottom-nav-icon"><i class="fas fa-comments"></i></div>
-            <span data-i18n="navChat">Chat</span>
-        </a>
-        <a href="#" class="bottom-nav-item" id="userInfoNav">
-            <div class="bottom-nav-icon"><i class="fas fa-user"></i></div>
-            <span data-i18n="navProfile">Profile</span>
-        </a>
-        <a href="#" class="bottom-nav-item" id="languageNav">
-            <div class="bottom-nav-icon"><i class="fas fa-language"></i></div>
-            <span data-i18n="navLanguage">Language</span>
-        </a>
-        <a href="#" class="bottom-nav-item" id="infoNav">
-            <div class="bottom-nav-icon"><i class="fas fa-info-circle"></i></div>
-            <span data-i18n="navInfo">Info</span>
-        </a>
-    </nav>
-    
-    <!-- 자바스크립트 모듈 -->
-    <script type="module" src="js/main.js"></script>
-    
-    <!-- 터치 디바이스 감지 -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // 터치 디바이스 감지
-            const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-            
-            // 터치 디바이스일 경우 클래스 추가
-            if (isTouchDevice) {
-                document.body.classList.add('touch-device');
-            }
-            
-            // 스크롤 버튼 처리
-            const scrollToBottomButton = document.getElementById('scrollToBottom');
-            const messageList = document.getElementById('messageList');
-            
-            if (scrollToBottomButton && messageList) {
-                scrollToBottomButton.addEventListener('click', function() {
-                    messageList.scrollTo({
-                        top: messageList.scrollHeight,
-                        behavior: 'smooth'
-                    });
-                });
-            }
-        });
-    </script>
+    </div>
+
+    <!-- 로그인 모달 -->
+    <div id="login-modal" class="modal" hidden>
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2>로그인</h2>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="username-input">사용자 이름</label>
+                    <input type="text" id="username-input" required>
+                </div>
+                <div class="form-group">
+                    <label for="avatar-select">아바타 선택</label>
+                    <div class="avatar-options">
+                        <div class="avatar-option">
+                            <input type="radio" name="avatar" id="avatar1" value="avatar1.png" checked>
+                            <label for="avatar1"><img src="img/avatar1.png" alt="아바타 1"></label>
+                        </div>
+                        <div class="avatar-option">
+                            <input type="radio" name="avatar" id="avatar2" value="avatar2.png">
+                            <label for="avatar2"><img src="img/avatar2.png" alt="아바타 2"></label>
+                        </div>
+                        <div class="avatar-option">
+                            <input type="radio" name="avatar" id="avatar3" value="avatar3.png">
+                            <label for="avatar3"><img src="img/avatar3.png" alt="아바타 3"></label>
+                        </div>
+                        <div class="avatar-option">
+                            <input type="radio" name="avatar" id="avatar4" value="avatar4.png">
+                            <label for="avatar4"><img src="img/avatar4.png" alt="아바타 4"></label>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="role-select">역할</label>
+                    <select id="role-select">
+                        <option value="participant">참가자</option>
+                        <option value="speaker">발표자</option>
+                        <option value="staff">스태프</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">로그인</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 관리자 페이지 링크 모달 -->
+    <div id="admin-modal" class="modal" hidden>
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2>관리자 로그인</h2>
+            <form id="admin-login-form">
+                <div class="form-group">
+                    <label for="admin-password">관리자 비밀번호</label>
+                    <input type="password" id="admin-password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">로그인</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript 파일 -->
+    <script src="js/utils.js"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/translation.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/chat.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>

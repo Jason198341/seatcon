@@ -2,436 +2,389 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>관리자 페이지 - 2025 글로벌 시트 컨퍼런스</title>
-    <meta name="description" content="2025 글로벌 시트 컨퍼런스 관리자 페이지">
-    
-    <!-- 파비콘 -->
-    <link rel="icon" href="assets/icons/favicon.ico" type="image/x-icon">
-    
-    <!-- 스타일시트 -->
-    <link rel="stylesheet" href="styles/main.css">
-    <link rel="stylesheet" href="styles/admin.css">
-    <link rel="stylesheet" href="styles/responsive.css">
-    
-    <!-- 프리텐다드 폰트 -->
-    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard-dynamic-subset.css" />
-    
-    <!-- Font Awesome 아이콘 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 페이지 - 2025 글로벌 시트 컨퍼런스 채팅</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/admin.css">
+    <link rel="stylesheet" href="css/dark-theme.css" id="theme-style" disabled>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Supabase 클라이언트 라이브러리 -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.0/dist/umd/supabase.min.js"></script>
+    <!-- Chart.js for analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="theme-light">
-    <!-- 헤더 -->
-    <header class="header">
-        <div class="header-brand">
-            <span id="adminTitle">2025 글로벌 시트 컨퍼런스 관리자</span>
-        </div>
-        
-        <div class="header-nav">
-            <!-- 테마 전환 버튼 -->
-            <div class="header-nav-item">
-                <button id="themeToggle" class="icon-button" aria-label="테마 전환">
-                    <i class="fas fa-moon"></i>
-                </button>
+<body>
+    <div class="app-container admin-container">
+        <header class="app-header">
+            <div class="logo">
+                <img src="img/logo.png" alt="컨퍼런스 로고" class="logo-img">
+                <h1>관리자 페이지 - 2025 글로벌 시트 컨퍼런스 채팅</h1>
             </div>
-            
-            <!-- 메인 페이지로 돌아가기 버튼 -->
-            <div class="header-nav-item">
-                <a href="index.html" class="button secondary">
-                    <i class="fas fa-home mr-1"></i> 메인으로
-                </a>
-            </div>
-            
-            <!-- 로그아웃 버튼 -->
-            <div class="header-nav-item">
-                <button id="adminLogoutButton" class="button secondary" style="display: none;">
-                    <i class="fas fa-sign-out-alt mr-1"></i> 로그아웃
-                </button>
-            </div>
-        </div>
-    </header>
-    
-    <!-- 메인 콘텐츠 -->
-    <main class="main-content">
-        <div class="content">
-            <!-- 관리자 로그인 폼 -->
-            <div id="adminLoginContainer" class="card admin-login-form">
-                <h2>관리자 로그인</h2>
-                <p class="mb-4">채팅방 관리를 위해 관리자 비밀번호를 입력하세요.</p>
-                
-                <form id="adminLoginForm">
-                    <div class="form-group">
-                        <label for="adminPassword">비밀번호</label>
-                        <input type="password" id="adminPassword" name="adminPassword" required placeholder="관리자 비밀번호 입력">
-                    </div>
-                    
-                    <button type="submit" id="adminLoginButton" class="button mt-4 w-100">로그인</button>
-                </form>
-            </div>
-            
-            <!-- 관리자 대시보드 -->
-            <div id="adminDashboard" class="admin-dashboard" style="display: none;">
-                <div class="admin-tabs">
-                    <button id="roomsTabButton" class="tab-button active">채팅방 관리</button>
-                    <button id="categoriesTabButton" class="tab-button">카테고리 관리</button>
-                    <button id="statisticsTabButton" class="tab-button">통계</button>
+            <div class="header-controls">
+                <div class="theme-toggle">
+                    <button id="theme-toggle-btn">
+                        <i class="fas fa-moon"></i>
+                        <span>다크 모드</span>
+                    </button>
                 </div>
-                
-                <!-- 채팅방 관리 섹션 -->
-                <div id="roomsTab" class="tab-content">
-                    <div class="action-bar">
-                        <h2>채팅방 관리</h2>
-                        <button id="createRoomButton" class="button">
-                            <i class="fas fa-plus mr-1"></i> 새 채팅방
-                        </button>
-                    </div>
-                    
-                    <div class="filter-bar">
-                        <div class="search-input">
-                            <input type="text" id="roomSearchInput" placeholder="채팅방 검색...">
-                            <i class="fas fa-search search-icon"></i>
-                        </div>
-                        
-                        <div class="filter-select">
-                            <select id="categoryFilter">
-                                <option value="">모든 카테고리</option>
-                                <!-- 카테고리 옵션이 동적으로 추가됨 -->
-                            </select>
-                        </div>
-                        
-                        <div class="filter-toggle">
-                            <label class="switch">
-                                <input type="checkbox" id="activeRoomsOnly">
-                                <span class="slider round"></span>
-                            </label>
-                            <span>활성화된 채팅방만</span>
-                        </div>
-                    </div>
-                    
-                    <div class="data-table-container">
-                        <table class="data-table" id="roomsTable">
-                            <thead>
-                                <tr>
-                                    <th>이름</th>
-                                    <th>카테고리</th>
-                                    <th>상태</th>
-                                    <th>생성일</th>
-                                    <th>액션</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- 채팅방 목록이 동적으로 추가됨 -->
-                            </tbody>
-                        </table>
-                        
-                        <div id="roomsEmptyState" class="empty-state" style="display: none;">
-                            <div class="empty-icon"><i class="far fa-comments"></i></div>
-                            <h3>채팅방이 없습니다</h3>
-                            <p>새 채팅방을 추가해보세요!</p>
-                        </div>
-                        
-                        <div id="roomsLoadingState" class="loading-state">
-                            <div class="loading-spinner"></div>
-                            <p>채팅방 목록 불러오는 중...</p>
-                        </div>
-                    </div>
+                <div class="admin-controls">
+                    <a href="index.html" class="btn">메인 페이지</a>
+                    <button id="logout-btn" class="btn btn-small">로그아웃</button>
                 </div>
-                
-                <!-- 카테고리 관리 섹션 -->
-                <div id="categoriesTab" class="tab-content" style="display: none;">
-                    <div class="action-bar">
-                        <h2>카테고리 관리</h2>
-                        <button id="createCategoryButton" class="button">
-                            <i class="fas fa-plus mr-1"></i> 새 카테고리
-                        </button>
-                    </div>
-                    
-                    <div class="data-table-container">
-                        <table class="data-table" id="categoriesTable">
-                            <thead>
-                                <tr>
-                                    <th>이름</th>
-                                    <th>설명</th>
-                                    <th>아이콘</th>
-                                    <th>색상</th>
-                                    <th>액션</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- 카테고리 목록이 동적으로 추가됨 -->
-                            </tbody>
-                        </table>
-                        
-                        <div id="categoriesEmptyState" class="empty-state" style="display: none;">
-                            <div class="empty-icon"><i class="far fa-folder"></i></div>
-                            <h3>카테고리가 없습니다</h3>
-                            <p>새 카테고리를 추가해보세요!</p>
-                        </div>
-                        
-                        <div id="categoriesLoadingState" class="loading-state">
-                            <div class="loading-spinner"></div>
-                            <p>카테고리 목록 불러오는 중...</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 통계 섹션 -->
-                <div id="statisticsTab" class="tab-content" style="display: none;">
-                    <h2>채팅 통계</h2>
-                    
-                    <div class="stats-cards">
-                        <div class="stats-card">
-                            <div class="stats-icon">
+            </div>
+        </header>
+
+        <div class="admin-content">
+            <aside class="admin-sidebar">
+                <nav class="admin-nav">
+                    <ul>
+                        <li>
+                            <a href="#dashboard" class="nav-item active" data-section="dashboard">
+                                <i class="fas fa-tachometer-alt"></i>
+                                <span>대시보드</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#rooms" class="nav-item" data-section="rooms">
                                 <i class="fas fa-comments"></i>
-                            </div>
-                            <div class="stats-content">
-                                <h3>총 메시지</h3>
-                                <div class="stats-value" id="totalMessagesCount">
-                                    <div class="loading-spinner-sm"></div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="stats-card">
-                            <div class="stats-icon">
+                                <span>채팅방 관리</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#categories" class="nav-item" data-section="categories">
+                                <i class="fas fa-tags"></i>
+                                <span>카테고리 관리</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#users" class="nav-item" data-section="users">
+                                <i class="fas fa-users"></i>
+                                <span>사용자 관리</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#messages" class="nav-item" data-section="messages">
+                                <i class="fas fa-comment-dots"></i>
+                                <span>메시지 관리</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#translation" class="nav-item" data-section="translation">
+                                <i class="fas fa-language"></i>
+                                <span>번역 관리</span>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </aside>
+
+            <main class="admin-main">
+                <!-- 대시보드 섹션 -->
+                <section id="dashboard" class="admin-section active">
+                    <h2>대시보드</h2>
+                    
+                    <div class="stats-container">
+                        <div class="stat-card">
+                            <div class="stat-icon">
                                 <i class="fas fa-users"></i>
                             </div>
-                            <div class="stats-content">
-                                <h3>활성 사용자</h3>
-                                <div class="stats-value" id="activeUsersCount">
-                                    <div class="loading-spinner-sm"></div>
-                                </div>
+                            <div class="stat-info">
+                                <h3>총 사용자</h3>
+                                <p id="total-users">로딩 중...</p>
                             </div>
                         </div>
                         
-                        <div class="stats-card">
-                            <div class="stats-icon">
-                                <i class="fas fa-door-open"></i>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-comments"></i>
                             </div>
-                            <div class="stats-content">
-                                <h3>활성 채팅방</h3>
-                                <div class="stats-value" id="activeRoomsCount">
-                                    <div class="loading-spinner-sm"></div>
-                                </div>
+                            <div class="stat-info">
+                                <h3>총 채팅방</h3>
+                                <p id="total-rooms">로딩 중...</p>
                             </div>
                         </div>
                         
-                        <div class="stats-card">
-                            <div class="stats-icon">
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-comment-dots"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3>총 메시지</h3>
+                                <p id="total-messages">로딩 중...</p>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-icon">
                                 <i class="fas fa-language"></i>
                             </div>
-                            <div class="stats-content">
-                                <h3>번역된 메시지</h3>
-                                <div class="stats-value" id="translatedMessagesCount">
-                                    <div class="loading-spinner-sm"></div>
-                                </div>
+                            <div class="stat-info">
+                                <h3>총 번역</h3>
+                                <p id="total-translations">로딩 중...</p>
                             </div>
                         </div>
                     </div>
                     
                     <div class="charts-container">
                         <div class="chart-card">
-                            <h3>최근 활동</h3>
-                            <div class="chart-placeholder" id="activityChart">
-                                <div class="loading-spinner"></div>
-                            </div>
+                            <h3>시간별 메시지 활동</h3>
+                            <canvas id="hourly-activity-chart"></canvas>
                         </div>
                         
                         <div class="chart-card">
-                            <h3>언어 분포</h3>
-                            <div class="chart-placeholder" id="languageChart">
-                                <div class="loading-spinner"></div>
-                            </div>
+                            <h3>언어별 사용 비율</h3>
+                            <canvas id="language-distribution-chart"></canvas>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </main>
-    
-    <!-- 채팅방 생성/수정 모달 -->
-    <div id="roomModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="roomModalTitle">새 채팅방 생성</h2>
-                <button class="close-button" id="closeRoomModal">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            
-            <div class="modal-body">
-                <form id="roomForm">
-                    <input type="hidden" id="roomId" name="roomId">
+                </section>
+
+                <!-- 채팅방 관리 섹션 -->
+                <section id="rooms" class="admin-section">
+                    <h2>채팅방 관리</h2>
                     
-                    <div class="form-group">
-                        <label for="roomName">채팅방 이름</label>
-                        <input type="text" id="roomName" name="roomName" required placeholder="채팅방 이름 입력">
+                    <div class="action-bar">
+                        <button id="create-room-btn" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> 새 채팅방
+                        </button>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="roomDescription">설명</label>
-                        <textarea id="roomDescription" name="roomDescription" placeholder="채팅방 설명 입력"></textarea>
+                    <div class="data-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>이름</th>
+                                    <th>카테고리</th>
+                                    <th>생성일</th>
+                                    <th>상태</th>
+                                    <th>작업</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rooms-table-body">
+                                <!-- 채팅방 데이터는 자바스크립트로 동적 생성 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- 카테고리 관리 섹션 -->
+                <section id="categories" class="admin-section">
+                    <h2>카테고리 관리</h2>
+                    
+                    <div class="action-bar">
+                        <button id="create-category-btn" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> 새 카테고리
+                        </button>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="roomCategory">카테고리</label>
-                        <select id="roomCategory" name="roomCategory" required>
-                            <option value="" disabled selected>카테고리 선택</option>
-                            <!-- 카테고리 옵션이 동적으로 추가됨 -->
-                        </select>
+                    <div class="data-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>이름</th>
+                                    <th>설명</th>
+                                    <th>생성일</th>
+                                    <th>채팅방 수</th>
+                                    <th>작업</th>
+                                </tr>
+                            </thead>
+                            <tbody id="categories-table-body">
+                                <!-- 카테고리 데이터는 자바스크립트로 동적 생성 -->
+                            </tbody>
+                        </table>
                     </div>
+                </section>
+
+                <!-- 사용자 관리 섹션 -->
+                <section id="users" class="admin-section">
+                    <h2>사용자 관리</h2>
                     
-                    <div class="form-group">
-                        <label for="roomIcon">아이콘 (Font Awesome)</label>
-                        <div class="icon-selector">
-                            <input type="text" id="roomIcon" name="roomIcon" placeholder="아이콘 이름 (예: comments)">
-                            <div class="icon-preview">
-                                <i id="iconPreview" class="fas fa-comments"></i>
-                            </div>
+                    <div class="data-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>사용자 이름</th>
+                                    <th>역할</th>
+                                    <th>선호 언어</th>
+                                    <th>마지막 활동</th>
+                                    <th>메시지 수</th>
+                                    <th>작업</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-table-body">
+                                <!-- 사용자 데이터는 자바스크립트로 동적 생성 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- 메시지 관리 섹션 -->
+                <section id="messages" class="admin-section">
+                    <h2>메시지 관리</h2>
+                    
+                    <div class="filter-bar">
+                        <div class="filter-group">
+                            <label for="message-room-filter">채팅방:</label>
+                            <select id="message-room-filter">
+                                <option value="">모든 채팅방</option>
+                                <!-- 채팅방 옵션은 자바스크립트로 동적 생성 -->
+                            </select>
                         </div>
+                        
+                        <div class="filter-group">
+                            <label for="message-user-filter">사용자:</label>
+                            <input type="text" id="message-user-filter" placeholder="사용자 이름">
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label for="message-date-from">기간:</label>
+                            <input type="date" id="message-date-from">
+                            <span>~</span>
+                            <input type="date" id="message-date-to">
+                        </div>
+                        
+                        <button id="apply-message-filter-btn" class="btn">필터 적용</button>
                     </div>
                     
-                    <div class="form-row">
-                        <div class="form-group flex-1">
-                            <label for="roomIsActive">활성화 상태</label>
-                            <div class="toggle-switch">
-                                <label class="switch">
-                                    <input type="checkbox" id="roomIsActive" name="roomIsActive" checked>
-                                    <span class="slider round"></span>
-                                </label>
-                                <div class="toggle-label">활성화</div>
+                    <div class="data-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>채팅방</th>
+                                    <th>사용자</th>
+                                    <th>메시지</th>
+                                    <th>원본 언어</th>
+                                    <th>시간</th>
+                                    <th>고정됨</th>
+                                    <th>작업</th>
+                                </tr>
+                            </thead>
+                            <tbody id="messages-table-body">
+                                <!-- 메시지 데이터는 자바스크립트로 동적 생성 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- 번역 관리 섹션 -->
+                <section id="translation" class="admin-section">
+                    <h2>번역 관리</h2>
+                    
+                    <div class="translation-stats">
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-language"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3>총 번역</h3>
+                                <p id="translation-count">로딩 중...</p>
                             </div>
                         </div>
                         
-                        <div class="form-group flex-1">
-                            <label for="roomIsPublic">공개 상태</label>
-                            <div class="toggle-switch">
-                                <label class="switch">
-                                    <input type="checkbox" id="roomIsPublic" name="roomIsPublic" checked>
-                                    <span class="slider round"></span>
-                                </label>
-                                <div class="toggle-label">공개</div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-database"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3>캐시된 번역</h3>
+                                <p id="cached-translation-count">로딩 중...</p>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-money-bill-wave"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3>절약된 API 비용</h3>
+                                <p id="saved-api-cost">로딩 중...</p>
                             </div>
                         </div>
                     </div>
-                </form>
-            </div>
-            
-            <div class="modal-footer">
-                <button type="button" class="button secondary" id="cancelRoomButton">취소</button>
-                <button type="button" class="button" id="saveRoomButton">저장</button>
-            </div>
+                    
+                    <div class="charts-container">
+                        <div class="chart-card">
+                            <h3>언어별 번역 요청</h3>
+                            <canvas id="translation-language-chart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="action-bar">
+                        <button id="clear-translation-cache-btn" class="btn btn-danger">
+                            <i class="fas fa-trash-alt"></i> 번역 캐시 비우기
+                        </button>
+                    </div>
+                </section>
+            </main>
         </div>
     </div>
-    
+
+    <!-- 채팅방 생성/수정 모달 -->
+    <div id="room-modal" class="modal" hidden>
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2 id="room-modal-title">새 채팅방</h2>
+            <form id="room-form">
+                <div class="form-group">
+                    <label for="room-name">채팅방 이름</label>
+                    <input type="text" id="room-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="room-description">설명</label>
+                    <textarea id="room-description" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="room-category">카테고리</label>
+                    <select id="room-category" required>
+                        <!-- 카테고리 옵션은 자바스크립트로 동적 생성 -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="room-status">상태</label>
+                    <select id="room-status">
+                        <option value="active">활성화</option>
+                        <option value="inactive">비활성화</option>
+                    </select>
+                </div>
+                <input type="hidden" id="room-id">
+                <button type="submit" class="btn btn-primary">저장</button>
+            </form>
+        </div>
+    </div>
+
     <!-- 카테고리 생성/수정 모달 -->
-    <div id="categoryModal" class="modal">
+    <div id="category-modal" class="modal" hidden>
         <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="categoryModalTitle">새 카테고리 생성</h2>
-                <button class="close-button" id="closeCategoryModal">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            
-            <div class="modal-body">
-                <form id="categoryForm">
-                    <input type="hidden" id="categoryId" name="categoryId">
-                    
-                    <div class="form-group">
-                        <label for="categoryName">카테고리 이름</label>
-                        <input type="text" id="categoryName" name="categoryName" required placeholder="카테고리 이름 입력">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="categoryDescription">설명</label>
-                        <textarea id="categoryDescription" name="categoryDescription" placeholder="카테고리 설명 입력"></textarea>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="categoryIcon">아이콘 (Font Awesome)</label>
-                        <div class="icon-selector">
-                            <input type="text" id="categoryIcon" name="categoryIcon" placeholder="아이콘 이름 (예: folder)">
-                            <div class="icon-preview">
-                                <i id="categoryIconPreview" class="fas fa-folder"></i>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="categoryColor">색상</label>
-                        <input type="color" id="categoryColor" name="categoryColor" value="#3498db">
-                    </div>
-                </form>
-            </div>
-            
-            <div class="modal-footer">
-                <button type="button" class="button secondary" id="cancelCategoryButton">취소</button>
-                <button type="button" class="button" id="saveCategoryButton">저장</button>
-            </div>
+            <span class="close-modal">&times;</span>
+            <h2 id="category-modal-title">새 카테고리</h2>
+            <form id="category-form">
+                <div class="form-group">
+                    <label for="category-name">카테고리 이름</label>
+                    <input type="text" id="category-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="category-description">설명</label>
+                    <textarea id="category-description" rows="3"></textarea>
+                </div>
+                <input type="hidden" id="category-id">
+                <button type="submit" class="btn btn-primary">저장</button>
+            </form>
         </div>
     </div>
-    
-    <!-- 삭제 확인 모달 -->
-    <div id="confirmDeleteModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>삭제 확인</h2>
-                <button class="close-button" id="closeConfirmDeleteModal">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            
-            <div class="modal-body">
-                <p id="deleteConfirmMessage">정말로 삭제하시겠습니까?</p>
-            </div>
-            
-            <div class="modal-footer">
-                <button type="button" class="button secondary" id="cancelDeleteButton">취소</button>
-                <button type="button" class="button danger" id="confirmDeleteButton">삭제</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- 자바스크립트 모듈 -->
-    <script type="module" src="js/admin.js"></script>
-    
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // 테마 토글 버튼 이벤트 핸들러
-            const themeToggle = document.getElementById('themeToggle');
-            
-            if (themeToggle) {
-                themeToggle.addEventListener('click', function() {
-                    document.body.classList.toggle('theme-dark');
-                    document.body.classList.toggle('theme-light');
-                    
-                    // 아이콘 변경
-                    const icon = themeToggle.querySelector('i');
-                    if (document.body.classList.contains('theme-dark')) {
-                        icon.className = 'fas fa-sun';
-                        localStorage.setItem('theme', 'dark');
-                    } else {
-                        icon.className = 'fas fa-moon';
-                        localStorage.setItem('theme', 'light');
-                    }
-                });
-            }
-            
-            // 저장된 테마 적용
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme === 'dark') {
-                document.body.classList.remove('theme-light');
-                document.body.classList.add('theme-dark');
-                if (themeToggle) {
-                    const icon = themeToggle.querySelector('i');
-                    icon.className = 'fas fa-sun';
-                }
-            }
-        });
-    </script>
+
+    <!-- JavaScript 파일 -->
+    <script src="js/utils.js"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/admin/auth.js"></script>
+    <script src="js/admin/dashboard.js"></script>
+    <script src="js/admin/rooms.js"></script>
+    <script src="js/admin/categories.js"></script>
+    <script src="js/admin/users.js"></script>
+    <script src="js/admin/messages.js"></script>
+    <script src="js/admin/translation.js"></script>
+    <script src="js/admin/app.js"></script>
 </body>
 </html>

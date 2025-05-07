@@ -1,0 +1,198 @@
+/* 
+* 2025 글로벌 시트 컨퍼런스 채팅 - 다크 테마 스타일시트 
+* 작성일: 2025-05-07
+*/
+
+:root {
+    --primary-color: #60a5fa;
+    --primary-color-hover: #3b82f6;
+    --secondary-color: #34d399;
+    --secondary-color-hover: #10b981;
+    --danger-color: #f87171;
+    --danger-hover: #ef4444;
+    --text-color: #f3f4f6;
+    --text-light: #9ca3af;
+    --bg-color: #111827;
+    --bg-light: #1f2937;
+    --bg-dark: #0f172a;
+    --border-color: #374151;
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+    --staff-color: #a78bfa;
+    --speaker-color: #fbbf24;
+    --participant-color: #60a5fa;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+.app-header {
+    background-color: var(--bg-light);
+    border-bottom-color: var(--border-color);
+}
+
+input, textarea, select {
+    background-color: var(--bg-light);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+input:focus, textarea:focus, select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.3);
+}
+
+button, .btn {
+    background-color: var(--bg-light);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+button:hover, .btn:hover {
+    background-color: var(--bg-dark);
+}
+
+/* 사이드바 */
+.sidebar {
+    background-color: var(--bg-light);
+    border-right-color: var(--border-color);
+}
+
+.rooms-header {
+    border-bottom-color: var(--border-color);
+}
+
+.category-header:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.room-item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* 채팅 컨테이너 */
+.chat-header {
+    background-color: var(--bg-light);
+    border-bottom-color: var(--border-color);
+}
+
+.notification-area {
+    background-color: var(--bg-dark);
+    border-bottom-color: var(--border-color);
+}
+
+.notification {
+    background-color: var(--bg-light);
+}
+
+.pinned-messages {
+    background-color: rgba(96, 165, 250, 0.1);
+    border-bottom-color: var(--border-color);
+}
+
+.pinned-message {
+    background-color: var(--bg-light);
+}
+
+.message-content {
+    background-color: var(--bg-light);
+}
+
+.message.outgoing .message-content {
+    background-color: var(--primary-color);
+    color: #ffffff;
+}
+
+.message-original-text {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.message-reply-info {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.reply-container {
+    background-color: var(--bg-light);
+    border-top-color: var(--border-color);
+}
+
+.chat-input-container {
+    background-color: var(--bg-light);
+    border-top-color: var(--border-color);
+}
+
+/* 모달 */
+.modal-content {
+    background-color: var(--bg-light);
+}
+
+.avatar-option img {
+    border-color: var(--border-color);
+}
+
+/* 관리자 페이지 스타일 */
+.admin-sidebar {
+    background-color: var(--bg-light);
+    border-right-color: var(--border-color);
+}
+
+.admin-nav .nav-item {
+    color: var(--text-color);
+}
+
+.admin-nav .nav-item:hover, .admin-nav .nav-item.active {
+    background-color: var(--bg-dark);
+}
+
+.stat-card {
+    background-color: var(--bg-light);
+    border-color: var(--border-color);
+}
+
+.chart-card {
+    background-color: var(--bg-light);
+    border-color: var(--border-color);
+}
+
+.data-table th {
+    background-color: var(--bg-dark);
+    border-color: var(--border-color);
+}
+
+.data-table td {
+    border-color: var(--border-color);
+}
+
+.data-table tbody tr {
+    background-color: var(--bg-light);
+}
+
+.data-table tbody tr:nth-child(even) {
+    background-color: var(--bg-dark);
+}
+
+/* 테마 토글 아이콘 */
+#theme-toggle-btn .fa-moon {
+    display: none;
+}
+
+#theme-toggle-btn .fa-sun {
+    display: inline-block;
+}
+
+/* 스크롤바 */
+::-webkit-scrollbar-track {
+    background: var(--bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-light);
+}
