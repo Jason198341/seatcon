@@ -453,62 +453,91 @@ class UserManager {
         // 로그아웃 전 사용자 정보 저장
         const prevUser = this.currentUser;
         
-        // 사용자 정보 삭제
-        supabaseClient.clearUserInfo();
-        this.currentUser = null;
-        
-        // UI 업데이트
-        this.updateUI();
-        
-        // 채팅 화면에서 로그인 화면으로 전환
-        const userInfoFormContainer = document.getElementById('userInfoFormContainer');
-        const chatContainer = document.getElementById('chatContainer');
-        
-        if (userInfoFormContainer && chatContainer) {
-            userInfoFormContainer.style.display = 'block';
-            chatContainer.style.display = 'none';
+        try {
+            // 사용자 정보 삭제 및 모든 로컬 스토리지 데이터 초기화
+            supabaseClient.clearUserInfo();
+            this.currentUser = null;
             
-            // 입력 폼 완전 초기화
-            const loginForm = document.getElementById('userInfoForm');
-            if (loginForm) {
-                loginForm.reset();
+            // 추가 로컬 스토리지 정리
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('currentSpeakerId');
+            localStorage.removeItem('processedMessages');
+            
+            // UI 업데이트
+            this.updateUI();
+            
+            // 채팅 화면에서 로그인 화면으로 전환
+            const userInfoFormContainer = document.getElementById('userInfoFormContainer');
+            const chatContainer = document.getElementById('chatContainer');
+            
+            if (userInfoFormContainer && chatContainer) {
+                userInfoFormContainer.style.display = 'block';
+                chatContainer.style.display = 'none';
                 
-                // 역할 선택기 초기화
-                const roleSelector = loginForm.querySelector('#roleSelector');
-                if (roleSelector) {
-                    roleSelector.value = '';
+                // 입력 폼 완전 초기화
+                const loginForm = document.getElementById('userInfoForm');
+                if (loginForm) {
+                    loginForm.reset();
+                    
+                    // 역할 선택기 초기화
+                    const roleSelector = loginForm.querySelector('#roleSelector');
+                    if (roleSelector) {
+                        roleSelector.value = '';
+                    }
+                    
+                    // 스태프 비밀번호 필드 초기화 및 숨김
+                    const staffPasswordField = document.getElementById('staffPassword');
+                    const staffPasswordContainer = document.getElementById('staffPasswordContainer');
+                    if (staffPasswordField) {
+                        staffPasswordField.value = '';
+                    }
+                    if (staffPasswordContainer) {
+                        staffPasswordContainer.classList.remove('show');
+                        staffPasswordContainer.style.display = 'none';
+                    }
                 }
                 
-                // 스태프 비밀번호 필드 초기화 및 숨김
-                const staffPasswordField = document.getElementById('staffPassword');
-                const staffPasswordContainer = document.getElementById('staffPasswordContainer');
-                if (staffPasswordField) {
-                    staffPasswordField.value = '';
-                }
-                if (staffPasswordContainer) {
-                    staffPasswordContainer.classList.remove('show');
-                    staffPasswordContainer.style.display = 'none';
-                }
+                // 모든 입력 요소 값 초기화
+                const allInputs = userInfoFormContainer.querySelectorAll('input, select, textarea');
+                allInputs.forEach(input => {
+                    input.value = '';
+                });
             }
+            
+            // Supabase 연결 정리
+            supabaseClient.cleanup();
+            
+            // Supabase 재연결 - 새로운 세션으로 시작
+            setTimeout(() => {
+                supabaseClient.init();
+            }, 500);
+            
+            // 채팅 영역 DOM 요소 완전 초기화
+            const messageList = document.getElementById('messageList');
+            if (messageList) {
+                messageList.innerHTML = '';
+            }
+            
+            // 로그아웃 이벤트 콜백 호출
+            if (typeof this.onUserLogout === 'function' && prevUser) {
+                this.onUserLogout(prevUser);
+            }
+            
+            // 페이지 스크롤을 맨 위로 이동
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            
+            if (CONFIG.APP.DEBUG_MODE) {
+                console.log('User logged out completely, all storage cleared');
+            }
+            
+            // 로그아웃 성공 메시지 표시
+            this.showLogoutSuccessMessage();
+        } catch (error) {
+            console.error('Error during logout:', error);
+            
+            // 로그아웃 오류 처리 - 리로드 필요
+            alert('로그아웃 처리 중 오류가 발생했습니다. 페이지를 새로고침하여 다시 시도하세요.');
         }
-        
-        // Supabase 연결 정리
-        supabaseClient.cleanup();
-        
-        // 로그아웃 이벤트 콜백 호출
-        if (typeof this.onUserLogout === 'function' && prevUser) {
-            this.onUserLogout(prevUser);
-        }
-        
-        // 페이지 스크롤을 맨 위로 이동
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        
-        if (CONFIG.APP.DEBUG_MODE) {
-            console.log('User logged out');
-        }
-        
-        // 로그아웃 성공 메시지 표시 (선택 사항)
-        this.showLogoutSuccessMessage();
     }
     
     /**

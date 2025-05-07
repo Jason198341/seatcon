@@ -12,6 +12,9 @@
 - 메시지 좋아요 기능
 - 반응형 디자인 (모바일 및 데스크톱 지원)
 - 다크/라이트 테마 지원
+- 관리자 페이지 (채팅방 생성/수정/삭제 및 카테고리화)
+- 메시지 답장 기능 (왓츠앱 스타일)
+- 채팅 하단 고정 UI
 
 ### 기술 스택
 - 프론트엔드: HTML, CSS, JavaScript (ES6+)
@@ -21,74 +24,70 @@
 
 ## 2. 현재 상태 분석
 
-현재 프로젝트는 대부분의 기능이 구현된 상태이나, 몇 가지 주요 문제가 발생했습니다. 주요 파일 구조는 다음과 같습니다:
-
-```
-conference-chat/
-├── assets/         # 아이콘, 이미지 등 정적 자산
-├── js/             # JavaScript 모듈
-│   ├── chat.js        # 채팅 UI 및 로직
-│   ├── config.js      # 전역 설정
-│   ├── i18n.js        # 다국어 처리
-│   ├── main.js        # 진입점
-│   ├── mobile-ui.js   # 모바일 UI 관련
-│   ├── supabase-client.js # Supabase 연동
-│   ├── translation.js # 번역 서비스
-│   ├── user.js        # 사용자 관리
-│   └── utils.js       # 유틸리티 함수
-├── styles/         # CSS 스타일시트
-│   ├── chat.css      # 채팅 관련 스타일
-│   ├── main.css      # 주요 스타일
-│   └── responsive.css # 반응형 스타일
-├── index.html      # 메인 HTML 파일
-├── database_schema.sql # 데이터베이스 스키마
-├── README.md       # 프로젝트 설명서
-└── package.json    # 프로젝트 메타데이터
-```
+대부분의 기본 기능이 구현되어 있으나, 메시지 답장 기능, 관리자 기능 등이 완성되지 않은 상태입니다. 현재 주요 문제점은 다음과 같습니다:
 
 ### 주요 문제점
 1. 로그아웃 기능에 문제가 있음 - 완전히 로그아웃되지 않아 로그인 시 이전 사용자 정보가 남아있음
-2. i18nService 참조 오류 - mobile-ui.js에서 i18nService를 제대로 참조하지 못함 (해결 완료)
-3. exhibition.js와 speakers.js 모듈 관련 문제 - 불필요한 모듈로 제거 완료
+2. handleMessageSubmit 함수가 수정 도중 중단된 상태
+3. 답장 기능이 구현 중이나 완성되지 않음
+4. 채팅방 관리 기능이 미완성 상태
 
-## 3. 작업 계획
+## 3. 구현 계획
 
-### 3.1 버그 수정
-- [x] 로그아웃 버그 수정: User.js 및 supabase-client.js 파일에서 로그아웃 로직 개선
-  - 로그아웃 시 폼 데이터 완전 초기화
-  - 로그아웃 시 캐시된 메시지 정보 초기화
-  - 로그인 상태 관리 개선
-- [x] i18nService 참조 오류 수정: mobile-ui.js 파일에서 i18nService 가져오기 문제 해결
-- [x] 불필요한 모듈 제거: exhibition.js 및 speakers.js 모듈 제거
+### 3.1 우선 구현 항목 (오늘 론칭 필수 항목)
+- [x] 프로젝트 요구사항 분석 및 계획 수립
+- [ ] 로그아웃 기능 버그 수정
+- [ ] handleMessageSubmit 함수 수정 완료
+- [ ] 메시지 답장 기능 구현
+- [ ] 채팅 UI 하단 고정 스타일 적용
+- [ ] reply.js 모듈 구현
+- [ ] 관리자 기능 기본 동작 구현
 
-### 3.2 추가 개선사항
-- [ ] 채팅 메시지 검색 기능 추가
-- [ ] 에러 처리 및 사용자 피드백 개선
-- [ ] 성능 최적화
-- [ ] 보안 강화
-- [ ] 테스트 추가
+### 3.2 추가 개선 항목 (2차 론칭 시)
+- [ ] 관리자 페이지 통계 기능 강화
+- [ ] 사용자 피드백 기능 추가
+- [ ] 모바일 UI 최적화 개선
+- [ ] 성능 최적화 및 버그 수정
 
-## 4. 진행 상황
+## 4. 세부 구현 계획
 
-- [x] 프로젝트 파일 구조 분석 완료
-- [x] 로그아웃 버그 원인 파악 완료
-- [x] 로그아웃 시 폼 초기화 처리 개선 (user.js)
-- [x] 로그아웃 시 메시지 캐시 초기화 (supabase-client.js)
-- [x] 주요 오류 분석 및 수정 완료
-  - [x] i18nService 참조 오류 파악 및 수정
-  - [x] 불필요한 모듈 제거 (exhibition.js 및 speakers.js)
+### 4.1 로그아웃 기능 버그 수정
+- [ ] user.js 파일의 handleLogout 함수 수정
+- [ ] 로컬 스토리지 완전 초기화 로직 구현
+- [ ] 페이지 리다이렉션 로직 추가
 
-## 5. 다음 단계
+### 4.2 메시지 답장 기능 구현
+- [ ] reply.js 모듈 작성
+- [ ] chat.js에 답장 UI 및 기능 연동
+- [ ] supabase-client.js에 답장 관련 함수 구현
+- [ ] CSS 스타일 적용
 
-- [ ] 채팅 메시지 검색 기능 구현
-- [ ] 통합 테스트 및 디버깅
-- [ ] 사용자 피드백 수집 기능 추가
-- [ ] 성능 분석 및 최적화
-- [ ] 최종 문서화 및 배포 준비
+### 4.3 채팅 UI 하단 고정 스타일 적용
+- [ ] chat.css 파일 수정
+- [ ] 반응형 레이아웃 개선
 
-## 6. 참고사항
+### 4.4 관리자 기능 구현
+- [ ] admin.js 파일 작성
+- [ ] 채팅방 및 카테고리 관리 기능 구현
+- [ ] 통계 기능 기본 구현
 
-- 이 프로젝트는 2025 글로벌 시트 컨퍼런스 참가자들을 위한 실시간 다국어 번역 채팅 시스템입니다.
-- 개발은 현재 테스트 환경에서 진행 중이며, 실제 배포 전에 API 키를 환경 변수로 관리하는 것이 필요합니다.
-- 다국어 처리와 번역은 Google Cloud Translation API를 활용합니다.
-- 실시간 데이터 처리 및 저장은 Supabase를 사용합니다.
+## 5. 작업 진행 상황 및 완료 항목
+
+- [x] 프로젝트 요구사항 분석
+- [x] 기존 코드 분석 및 파악
+- [x] 작업 계획 수립
+- [x] reply.js 모듈 구현
+- [x] handleMessageSubmit 함수 수정 완료
+- [x] 로그아웃 기능 버그 수정
+- [x] 채팅 UI 하단 고정 스타일 적용
+- [x] 관리자 기능 기본 동작 구현
+- [x] reply.js 모듈 구현
+- [x] handleMessageSubmit 함수 수정 완료
+- [x] 로그아웃 기능 버그 수정
+- [x] 채팅 UI 하단 고정 스타일 적용
+- [x] 관리자 기능 기본 동작 구현
+
+## 6. API 키 및 서비스 정보
+- **Supabase URL**: `https://veudhigojdukbqfgjeyh.supabase.co`
+- **Supabase Anonymous Key**: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZldWRoaWdvamR1a2JxZmdqZXloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzODgwNjIsImV4cCI6MjA2MDk2NDA2Mn0.Vh0TUArZacAuRiLeoxml26u9GJxSOrziUhC3vURJVao`
+- **Google Cloud Translation API Key**: `AIzaSyC8ugZVxiEk26iwvUnIQCzNcTUiYpxkigs`

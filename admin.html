@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>관리자 페이지 - 2025 글로벌 시트 컨퍼런스</title>
+    <meta name="description" content="2025 글로벌 시트 컨퍼런스 관리자 페이지">
+    
+    <!-- 파비콘 -->
+    <link rel="icon" href="assets/icons/favicon.ico" type="image/x-icon">
+    
+    <!-- 스타일시트 -->
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/admin.css">
+    <link rel="stylesheet" href="styles/responsive.css">
+    
+    <!-- 프리텐다드 폰트 -->
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard-dynamic-subset.css" />
+    
+    <!-- Font Awesome 아이콘 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Supabase 클라이언트 라이브러리 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="theme-light">
+    <!-- 헤더 -->
+    <header class="header">
+        <div class="header-brand">
+            <span id="adminTitle">2025 글로벌 시트 컨퍼런스 관리자</span>
+        </div>
+        
+        <div class="header-nav">
+            <!-- 테마 전환 버튼 -->
+            <div class="header-nav-item">
+                <button id="themeToggle" class="icon-button" aria-label="테마 전환">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+            
+            <!-- 메인 페이지로 돌아가기 버튼 -->
+            <div class="header-nav-item">
+                <a href="index.html" class="button secondary">
+                    <i class="fas fa-home mr-1"></i> 메인으로
+                </a>
+            </div>
+            
+            <!-- 로그아웃 버튼 -->
+            <div class="header-nav-item">
+                <button id="adminLogoutButton" class="button secondary" style="display: none;">
+                    <i class="fas fa-sign-out-alt mr-1"></i> 로그아웃
+                </button>
+            </div>
+        </div>
+    </header>
+    
+    <!-- 메인 콘텐츠 -->
+    <main class="main-content">
+        <div class="content">
+            <!-- 관리자 로그인 폼 -->
+            <div id="adminLoginContainer" class="card admin-login-form">
+                <h2>관리자 로그인</h2>
+                <p class="mb-4">채팅방 관리를 위해 관리자 비밀번호를 입력하세요.</p>
+                
+                <form id="adminLoginForm">
+                    <div class="form-group">
+                        <label for="adminPassword">비밀번호</label>
+                        <input type="password" id="adminPassword" name="adminPassword" required placeholder="관리자 비밀번호 입력">
+                    </div>
+                    
+                    <button type="submit" id="adminLoginButton" class="button mt-4 w-100">로그인</button>
+                </form>
+            </div>
+            
+            <!-- 관리자 대시보드 -->
+            <div id="adminDashboard" class="admin-dashboard" style="display: none;">
+                <div class="admin-tabs">
+                    <button id="roomsTabButton" class="tab-button active">채팅방 관리</button>
+                    <button id="categoriesTabButton" class="tab-button">카테고리 관리</button>
+                    <button id="statisticsTabButton" class="tab-button">통계</button>
+                </div>
+                
+                <!-- 채팅방 관리 섹션 -->
+                <div id="roomsTab" class="tab-content">
+                    <div class="action-bar">
+                        <h2>채팅방 관리</h2>
+                        <button id="createRoomButton" class="button">
+                            <i class="fas fa-plus mr-1"></i> 새 채팅방
+                        </button>
+                    </div>
+                    
+                    <div class="filter-bar">
+                        <div class="search-input">
+                            <input type="text" id="roomSearchInput" placeholder="채팅방 검색...">
+                            <i class="fas fa-search search-icon"></i>
+                        </div>
+                        
+                        <div class="filter-select">
+                            <select id="categoryFilter">
+                                <option value="">모든 카테고리</option>
+                                <!-- 카테고리 옵션이 동적으로 추가됨 -->
+                            </select>
+                        </div>
+                        
+                        <div class="filter-toggle">
+                            <label class="switch">
+                                <input type="checkbox" id="activeRoomsOnly">
+                                <span class="slider round"></span>
+                            </label>
+                            <span>활성화된 채팅방만</span>
+                        </div>
+                    </div>
+                    
+                    <div class="data-table-container">
+                        <table class="data-table" id="roomsTable">
+                            <thead>
+                                <tr>
+                                    <th>이름</th>
+                                    <th>카테고리</th>
+                                    <th>상태</th>
+                                    <th>생성일</th>
+                                    <th>액션</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- 채팅방 목록이 동적으로 추가됨 -->
+                            </tbody>
+                        </table>
+                        
+                        <div id="roomsEmptyState" class="empty-state" style="display: none;">
+                            <div class="empty-icon"><i class="far fa-comments"></i></div>
+                            <h3>채팅방이 없습니다</h3>
+                            <p>새 채팅방을 추가해보세요!</p>
+                        </div>
+                        
+                        <div id="roomsLoadingState" class="loading-state">
+                            <div class="loading-spinner"></div>
+                            <p>채팅방 목록 불러오는 중...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 카테고리 관리 섹션 -->
+                <div id="categoriesTab" class="tab-content" style="display: none;">
+                    <div class="action-bar">
+                        <h2>카테고리 관리</h2>
+                        <button id="createCategoryButton" class="button">
+                            <i class="fas fa-plus mr-1"></i> 새 카테고리
+                        </button>
+                    </div>
+                    
+                    <div class="data-table-container">
+                        <table class="data-table" id="categoriesTable">
+                            <thead>
+                                <tr>
+                                    <th>이름</th>
+                                    <th>설명</th>
+                                    <th>아이콘</th>
+                                    <th>색상</th>
+                                    <th>액션</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- 카테고리 목록이 동적으로 추가됨 -->
+                            </tbody>
+                        </table>
+                        
+                        <div id="categoriesEmptyState" class="empty-state" style="display: none;">
+                            <div class="empty-icon"><i class="far fa-folder"></i></div>
+                            <h3>카테고리가 없습니다</h3>
+                            <p>새 카테고리를 추가해보세요!</p>
+                        </div>
+                        
+                        <div id="categoriesLoadingState" class="loading-state">
+                            <div class="loading-spinner"></div>
+                            <p>카테고리 목록 불러오는 중...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 통계 섹션 -->
+                <div id="statisticsTab" class="tab-content" style="display: none;">
+                    <h2>채팅 통계</h2>
+                    
+                    <div class="stats-cards">
+                        <div class="stats-card">
+                            <div class="stats-icon">
+                                <i class="fas fa-comments"></i>
+                            </div>
+                            <div class="stats-content">
+                                <h3>총 메시지</h3>
+                                <div class="stats-value" id="totalMessagesCount">
+                                    <div class="loading-spinner-sm"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="stats-card">
+                            <div class="stats-icon">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="stats-content">
+                                <h3>활성 사용자</h3>
+                                <div class="stats-value" id="activeUsersCount">
+                                    <div class="loading-spinner-sm"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="stats-card">
+                            <div class="stats-icon">
+                                <i class="fas fa-door-open"></i>
+                            </div>
+                            <div class="stats-content">
+                                <h3>활성 채팅방</h3>
+                                <div class="stats-value" id="activeRoomsCount">
+                                    <div class="loading-spinner-sm"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="stats-card">
+                            <div class="stats-icon">
+                                <i class="fas fa-language"></i>
+                            </div>
+                            <div class="stats-content">
+                                <h3>번역된 메시지</h3>
+                                <div class="stats-value" id="translatedMessagesCount">
+                                    <div class="loading-spinner-sm"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="charts-container">
+                        <div class="chart-card">
+                            <h3>최근 활동</h3>
+                            <div class="chart-placeholder" id="activityChart">
+                                <div class="loading-spinner"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-card">
+                            <h3>언어 분포</h3>
+                            <div class="chart-placeholder" id="languageChart">
+                                <div class="loading-spinner"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- 채팅방 생성/수정 모달 -->
+    <div id="roomModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="roomModalTitle">새 채팅방 생성</h2>
+                <button class="close-button" id="closeRoomModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="modal-body">
+                <form id="roomForm">
+                    <input type="hidden" id="roomId" name="roomId">
+                    
+                    <div class="form-group">
+                        <label for="roomName">채팅방 이름</label>
+                        <input type="text" id="roomName" name="roomName" required placeholder="채팅방 이름 입력">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="roomDescription">설명</label>
+                        <textarea id="roomDescription" name="roomDescription" placeholder="채팅방 설명 입력"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="roomCategory">카테고리</label>
+                        <select id="roomCategory" name="roomCategory" required>
+                            <option value="" disabled selected>카테고리 선택</option>
+                            <!-- 카테고리 옵션이 동적으로 추가됨 -->
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="roomIcon">아이콘 (Font Awesome)</label>
+                        <div class="icon-selector">
+                            <input type="text" id="roomIcon" name="roomIcon" placeholder="아이콘 이름 (예: comments)">
+                            <div class="icon-preview">
+                                <i id="iconPreview" class="fas fa-comments"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="roomIsActive">활성화 상태</label>
+                            <div class="toggle-switch">
+                                <label class="switch">
+                                    <input type="checkbox" id="roomIsActive" name="roomIsActive" checked>
+                                    <span class="slider round"></span>
+                                </label>
+                                <div class="toggle-label">활성화</div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group flex-1">
+                            <label for="roomIsPublic">공개 상태</label>
+                            <div class="toggle-switch">
+                                <label class="switch">
+                                    <input type="checkbox" id="roomIsPublic" name="roomIsPublic" checked>
+                                    <span class="slider round"></span>
+                                </label>
+                                <div class="toggle-label">공개</div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="button secondary" id="cancelRoomButton">취소</button>
+                <button type="button" class="button" id="saveRoomButton">저장</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 카테고리 생성/수정 모달 -->
+    <div id="categoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="categoryModalTitle">새 카테고리 생성</h2>
+                <button class="close-button" id="closeCategoryModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="modal-body">
+                <form id="categoryForm">
+                    <input type="hidden" id="categoryId" name="categoryId">
+                    
+                    <div class="form-group">
+                        <label for="categoryName">카테고리 이름</label>
+                        <input type="text" id="categoryName" name="categoryName" required placeholder="카테고리 이름 입력">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="categoryDescription">설명</label>
+                        <textarea id="categoryDescription" name="categoryDescription" placeholder="카테고리 설명 입력"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="categoryIcon">아이콘 (Font Awesome)</label>
+                        <div class="icon-selector">
+                            <input type="text" id="categoryIcon" name="categoryIcon" placeholder="아이콘 이름 (예: folder)">
+                            <div class="icon-preview">
+                                <i id="categoryIconPreview" class="fas fa-folder"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="categoryColor">색상</label>
+                        <input type="color" id="categoryColor" name="categoryColor" value="#3498db">
+                    </div>
+                </form>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="button secondary" id="cancelCategoryButton">취소</button>
+                <button type="button" class="button" id="saveCategoryButton">저장</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 삭제 확인 모달 -->
+    <div id="confirmDeleteModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>삭제 확인</h2>
+                <button class="close-button" id="closeConfirmDeleteModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="modal-body">
+                <p id="deleteConfirmMessage">정말로 삭제하시겠습니까?</p>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="button secondary" id="cancelDeleteButton">취소</button>
+                <button type="button" class="button danger" id="confirmDeleteButton">삭제</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 자바스크립트 모듈 -->
+    <script type="module" src="js/admin.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 테마 토글 버튼 이벤트 핸들러
+            const themeToggle = document.getElementById('themeToggle');
+            
+            if (themeToggle) {
+                themeToggle.addEventListener('click', function() {
+                    document.body.classList.toggle('theme-dark');
+                    document.body.classList.toggle('theme-light');
+                    
+                    // 아이콘 변경
+                    const icon = themeToggle.querySelector('i');
+                    if (document.body.classList.contains('theme-dark')) {
+                        icon.className = 'fas fa-sun';
+                        localStorage.setItem('theme', 'dark');
+                    } else {
+                        icon.className = 'fas fa-moon';
+                        localStorage.setItem('theme', 'light');
+                    }
+                });
+            }
+            
+            // 저장된 테마 적용
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.remove('theme-light');
+                document.body.classList.add('theme-dark');
+                if (themeToggle) {
+                    const icon = themeToggle.querySelector('i');
+                    icon.className = 'fas fa-sun';
+                }
+            }
+        });
+    </script>
+</body>
+</html>

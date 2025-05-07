@@ -175,7 +175,9 @@ class SupabaseClient {
                         content: content,
                         client_generated_id: clientGeneratedId,
                         user_role: this.currentUser.role,
-                        language: detectedLanguage || this.preferredLanguage
+                        language: detectedLanguage || this.preferredLanguage,
+                        room_id: null, // 기존 speaker_id 사용 시 room_id는 null
+                        reply_to_id: null // 기본값은 답장 없음
                     }
                 ])
                 .select();
@@ -195,6 +197,70 @@ class SupabaseClient {
             return data[0];
         } catch (error) {
             console.error('Error sending message:', error);
+            return null;
+        }
+    }
+    
+    /**
+     * 답장 포함하여 메시지 전송
+     * @param {string} content - 메시지 내용
+     * @param {string} replyToId - 답장할 메시지 ID
+     * @param {string} speakerId - 발표자 ID (기본값: 'global-chat')
+     * @returns {Promise<Object|null>} - 전송된 메시지 객체
+     */
+    async sendMessageWithReply(content, replyToId, speakerId = 'global-chat') {
+        if (!this.currentUser || !content.trim() || !replyToId) {
+            console.error('Cannot send reply: No user, empty content, or missing reply ID');
+            return null;
+        }
+        
+        // 메시지 길이 제한 확인
+        if (content.length > CONFIG.CHAT.MAX_MESSAGE_LENGTH) {
+            console.error(`Message too long: ${content.length} characters (max: ${CONFIG.CHAT.MAX_MESSAGE_LENGTH})`);
+            return null;
+        }
+        
+        // 클라이언트 측 ID 생성 (중복 전송 방지용)
+        const clientGeneratedId = Date.now().toString();
+        
+        try {
+            // 메시지 언어 감지
+            const detectedLanguage = await translationService.detectLanguage(content);
+            
+            // 메시지 삽입 (reply_to_id 포함)
+            const { data, error } = await this.supabase
+                .from('comments')
+                .insert([
+                    {
+                        speaker_id: speakerId,
+                        author_name: this.currentUser.name,
+                        author_email: this.currentUser.email,
+                        content: content,
+                        client_generated_id: clientGeneratedId,
+                        user_role: this.currentUser.role,
+                        language: detectedLanguage || this.preferredLanguage,
+                        reply_to_id: replyToId,
+                        room_id: null // 기존 speaker_id 사용 시 room_id는 null
+                    }
+                ])
+                .select();
+                
+            if (error) {
+                throw error;
+            }
+            
+            if (CONFIG.APP.DEBUG_MODE) {
+                console.log('Reply message sent:', {
+                    id: data[0].id,
+                    replyTo: replyToId,
+                    content: content.substring(0, 30) + (content.length > 30 ? '...' : ''),
+                    language: detectedLanguage || this.preferredLanguage
+                });
+            }
+            
+            return data[0];
+        } catch (error) {
+            console.error('Error sending reply message:', error);
             return null;
         }
     }

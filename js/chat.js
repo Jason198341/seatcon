@@ -10,6 +10,7 @@ import supabaseClient from './supabase-client.js';
 import translationService from './translation.js';
 import userManager from './user.js';
 import i18nService from './i18n.js';
+import replyManager from './reply.js';
 
 class ChatManager {
     constructor() {
@@ -65,6 +66,16 @@ class ChatManager {
         
         // 실시간 구독 설정
         this.setupSubscriptions();
+        
+        // 답장 기능 초기화
+        replyManager.init({
+            messageFormId: options.messageFormId || 'messageForm',
+            messageInputId: options.messageInputId || 'messageInput',
+            messageListId: options.messageListId || 'messageList'
+        });
+        
+        // 전역 접근 가능하도록 설정 (답장 기능에서 참조)
+        window.chatManager = this;
         
         if (CONFIG.APP.DEBUG_MODE) {
             console.log('ChatManager initialized', {
@@ -529,8 +540,25 @@ class ChatManager {
         this.setSubmittingState(true);
         
         try {
-            // 메시지 전송
-            const sentMessage = await supabaseClient.sendMessage(messageContent, this.currentSpeakerId);
+            let sentMessage;
+            
+            // 답장 모드인지 확인
+            const replyToId = replyManager.getReplyToMessageId();
+            
+            if (replyToId) {
+                // 답장 모드일 경우
+                sentMessage = await supabaseClient.sendMessageWithReply(
+                    messageContent, 
+                    replyToId, 
+                    this.currentSpeakerId
+                );
+            } else {
+                // 일반 메시지 전송
+                sentMessage = await supabaseClient.sendMessage(
+                    messageContent, 
+                    this.currentSpeakerId
+                );
+            }
             
             if (!sentMessage) {
                 throw new Error('메시지 전송에 실패했습니다.');
@@ -539,6 +567,11 @@ class ChatManager {
             // 입력창 초기화
             this.messageInput.value = '';
             this.adjustTextareaHeight();
+            
+            // 답장 상태 초기화
+            if (replyToId) {
+                replyManager.clearReplyState();
+            }
             
             // 전송 성공 시 하단으로 스크롤
             this.shouldScrollToBottom = true;
@@ -707,13 +740,88 @@ class ChatManager {
     }
 
     /**
-     * 메시지 내용 요소 생성 - 번역 항상 표시하도록 수정
+     * 메시지 내용 요소 생성 - 번역 항상 표시하도록 수정 및 답장 정보 추가
      * @param {Object} message - 메시지 객체
      * @returns {HTMLElement} - 메시지 내용 요소
      */
     createMessageContent(message) {
         const contentWrapper = document.createElement('div');
         contentWrapper.className = 'message-content';
+        
+        // 답장 정보가 있는 경우 표시
+        if (message.reply_to_id) {
+            const replyInfo = this.messagesMap[message.reply_to_id];
+            if (replyInfo) {
+                const replyPreview = document.createElement('div');
+                replyPreview.className = 'reply-preview';
+                replyPreview.style.cssText = `
+                    padding: 4px 8px;
+                    background-color: rgba(0, 0, 0, 0.05);
+                    border-left: 2px solid var(--primary);
+                    border-radius: 4px;
+                    margin-bottom: 6px;
+                    font-size: 12px;
+                    max-height: 50px;
+                    overflow: hidden;
+                    cursor: pointer;
+                `;
+                
+                // 다크 모드 대응
+                if (document.body.classList.contains('theme-dark')) {
+                    replyPreview.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                }
+                
+                // 답장 대상 작성자 정보
+                const replyAuthor = document.createElement('div');
+                replyAuthor.className = 'reply-author';
+                replyAuthor.textContent = replyInfo.author_name;
+                replyAuthor.style.cssText = `
+                    font-weight: 600;
+                    color: var(--primary);
+                    font-size: 11px;
+                    margin-bottom: 2px;
+                    display: flex;
+                    align-items: center;
+                `;
+                
+                // 아이콘 추가
+                const replyIcon = document.createElement('i');
+                replyIcon.className = 'fa-solid fa-reply';
+                replyIcon.style.marginRight = '4px';
+                replyIcon.style.fontSize = '9px';
+                replyAuthor.insertBefore(replyIcon, replyAuthor.firstChild);
+                
+                // 답장 대상 메시지 내용 미리보기
+                const replyContent = document.createElement('div');
+                replyContent.className = 'reply-content';
+                const replyTextContent = replyInfo.translatedContent || replyInfo.content;
+                replyContent.textContent = replyTextContent.length > 50 
+                    ? replyTextContent.substring(0, 50) + '...' 
+                    : replyTextContent;
+                
+                // 미리보기 클릭 시 원본 메시지로 스크롤
+                replyPreview.addEventListener('click', () => {
+                    const targetElement = this.messageList.querySelector(`[data-message-id="${message.reply_to_id}"]`);
+                    if (targetElement) {
+                        // 타겟 요소 강조 효과
+                        targetElement.classList.add('highlight-message');
+                        setTimeout(() => {
+                            targetElement.classList.remove('highlight-message');
+                        }, 2000);
+                        
+                        // 부드러운 스크롤
+                        targetElement.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center'
+                        });
+                    }
+                });
+                
+                replyPreview.appendChild(replyAuthor);
+                replyPreview.appendChild(replyContent);
+                contentWrapper.appendChild(replyPreview);
+            }
+        }
         
         // 원본 내용 요소
         const originalContent = document.createElement('div');
