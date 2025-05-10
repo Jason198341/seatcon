@@ -1,9 +1,0 @@
-Supabase 연결 정보:
-
-URL: https://veudhigojdukbqfgjeyh.supabase.co
-Anonymous Key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZldWRoaWdvamR1a2JxZmdqZXloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzODgwNjIsImV4cCI6MjA2MDk2NDA2Mn0.Vh0TUArZacAuRiLeoxml26u9GJxSOrziUhC3vURJVao
-
-
-Google Cloud Translation API 키:
-
-API Key: AIzaSyC8ugZVxiEk26iwvUnIQCzNcTUiYpxkigs

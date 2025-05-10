@@ -1,16 +1,64 @@
 {
   "name": "conference-chat",
-  "version": "1.0.0",
-  "description": "실시간 다국어 번역 컨퍼런스 채팅 시스템",
-  "main": "index.js",
-  "scripts": {
-    "start": "http-server -c-1",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "",
-  "license": "ISC",
+  "version": "0.1.0",
+  "private": true,
   "dependencies": {
-    "@supabase/supabase-js": "^2.38.0",
-    "http-server": "^14.1.1"
+    "@supabase/supabase-js": "^2.38.4",
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "axios": "^1.6.0",
+    "date-fns": "^2.30.0",
+    "i18next": "^23.7.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hook-form": "^7.48.2",
+    "react-i18next": "^13.2.2",
+    "react-intersection-observer": "^9.5.2",
+    "react-router-dom": "^6.18.0",
+    "react-scripts": "5.0.1",
+    "react-window": "^1.8.9",
+    "web-vitals": "^2.1.4",
+    "zustand": "^4.4.6"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "analyze": "source-map-explorer 'build/static/js/*.js'",
+    "lint": "eslint src/**/*.{js,jsx}",
+    "format": "prettier --write src/**/*.{js,jsx,css}",
+    "test:e2e": "node src/utils/tests/test_e2e.js",
+    "setup-db": "node src/utils/database/setupDatabaseScript.js"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "eslint": "^8.54.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.1",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "jest": "^27.5.1",
+    "prettier": "^3.1.0",
+    "source-map-explorer": "^2.5.3",
+    "tailwindcss": "^3.3.5"
   }
 }
