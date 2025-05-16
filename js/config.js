@@ -3,13 +3,16 @@
  * 애플리케이션 설정 및 API 키 관리
  */
 
+// 환경 변수 설정이 있으면 사용 (env-config.js에서 로드)
+const ENV = window.ENV_CONFIG || {};
+
 const CONFIG = {
     // Supabase 설정
-    SUPABASE_URL: 'https://dolywnpcrutdxuxkozae.supabase.co',
-    SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvbHl3bnBjcnV0ZHh1eGtvemFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2NDEyMDYsImV4cCI6MjA2MjIxNzIwNn0.--UVh_FtCPp23EHzJEejyl9GUX6-6Fao81PlPQDR5G8',
+    SUPABASE_URL: ENV.SUPABASE_URL || 'https://dolywnpcrutdxuxkozae.supabase.co',
+    SUPABASE_KEY: ENV.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvbHl3bnBjcnV0ZHh1eGtvemFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2NDEyMDYsImV4cCI6MjA2MjIxNzIwNn0.--UVh_FtCPp23EHzJEejyl9GUX6-6Fao81PlPQDR5G8',
     
     // Google Cloud Translation API 설정
-    TRANSLATION_API_KEY: 'AIzaSyC8ugZVxiEk26iwvUnIQCzNcTUiYpxkigs',
+    TRANSLATION_API_KEY: ENV.TRANSLATION_API_KEY || 'AIzaSyC8ugZVxiEk26iwvUnIQCzNcTUiYpxkigs',
     TRANSLATION_API_URL: 'https://translation.googleapis.com/language/translate/v2',
     
     // 관리자 계정 정보
@@ -25,5 +28,5 @@ const CONFIG = {
     ]
 };
 
-// 실제 프로덕션 환경에서는 이 파일을 .gitignore에 추가하고
-// GitHub Secrets 또는 환경변수를 사용하여 관리해야 합니다.
+// 실제 프로덕션 환경에서는 API 키를 환경 변수로 관리하거나
+// 서버 측에서 처리하는 것이 좋습니다.
