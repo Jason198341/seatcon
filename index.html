@@ -1,68 +1,105 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>컨퍼런스 채팅</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Global SeatCon 2025</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Sans+JP:wght@300;400;500;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
     <!-- Supabase 클라이언트 라이브러리 추가 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>컨퍼런스 채팅</h1>
-        </header>
-        
+    <div class="app-container">
         <!-- 로그인 화면 -->
         <div id="login-container" class="login-container">
-            <h2>채팅 참가</h2>
-            <form id="login-form">
-                <div class="form-group">
-                    <label for="username">사용자 이름</label>
-                    <input type="text" id="username" required>
-                </div>
-                <div class="form-group">
-                    <label for="language">선호 언어</label>
-                    <select id="language">
-                        <option value="ko">한국어</option>
-                        <option value="en">영어</option>
-                        <option value="ja">일본어</option>
-                        <option value="zh">중국어</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="room-id">채팅방 ID</label>
-                    <input type="text" id="room-id" value="general" required>
-                </div>
-                <button type="submit">채팅 참가</button>
-            </form>
+            <div class="login-header">
+                <h1 class="conference-title">Global SeatCon 2025</h1>
+                <p class="conference-subtitle" data-i18n="login.subtitle">Connect Globally, Chat Locally</p>
+            </div>
+            <div class="login-card">
+                <h2 data-i18n="login.join">Join Chat</h2>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="username" data-i18n="login.username">Username</label>
+                        <input type="text" id="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="language" data-i18n="login.language">Preferred Language</label>
+                        <select id="language" class="language-selector">
+                            <option value="en">English</option>
+                            <option value="ko">한국어</option>
+                            <option value="ja">日本語</option>
+                            <option value="zh">中文</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="room-id" data-i18n="login.roomId">Chat Room ID</label>
+                        <input type="text" id="room-id" value="general">
+                    </div>
+                    <button type="submit" class="primary-button" data-i18n="login.join_button">Join Chat</button>
+                </form>
+            </div>
         </div>
         
         <!-- 채팅 화면 -->
         <div id="chat-container" class="chat-container hidden">
             <div class="chat-header">
-                <h2 id="room-title">채팅방</h2>
-                <div class="language-selector">
-                    <label for="target-language">언어:</label>
-                    <select id="target-language">
-                        <option value="ko">한국어</option>
-                        <option value="en">영어</option>
-                        <option value="ja">일본어</option>
-                        <option value="zh">중국어</option>
-                    </select>
+                <div class="header-content">
+                    <h2 id="room-title">Global SeatCon 2025</h2>
+                    <div class="header-actions">
+                        <div class="language-control">
+                            <label for="target-language" data-i18n="chat.language">Language:</label>
+                            <select id="target-language" class="language-selector">
+                                <option value="en">English</option>
+                                <option value="ko">한국어</option>
+                                <option value="ja">日本語</option>
+                                <option value="zh">中文</option>
+                            </select>
+                        </div>
+                        <button id="refresh-button" class="icon-button" title="Refresh">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <button id="logout-button" class="icon-button" title="Logout">
+                            <i class="fas fa-sign-out-alt"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
+            
+            <!-- 공지사항 영역 -->
+            <div id="announcements-container" class="announcements-container hidden">
+                <!-- 공지사항이 여기에 동적으로 추가됩니다 -->
+            </div>
+            
             <div id="messages-container" class="messages-container"></div>
-            <div class="chat-input">
-                <input type="text" id="message-input" placeholder="메시지를 입력하세요...">
-                <button id="send-button">전송</button>
+            
+            <div class="chat-input-container">
+                <div class="chat-input-wrapper">
+                    <input type="text" id="message-input" data-i18n-placeholder="chat.message_placeholder" placeholder="Type a message...">
+                    <button id="send-button" class="send-button">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 메시지 회신용 팝오버 -->
+            <div id="reply-popover" class="reply-popover hidden">
+                <div class="reply-header">
+                    <span data-i18n="chat.replying_to">Replying to</span>
+                    <span id="reply-username"></span>
+                    <button id="cancel-reply" class="icon-button">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="reply-content" class="reply-content"></div>
             </div>
         </div>
     </div>
 
     <!-- 메인 스크립트 -->
+    <script src="js/i18n.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>
