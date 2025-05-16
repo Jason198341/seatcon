@@ -58,7 +58,7 @@ const userService = (() => {
                 username: username.trim(),
                 preferred_language: preferredLanguage,
                 room_id: roomId,
-                login_time: new Date().toISOString()
+                last_activity: new Date().toISOString() // 로그인 시간을 last_activity로 변경
             };
             
             // 데이터베이스에 사용자 정보 저장
@@ -86,8 +86,17 @@ const userService = (() => {
         }
         
         try {
-            // 사용자 정보에서 채팅방 ID 제거
-            await dbService.updateChatRoom(currentUser.id, { room_id: null });
+            // 사용자 정보에서 채팅방 ID 제거 (방식 변경)
+            if (currentUser && currentUser.id) {
+                try {
+                    await dbService.saveUser({
+                        ...currentUser,
+                        room_id: null
+                    });
+                } catch (e) {
+                    console.warn('로그아웃 중 사용자 정보 업데이트 실패:', e);
+                }
+            }
             
             // localStorage에서 사용자 정보 제거
             localStorage.removeItem(USER_DATA_KEY);

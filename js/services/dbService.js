@@ -286,18 +286,28 @@ const dbService = (() => {
                 .eq('id', userData.id)
                 .maybeSingle();
             
+            if (checkError) {
+                console.warn(`사용자 확인 중 오류 발생 (ID: ${userData.id}):`, checkError);
+            }
+            
             let result;
             
             if (existingUser) {
                 // 기존 사용자 업데이트
+                const updateData = {
+                    username: userData.username,
+                    preferred_language: userData.preferred_language,
+                    last_activity: new Date().toISOString()
+                };
+                
+                // room_id가 있는 경우에만 추가
+                if (userData.room_id !== undefined) {
+                    updateData.room_id = userData.room_id;
+                }
+                
                 const { data, error } = await client
                     .from('users')
-                    .update({
-                        username: userData.username,
-                        preferred_language: userData.preferred_language,
-                        room_id: userData.room_id,
-                        last_activity: new Date().toISOString()
-                    })
+                    .update(updateData)
                     .eq('id', userData.id)
                     .select()
                     .single();
@@ -306,13 +316,22 @@ const dbService = (() => {
                 result = data;
             } else {
                 // 새 사용자 생성
+                const insertData = {
+                    id: userData.id,
+                    username: userData.username,
+                    preferred_language: userData.preferred_language || 'ko',
+                    role: userData.role || 'user',
+                    last_activity: new Date().toISOString()
+                };
+                
+                // room_id가 있는 경우에만 추가
+                if (userData.room_id) {
+                    insertData.room_id = userData.room_id;
+                }
+                
                 const { data, error } = await client
                     .from('users')
-                    .insert([{
-                        ...userData,
-                        role: userData.role || 'user',
-                        last_activity: new Date().toISOString()
-                    }])
+                    .insert([insertData])
                     .select()
                     .single();
                 
@@ -335,11 +354,16 @@ const dbService = (() => {
     const getUsers = async (options = {}) => {
         try {
             const client = initializeClient();
-            let query = client.from('users').select('*');
+            let query = client.from('users').select('id,username,preferred_language,room_id,role,last_activity');
             
             // 특정 채팅방 사용자만 조회
             if (options.roomId) {
                 query = query.eq('room_id', options.roomId);
+            }
+            
+            // 특정 사용자 ID로 조회
+            if (options.userId) {
+                query = query.eq('id', options.userId);
             }
             
             // 활성 사용자만 조회 (최근 5분 이내 활동)

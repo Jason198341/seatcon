@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global SeatCon 2025 - 컨퍼런스 채팅</title>
+    <title>Global SeatCon 2025 - Conference Chat</title>
     <link rel="stylesheet" href="../css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- 환경 설정 스크립트 -->
@@ -15,43 +15,43 @@
         <div id="login-container" class="container">
             <div class="login-form">
                 <h1 class="title" data-i18n="app.title">Global SeatCon 2025</h1>
-                <h2 class="subtitle" data-i18n="login.subtitle">컨퍼런스 채팅</h2>
+                <h2 class="subtitle" data-i18n="login.subtitle">Conference Chat</h2>
                 
                 <div class="form-group">
-                    <label for="username" data-i18n="login.username">사용자 이름</label>
-                    <input type="text" id="username" placeholder="이름을 입력하세요" data-i18n-placeholder="login.username.placeholder">
+                    <label for="username" data-i18n="login.username">Username</label>
+                    <input type="text" id="username" placeholder="Enter your name" data-i18n-placeholder="login.username.placeholder">
                 </div>
                 
                 <div class="form-group">
-                    <label for="language-select" data-i18n="login.language">선호 언어</label>
+                    <label for="language-select" data-i18n="login.language">Preferred Language</label>
                     <select id="language-select">
-                        <option value="ko" data-i18n="languages.korean">한국어</option>
-                        <option value="en" data-i18n="languages.english">영어</option>
-                        <option value="ja" data-i18n="languages.japanese">일본어</option>
-                        <option value="zh" data-i18n="languages.chinese">중국어</option>
+                        <option value="en" selected data-i18n="languages.english">English</option>
+                        <option value="ko" data-i18n="languages.korean">Korean</option>
+                        <option value="ja" data-i18n="languages.japanese">Japanese</option>
+                        <option value="zh" data-i18n="languages.chinese">Chinese</option>
                     </select>
                 </div>
                 
                 <div class="form-group">
-                    <label for="room-select" data-i18n="login.chatroom">채팅방 선택</label>
+                    <label for="room-select" data-i18n="login.chatroom">Select Chatroom</label>
                     <select id="room-select">
                         <!-- 채팅방 목록은 JavaScript로 동적 로드 -->
-                        <option value="" disabled selected data-i18n="login.chatroom.loading">로딩 중...</option>
+                        <option value="" disabled selected data-i18n="login.chatroom.loading">Loading...</option>
                     </select>
                 </div>
                 
                 <div id="private-room-code" class="form-group hidden">
-                    <label for="access-code" data-i18n="login.accessCode">접근 코드</label>
-                    <input type="password" id="access-code" placeholder="비공개 채팅방 코드 입력" data-i18n-placeholder="login.accessCode.placeholder">
+                    <label for="access-code" data-i18n="login.accessCode">Access Code</label>
+                    <input type="password" id="access-code" placeholder="Enter private chatroom code" data-i18n-placeholder="login.accessCode.placeholder">
                 </div>
                 
                 <div class="error-message" id="login-error"></div>
                 
-                <button id="login-button" class="primary-button" data-i18n="login.button">입장하기</button>
+                <button id="login-button" class="primary-button" data-i18n="login.button">Enter</button>
                 
                 <div class="connection-status">
                     <span id="connection-indicator" class="online"></span>
-                    <span id="connection-text" data-i18n="connection.online">온라인</span>
+                    <span id="connection-text" data-i18n="connection.online">Online</span>
                 </div>
             </div>
         </div>
@@ -59,18 +59,18 @@
         <!-- 채팅 화면 -->
         <div id="chat-container" class="container hidden">
             <header class="chat-header">
-                <h2 id="room-name">채팅방 이름</h2>
+                <h2 id="room-name">Chatroom Name</h2>
                 <div class="header-actions">
                     <div class="language-display">
-                        <span data-i18n="chat.language">언어</span>: <span id="current-language">한국어</span>
-                        <button id="change-language" class="icon-button" title="언어 변경">
+                        <span data-i18n="chat.language">Language</span>: <span id="current-language">English</span>
+                        <button id="change-language" class="icon-button" title="Change Language">
                             🌐
                         </button>
                     </div>
-                    <button id="user-list-toggle" class="icon-button" title="사용자 목록">
+                    <button id="user-list-toggle" class="icon-button" title="User List">
                         👥
                     </button>
-                    <button id="exit-chat" class="icon-button" title="나가기">
+                    <button id="exit-chat" class="icon-button" title="Exit">
                         🚪
                     </button>
                 </div>
@@ -82,7 +82,7 @@
                 </div>
                 
                 <div class="user-list-panel" id="user-list-panel">
-                    <h3 data-i18n="chat.users">사용자 목록</h3>
+                    <h3 data-i18n="chat.users">User List</h3>
                     <ul id="user-list">
                         <!-- 사용자 목록은 JavaScript로 동적 로드 -->
                     </ul>
@@ -97,20 +97,20 @@
             <div class="message-input-container">
                 <textarea 
                     id="message-input" 
-                    placeholder="메시지를 입력하세요..."
+                    placeholder="Type your message..."
                     data-i18n-placeholder="chat.messageInput.placeholder"
                 ></textarea>
-                <button id="send-button" class="send-button" title="전송">
+                <button id="send-button" class="send-button" title="Send">
                     ➤
                 </button>
             </div>
             
             <div class="connection-status chat-connection-status">
                 <span id="chat-connection-indicator" class="online"></span>
-                <span id="chat-connection-text" data-i18n="connection.online">온라인</span>
+                <span id="chat-connection-text" data-i18n="connection.online">Online</span>
                 <div id="sync-status" class="hidden">
                     <span class="sync-icon">🔄</span>
-                    <span data-i18n="connection.syncing">동기화 중...</span>
+                    <span data-i18n="connection.syncing">Syncing...</span>
                 </div>
             </div>
         </div>
@@ -119,23 +119,23 @@
         <div id="language-modal" class="modal hidden">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h3 data-i18n="modal.changeLanguage.title">언어 변경</h3>
+                    <h3 data-i18n="modal.changeLanguage.title">Change Language</h3>
                     <button class="close-modal">✕</button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
-                        <label for="modal-language-select" data-i18n="modal.changeLanguage.selectLanguage">선호 언어 선택</label>
+                        <label for="modal-language-select" data-i18n="modal.changeLanguage.selectLanguage">Select Preferred Language</label>
                         <select id="modal-language-select">
-                            <option value="ko" data-i18n="languages.korean">한국어</option>
-                            <option value="en" data-i18n="languages.english">영어</option>
-                            <option value="ja" data-i18n="languages.japanese">일본어</option>
-                            <option value="zh" data-i18n="languages.chinese">중국어</option>
+                            <option value="en" selected data-i18n="languages.english">English</option>
+                            <option value="ko" data-i18n="languages.korean">Korean</option>
+                            <option value="ja" data-i18n="languages.japanese">Japanese</option>
+                            <option value="zh" data-i18n="languages.chinese">Chinese</option>
                         </select>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button id="language-save" class="primary-button" data-i18n="modal.save">저장</button>
-                    <button class="secondary-button close-modal" data-i18n="modal.cancel">취소</button>
+                    <button id="language-save" class="primary-button" data-i18n="modal.save">Save</button>
+                    <button class="secondary-button close-modal" data-i18n="modal.cancel">Cancel</button>
                 </div>
             </div>
         </div>
@@ -150,5 +150,20 @@
     <script src="../js/services/chatService.js"></script>
     <script src="../js/services/offlineService.js"></script>
     <script src="../js/main.js"></script>
+    <script>
+        // 메인 페이지에서 선택한 언어로 기본 언어 설정
+        document.addEventListener('DOMContentLoaded', function() {
+            // localStorage에서 선호 언어 가져오기
+            const savedLanguage = localStorage.getItem('preferredLanguage') || 'en';
+            // 선호 언어 선택 요소 설정
+            const languageSelect = document.getElementById('language-select');
+            if (languageSelect) {
+                languageSelect.value = savedLanguage;
+                // 이벤트 발생
+                const event = new Event('change');
+                languageSelect.dispatchEvent(event);
+            }
+        });
+    </script>
 </body>
 </html>
