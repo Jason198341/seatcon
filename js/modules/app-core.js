@@ -4,7 +4,40 @@
  * 앱의 핵심 설정 및 초기화 로직
  */
 
-// APP 객체는 이미 window.APP으로 초기화되어 있음
+// APP 객체를 정의하거나 확인
+if (typeof window.APP === 'undefined') {
+    // APP 객체가 없으면 기본 객체 생성
+    window.APP = {
+        state: {
+            initialized: false,
+            isLoggedIn: false,
+            currentUser: null,
+            currentRoomId: null,
+            currentRoom: null,
+            preferredLanguage: 'en',
+            isUserListVisible: false,
+            activityInterval: null,
+            servicesReady: false,
+            isInitializing: false,
+            userListUpdateInterval: null
+        },
+        elements: {},
+        messages: {
+            lastMessageTime: null,
+            pendingScrollToBottom: false
+        },
+        performance: {
+            userListUpdateInterval: 30000,
+            activityUpdateInterval: 60000,
+            messageRenderBatchSize: 10,
+            renderTimer: null,
+            userListUpdateTimer: null
+        }
+    };
+}
+
+// 지역 변수로 APP 객체 참조
+const APP = window.APP;
 
 // 앱 코어 모듈
 APP.core = (() => {
@@ -20,8 +53,8 @@ APP.core = (() => {
             isUserListVisible: false,
             activityInterval: null,
             servicesReady: false,
-            isInitializing: false, // 초기화 진행 중 상태
-            userListUpdateInterval: null // 사용자 목록 업데이트 타이머
+            isInitializing: false, 
+            userListUpdateInterval: null 
         };
     }
     
@@ -148,28 +181,29 @@ APP.core = (() => {
     
     // 이벤트 리스너 등록 (각 모듈의 함수를 사용)
     const setupEventListeners = function() {
+        // 각 모듈이 초기화되었는지 확인하면서 이벤트 리스너 등록
         // 로그인 이벤트
-        if (APP.elements.loginButton) {
+        if (APP.elements.loginButton && APP.users && APP.users.handleLogin) {
             APP.elements.loginButton.addEventListener('click', APP.users.handleLogin);
         }
         
-        if (APP.elements.usernameInput) {
+        if (APP.elements.usernameInput && APP.users && APP.users.handleLogin) {
             APP.elements.usernameInput.addEventListener('keypress', e => {
                 if (e.key === 'Enter') APP.users.handleLogin();
             });
         }
         
         // 채팅방 선택 변경 시 비공개 채팅방 코드 필드 토글
-        if (APP.elements.roomSelect) {
+        if (APP.elements.roomSelect && APP.rooms && APP.rooms.handleRoomSelectChange) {
             APP.elements.roomSelect.addEventListener('change', APP.rooms.handleRoomSelectChange);
         }
         
         // 메시지 전송 이벤트
-        if (APP.elements.sendButton) {
+        if (APP.elements.sendButton && APP.chat && APP.chat.sendMessage) {
             APP.elements.sendButton.addEventListener('click', APP.chat.sendMessage);
         }
         
-        if (APP.elements.messageInput) {
+        if (APP.elements.messageInput && APP.chat && APP.chat.sendMessage) {
             APP.elements.messageInput.addEventListener('keypress', e => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -178,55 +212,61 @@ APP.core = (() => {
             });
             
             // 입력 필드 자동 리사이즈
-            APP.elements.messageInput.addEventListener('input', APP.ui.autoResizeMessageInput);
+            if (APP.ui && APP.ui.autoResizeMessageInput) {
+                APP.elements.messageInput.addEventListener('input', APP.ui.autoResizeMessageInput);
+            }
         }
         
         // 사용자 목록 토글
-        if (APP.elements.userListToggle) {
+        if (APP.elements.userListToggle && APP.ui && APP.ui.toggleUserList) {
             APP.elements.userListToggle.addEventListener('click', APP.ui.toggleUserList);
         }
         
         // 채팅방 나가기
-        if (APP.elements.exitChat) {
+        if (APP.elements.exitChat && APP.users && APP.users.handleLogout) {
             APP.elements.exitChat.addEventListener('click', APP.users.handleLogout);
         }
         
         // 언어 변경
-        if (APP.elements.changeLanguage) {
+        if (APP.elements.changeLanguage && APP.i18n && APP.i18n.openLanguageModal) {
             APP.elements.changeLanguage.addEventListener('click', APP.i18n.openLanguageModal);
         }
         
-        if (APP.elements.languageSave) {
+        if (APP.elements.languageSave && APP.i18n && APP.i18n.saveLanguage) {
             APP.elements.languageSave.addEventListener('click', APP.i18n.saveLanguage);
         }
         
         // 모달 닫기
-        if (APP.elements.closeModalButtons) {
+        if (APP.elements.closeModalButtons && APP.ui && APP.ui.closeModals) {
             APP.elements.closeModalButtons.forEach(button => {
                 button.addEventListener('click', APP.ui.closeModals);
             });
         }
         
         // 메시지 영역 스크롤 이벤트 (더 오래된 메시지 로드용)
-        if (APP.elements.messageContainer) {
+        if (APP.elements.messageContainer && APP.chat && APP.chat.handleMessageScroll) {
             APP.elements.messageContainer.addEventListener('scroll', APP.chat.handleMessageScroll);
         }
         
         // 서비스가 준비되었을 때만 연결 상태 변경 이벤트 등록
-        if (APP.state.servicesReady && typeof offlineService !== 'undefined') {
+        if (APP.state.servicesReady && typeof offlineService !== 'undefined' && APP.chat && APP.chat.handleConnectionChange) {
             offlineService.onConnectionChange(APP.chat.handleConnectionChange);
         }
         
         // 서비스가 준비되었을 때만 메시지 수신 이벤트 등록
-        if (APP.state.servicesReady && typeof chatService !== 'undefined') {
+        if (APP.state.servicesReady && typeof chatService !== 'undefined' && APP.chat && APP.chat.handleMessageEvent) {
             chatService.onMessage(APP.chat.handleMessageEvent);
         }
         
         // 창 종료 시 로그아웃
-        window.addEventListener('beforeunload', APP.users.handleBeforeUnload);
+        if (APP.users && APP.users.handleBeforeUnload) {
+            window.addEventListener('beforeunload', APP.users.handleBeforeUnload);
+        }
         
         // 창 크기 변경 시 스크롤 맨 아래로 이동
-        window.addEventListener('resize', APP.ui.handleWindowResize);
+        if (APP.ui && APP.ui.handleWindowResize) {
+            window.addEventListener('resize', APP.ui.handleWindowResize);
+        }
     };
     
     // 애플리케이션 초기화
@@ -241,14 +281,16 @@ APP.core = (() => {
             // DOM 요소 참조 설정
             setupDOMReferences();
             
-            // 로딩 표시
-            APP.ui.showLoading(true);
+            // 로딩 표시 (APP.ui 모듈이 준비된 경우에만)
+            if (APP.ui && APP.ui.showLoading) {
+                APP.ui.showLoading(true);
+            }
             
             // 서비스 준비 확인
             await checkServicesReady();
             
             // 언어 목록 설정
-            if (APP.state.servicesReady && CONFIG.SUPPORTED_LANGUAGES) {
+            if (APP.state.servicesReady && CONFIG && CONFIG.SUPPORTED_LANGUAGES && APP.i18n) {
                 APP.i18n.supportedLanguages = CONFIG.SUPPORTED_LANGUAGES;
             }
             
@@ -261,26 +303,32 @@ APP.core = (() => {
             }
             
             // 언어 사전 로드 (먼저 로드하여 updateConnectionStatus에서 사용 가능하도록)
-            await APP.i18n.loadLanguageDictionary(APP.state.preferredLanguage);
+            if (APP.i18n && APP.i18n.loadLanguageDictionary) {
+                await APP.i18n.loadLanguageDictionary(APP.state.preferredLanguage);
+            }
             
             // 이벤트 리스너 등록
             setupEventListeners();
             
             // 서비스가 준비되었을 때만 연결 상태 표시
-            if (APP.state.servicesReady) {
+            if (APP.state.servicesReady && APP.chat && APP.chat.updateConnectionStatus) {
                 APP.chat.updateConnectionStatus();
             } else {
                 // 서비스가 준비되지 않았을 때는 기본 상태 표시
                 if (APP.elements.connectionIndicator) APP.elements.connectionIndicator.className = 'online';
-                if (APP.elements.connectionText) APP.elements.connectionText.textContent = APP.i18n.translate('connection.online');
+                if (APP.elements.connectionText && APP.i18n && APP.i18n.translate) {
+                    APP.elements.connectionText.textContent = APP.i18n.translate('connection.online');
+                }
                 if (APP.elements.chatConnectionIndicator) APP.elements.chatConnectionIndicator.className = 'online';
-                if (APP.elements.chatConnectionText) APP.elements.chatConnectionText.textContent = APP.i18n.translate('connection.online');
+                if (APP.elements.chatConnectionText && APP.i18n && APP.i18n.translate) {
+                    APP.elements.chatConnectionText.textContent = APP.i18n.translate('connection.online');
+                }
             }
             
             // 저장된 사용자 정보 로드 (비동기로 처리)
             setTimeout(async () => {
                 try {
-                    if (APP.state.servicesReady) {
+                    if (APP.state.servicesReady && userService && userService.initializeUser) {
                         const savedUser = await userService.initializeUser();
                         if (savedUser) {
                             APP.state.currentUser = savedUser;
@@ -288,33 +336,49 @@ APP.core = (() => {
                             APP.state.isLoggedIn = true;
                             
                             // 로그인 상태에 따라 화면 전환
-                            await APP.rooms.enterChat(APP.state.currentUser.room_id);
+                            if (APP.rooms && APP.rooms.enterChat) {
+                                await APP.rooms.enterChat(APP.state.currentUser.room_id);
+                            }
                         } else {
                             // 저장된 사용자 정보가 없는 경우 로그인 화면 표시
-                            APP.ui.showLoginScreen();
+                            if (APP.ui && APP.ui.showLoginScreen) {
+                                APP.ui.showLoginScreen();
+                            }
                         }
                     } else {
                         // 서비스가 준비되지 않은 경우 로그인 화면 표시
-                        APP.ui.showLoginScreen();
+                        if (APP.ui && APP.ui.showLoginScreen) {
+                            APP.ui.showLoginScreen();
+                        }
                     }
                 } catch (error) {
                     console.error('사용자 정보 로드 실패:', error);
-                    APP.ui.showLoginScreen();
+                    if (APP.ui && APP.ui.showLoginScreen) {
+                        APP.ui.showLoginScreen();
+                    }
                 } finally {
                     // 로딩 종료
-                    APP.ui.showLoading(false);
+                    if (APP.ui && APP.ui.showLoading) {
+                        APP.ui.showLoading(false);
+                    }
                 }
             }, 100);
             
             // 채팅방 목록 로드 (백그라운드에서 처리)
-            APP.rooms.loadChatRooms();
+            if (APP.rooms && APP.rooms.loadChatRooms) {
+                APP.rooms.loadChatRooms();
+            }
             
             APP.state.initialized = true;
             console.log('애플리케이션 초기화 완료');
         } catch (error) {
             console.error('애플리케이션 초기화 실패:', error);
-            APP.ui.showError(APP.i18n.translate('error.initFailed') || '애플리케이션 초기화 중 오류가 발생했습니다. 페이지를 새로고침 해주세요.');
-            APP.ui.showLoading(false);
+            if (APP.ui && APP.ui.showError && APP.i18n && APP.i18n.translate) {
+                APP.ui.showError(APP.i18n.translate('error.initFailed') || '애플리케이션 초기화 중 오류가 발생했습니다. 페이지를 새로고침 해주세요.');
+            }
+            if (APP.ui && APP.ui.showLoading) {
+                APP.ui.showLoading(false);
+            }
         } finally {
             APP.state.isInitializing = false;
         }
