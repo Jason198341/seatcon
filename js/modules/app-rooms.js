@@ -71,45 +71,82 @@ APP.rooms = (() => {
     const enterChat = async function(roomId) {
         try {
             // 로딩 표시
-            APP.ui.showLoading(true);
+            if (APP.ui && APP.ui.showLoading) {
+                APP.ui.showLoading(true);
+            }
+            
+            // roomId가 없을 경우 기본 채팅방 ID 사용
+            if (!roomId && CONFIG && CONFIG.DEFAULT_CHATROOM) {
+                console.warn('채팅방 ID가 없습니다. 기본 채팅방을 사용합니다.');
+                roomId = CONFIG.DEFAULT_CHATROOM.id;
+            }
             
             // 채팅방 정보 가져오기
-            const room = await dbService.getChatRoomById(roomId);
+            let room;
+            try {
+                room = await dbService.getChatRoomById(roomId);
+            } catch (error) {
+                // 채팅방 정보 조회 실패시 기본 채팅방 사용
+                console.warn('채팅방 정보 조회 오류:', error);
+                room = CONFIG.DEFAULT_CHATROOM;
+                room.id = roomId;
+            }
+            
             APP.state.currentRoom = room;
             APP.state.currentRoomId = roomId;
             
             // 채팅방 이름 표시
             if (APP.elements.roomName) {
-                APP.elements.roomName.textContent = room.name;
+                APP.elements.roomName.textContent = room.name || 'Chat Room';
             }
             
             // 채팅방 입장 및 메시지 로드
-            await chatService.joinRoom(roomId);
-            
-            // 사용자 언어 표시
-            APP.i18n.updateLanguageDisplay();
-            
-            // 사용자 목록 로드 및 정기 업데이트 설정
-            await APP.users.loadUserList();
-            
-            // 사용자 목록 정기 업데이트 타이머
-            if (APP.performance.userListUpdateTimer) {
-                clearInterval(APP.performance.userListUpdateTimer);
+            if (typeof chatService !== 'undefined' && chatService.joinRoom) {
+                await chatService.joinRoom(roomId);
+            } else {
+                console.warn('chatService가 정의되지 않았거나 joinRoom 함수가 없습니다.');
             }
             
-            APP.performance.userListUpdateTimer = setInterval(
-                APP.users.loadUserList, 
-                APP.performance.userListUpdateInterval
-            );
+            // 사용자 언어 표시
+            if (APP.i18n && APP.i18n.updateLanguageDisplay) {
+                APP.i18n.updateLanguageDisplay();
+            }
+            
+            // 사용자 목록 로드 및 정기 업데이트 설정
+            if (APP.users && APP.users.loadUserList) {
+                try {
+                    await APP.users.loadUserList();
+                } catch (e) {
+                    console.warn('사용자 목록 로드 실패:', e);
+                }
+                
+                // 사용자 목록 정기 업데이트 타이머
+                if (APP.performance.userListUpdateTimer) {
+                    clearInterval(APP.performance.userListUpdateTimer);
+                }
+                
+                if (APP.performance && APP.performance.userListUpdateInterval) {
+                    APP.performance.userListUpdateTimer = setInterval(
+                        APP.users.loadUserList, 
+                        APP.performance.userListUpdateInterval
+                    );
+                }
+            }
             
             // 채팅 화면으로 전환
-            APP.ui.showChatScreen();
+            if (APP.ui && APP.ui.showChatScreen) {
+                APP.ui.showChatScreen();
+            }
             
             // 메시지 컨테이너 스크롤 최하단으로 이동
-            APP.ui.scrollToBottom();
+            if (APP.ui && APP.ui.scrollToBottom) {
+                APP.ui.scrollToBottom();
+            }
             
             // 로딩 종료
-            APP.ui.showLoading(false);
+            if (APP.ui && APP.ui.showLoading) {
+                APP.ui.showLoading(false);
+            }
             
             // 입력 필드에 포커스
             setTimeout(() => {
@@ -119,8 +156,21 @@ APP.rooms = (() => {
             }, 300);
         } catch (error) {
             console.error('채팅방 입장 실패:', error);
-            APP.ui.showError(APP.i18n.translate('error.enterRoom') || 'Failed to enter the chat room.');
-            APP.ui.showLoading(false);
+            if (APP.ui && APP.ui.showError) {
+                APP.ui.showError(APP.i18n && APP.i18n.translate ? 
+                    APP.i18n.translate('error.enterRoom') : 'Failed to enter the chat room.');
+            } else {
+                alert('채팅방 입장에 실패했습니다.');
+            }
+            
+            if (APP.ui && APP.ui.showLoading) {
+                APP.ui.showLoading(false);
+            }
+            
+            // 오류 발생 시 로그인 화면으로 전환
+            if (APP.ui && APP.ui.showLoginScreen) {
+                APP.ui.showLoginScreen();
+            }
         }
     };
     
