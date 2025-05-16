@@ -14,7 +14,8 @@ const APP = {
         currentRoom: null,
         preferredLanguage: 'ko',
         isUserListVisible: false,
-        activityInterval: null
+        activityInterval: null,
+        servicesReady: false
     },
     
     // DOM 요소
@@ -69,6 +70,32 @@ const APP = {
     }
 };
 
+// 서비스 초기화 확인 함수
+APP.checkServicesReady = async function(maxAttempts = 10, delay = 200) {
+    console.log('서비스 준비 상태 확인 중...');
+    
+    // 서비스 초기화 확인
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        if (typeof dbService !== 'undefined' &&
+            typeof realtimeService !== 'undefined' &&
+            typeof translationService !== 'undefined' &&
+            typeof userService !== 'undefined' &&
+            typeof chatService !== 'undefined' &&
+            typeof offlineService !== 'undefined') {
+                
+            console.log('모든 서비스가 준비되었습니다.');
+            APP.state.servicesReady = true;
+            return true;
+        }
+        
+        // 지정된 시간만큼 대기
+        await new Promise(resolve => setTimeout(resolve, delay));
+    }
+    
+    console.error('서비스 준비 시간 초과');
+    return false;
+};
+
 // 애플리케이션 초기화
 APP.init = async function() {
     if (APP.state.initialized) return;
@@ -79,21 +106,34 @@ APP.init = async function() {
         // DOM 요소 참조 설정
         APP.setupDOMReferences();
         
-        // 이벤트 리스너 등록
-        APP.setupEventListeners();
+        // 서비스 준비 확인
+        await APP.checkServicesReady();
         
         // 언어 사전 로드 (먼저 로드하여 updateConnectionStatus에서 사용 가능하도록)
         await APP.loadLanguageDictionary(APP.state.preferredLanguage);
         
-        // 연결 상태 표시
-        APP.updateConnectionStatus();
+        // 이벤트 리스너 등록
+        APP.setupEventListeners();
+        
+        // 서비스가 준비되었을 때만 연결 상태 표시
+        if (APP.state.servicesReady) {
+            APP.updateConnectionStatus();
+        } else {
+            // 서비스가 준비되지 않았을 때는 기본 상태 표시
+            if (APP.elements.connectionIndicator) APP.elements.connectionIndicator.className = 'online';
+            if (APP.elements.connectionText) APP.elements.connectionText.textContent = APP.i18n.dictionary[APP.state.preferredLanguage]['connection.online'] || '온라인';
+            if (APP.elements.chatConnectionIndicator) APP.elements.chatConnectionIndicator.className = 'online';
+            if (APP.elements.chatConnectionText) APP.elements.chatConnectionText.textContent = APP.i18n.dictionary[APP.state.preferredLanguage]['connection.online'] || '온라인';
+        }
         
         // 저장된 사용자 정보 로드
-        const savedUser = await userService.initializeUser();
-        if (savedUser) {
-            APP.state.currentUser = savedUser;
-            APP.state.preferredLanguage = savedUser.preferred_language;
-            APP.state.isLoggedIn = true;
+        if (APP.state.servicesReady) {
+            const savedUser = await userService.initializeUser();
+            if (savedUser) {
+                APP.state.currentUser = savedUser;
+                APP.state.preferredLanguage = savedUser.preferred_language;
+                APP.state.isLoggedIn = true;
+            }
         }
         
         // 채팅방 목록 로드
@@ -193,11 +233,15 @@ APP.setupEventListeners = function() {
         button.addEventListener('click', APP.closeModals);
     });
     
-    // 연결 상태 변경 이벤트
-    offlineService.onConnectionChange(APP.handleConnectionChange);
+    // 서비스가 준비되었을 때만 연결 상태 변경 이벤트 등록
+    if (APP.state.servicesReady && typeof offlineService !== 'undefined') {
+        offlineService.onConnectionChange(APP.handleConnectionChange);
+    }
     
-    // 메시지 수신 이벤트
-    chatService.onMessage(APP.handleMessageEvent);
+    // 서비스가 준비되었을 때만 메시지 수신 이벤트 등록
+    if (APP.state.servicesReady && typeof chatService !== 'undefined') {
+        chatService.onMessage(APP.handleMessageEvent);
+    }
     
     // 창 종료 시 로그아웃
     window.addEventListener('beforeunload', APP.handleBeforeUnload);
@@ -283,7 +327,7 @@ APP.handleLogout = async function() {
 
 // 창 종료 시 처리
 APP.handleBeforeUnload = function(event) {
-    if (APP.state.isLoggedIn) {
+    if (APP.state.isLoggedIn && APP.state.servicesReady) {
         userService.updateActivity();
     }
 };
@@ -344,6 +388,12 @@ APP.enterChat = async function(roomId) {
 // 채팅방 목록 로드
 APP.loadChatRooms = async function() {
     try {
+        // 서비스가 준비되지 않았을 경우 에러 표시
+        if (!APP.state.servicesReady) {
+            APP.showLoginError('서비스 준비 중입니다. 잠시 후 다시 시도해주세요.');
+            return;
+        }
+        
         // 활성화된 채팅방만 조회
         const rooms = await dbService.getChatRooms(true);
         
@@ -905,19 +955,22 @@ APP.updateLanguageDisplay = function() {
 
 // 연결 상태 업데이트
 APP.updateConnectionStatus = function() {
-    // offlineService와 realtimeService가 준비되지 않았을 수 있음
     // 기본 상태 설정
     let isOnline = true;
     let realtimeStatus = 'online';
     
     try {
         // 서비스가 준비되었는지 확인
-        if (typeof offlineService !== 'undefined' && typeof offlineService.isNetworkOnline === 'function') {
-            isOnline = offlineService.isNetworkOnline();
-        }
-        
-        if (typeof realtimeService !== 'undefined' && typeof realtimeService.getConnectionStatus === 'function') {
-            realtimeStatus = realtimeService.getConnectionStatus();
+        if (APP.state.servicesReady) {
+            // offlineService가 준비되었는지 확인
+            if (typeof offlineService !== 'undefined' && typeof offlineService.isNetworkOnline === 'function') {
+                isOnline = offlineService.isNetworkOnline();
+            }
+            
+            // realtimeService가 준비되었는지 확인
+            if (typeof realtimeService !== 'undefined' && typeof realtimeService.getConnectionStatus === 'function') {
+                realtimeStatus = realtimeService.getConnectionStatus();
+            }
         }
     } catch (error) {
         console.warn('연결 상태 확인 중 오류 발생:', error);
@@ -929,43 +982,13 @@ APP.updateConnectionStatus = function() {
     
     if (!isOnline) {
         statusClass = 'offline';
-        statusText = '오프라인';
-        
-        // 언어 사전에서 텍스트 가져오기 시도
-        try {
-            if (APP.i18n.dictionary[APP.state.preferredLanguage] &&
-                APP.i18n.dictionary[APP.state.preferredLanguage]['connection.offline']) {
-                statusText = APP.i18n.dictionary[APP.state.preferredLanguage]['connection.offline'];
-            }
-        } catch (e) {
-            console.warn('언어 사전 접근 중 오류 발생:', e);
-        }
+        statusText = APP.i18n.dictionary[APP.state.preferredLanguage]['connection.offline'] || '오프라인';
     } else if (realtimeStatus === 'connecting') {
         statusClass = 'connecting';
-        statusText = '연결 중...';
-        
-        // 언어 사전에서 텍스트 가져오기 시도
-        try {
-            if (APP.i18n.dictionary[APP.state.preferredLanguage] &&
-                APP.i18n.dictionary[APP.state.preferredLanguage]['connection.connecting']) {
-                statusText = APP.i18n.dictionary[APP.state.preferredLanguage]['connection.connecting'];
-            }
-        } catch (e) {
-            console.warn('언어 사전 접근 중 오류 발생:', e);
-        }
+        statusText = APP.i18n.dictionary[APP.state.preferredLanguage]['connection.connecting'] || '연결 중...';
     } else {
         statusClass = 'online';
-        statusText = '온라인';
-        
-        // 언어 사전에서 텍스트 가져오기 시도
-        try {
-            if (APP.i18n.dictionary[APP.state.preferredLanguage] &&
-                APP.i18n.dictionary[APP.state.preferredLanguage]['connection.online']) {
-                statusText = APP.i18n.dictionary[APP.state.preferredLanguage]['connection.online'];
-            }
-        } catch (e) {
-            console.warn('언어 사전 접근 중 오류 발생:', e);
-        }
+        statusText = APP.i18n.dictionary[APP.state.preferredLanguage]['connection.online'] || '온라인';
     }
     
     // 로그인 화면 상태 표시
@@ -987,7 +1010,7 @@ APP.updateConnectionStatus = function() {
     }
     
     // 동기화 상태 표시
-    if (APP.elements.syncStatus) {
+    if (APP.elements.syncStatus && APP.state.servicesReady) {
         let offlineCount = 0;
         
         try {
