@@ -29,10 +29,23 @@ const realtimeService = (() => {
             // dbService를 통해 supabase 클라이언트 가져오기
             supabase = dbService.initializeClient();
             
+            // 실시간 클라이언트 옵션 설정
+            supabase.realtime.setConfig({
+                transport: {
+                    params: {
+                        apikey: CONFIG.SUPABASE_KEY
+                    }
+                }
+            });
+            
             // 연결 상태 변경 감지
-            supabase.realtime.setAuth = () => {
+            supabase.realtime.onConnected(() => {
                 _updateConnectionStatus('connected');
-            };
+            });
+            
+            supabase.realtime.onDisconnected(() => {
+                _updateConnectionStatus('disconnected');
+            });
             
             isInitialized = true;
             _updateConnectionStatus('disconnected');
@@ -62,24 +75,28 @@ const realtimeService = (() => {
         try {
             _updateConnectionStatus('connecting');
             
+            // 채널 이름 생성
+            const channelName = `messages-${roomId}`;
+            
             // 새 구독 생성
             messageSubscription = supabase
-                .channel(`room-${roomId}`)
+                .channel(channelName)
                 .on('postgres_changes', {
                     event: 'INSERT',
                     schema: 'public',
                     table: 'messages',
                     filter: `chatroom_id=eq.${roomId}`
                 }, (payload) => {
+                    console.log('새 메시지 수신:', payload.new);
                     _notifyMessageReceived(payload.new);
                 })
-                .subscribe((status) => {
+                .subscribe((status, err) => {
                     if (status === 'SUBSCRIBED') {
                         _updateConnectionStatus('connected');
                         currentRoomId = roomId;
                         console.log(`채팅방 메시지 구독 성공 (ID: ${roomId})`);
                     } else {
-                        console.warn(`채팅방 메시지 구독 상태 변경: ${status}`);
+                        console.warn(`채팅방 메시지 구독 상태 변경: ${status}`, err || '');
                     }
                 });
             

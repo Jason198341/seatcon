@@ -18,7 +18,20 @@ const dbService = (() => {
                 const SUPABASE_URL = CONFIG.SUPABASE_URL;
                 const SUPABASE_KEY = CONFIG.SUPABASE_KEY;
                 
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                // 헤더 옵션 추가
+                const options = {
+                    auth: {
+                        persistSession: true
+                    },
+                    global: {
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        }
+                    }
+                };
+                
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, options);
                 console.log('Supabase 클라이언트 초기화 완료');
             } catch (error) {
                 console.error('Supabase 클라이언트 초기화 실패:', error);
@@ -319,7 +332,7 @@ const dbService = (() => {
                 const insertData = {
                     id: userData.id,
                     username: userData.username,
-                    preferred_language: userData.preferred_language || 'ko',
+                    preferred_language: userData.preferred_language || 'en',
                     role: userData.role || 'user',
                     last_activity: new Date().toISOString()
                 };
@@ -335,14 +348,22 @@ const dbService = (() => {
                     .select()
                     .single();
                 
-                if (error) throw error;
+                if (error) {
+                    console.error('Insert user error:', error);
+                    throw error;
+                }
                 result = data;
             }
             
             return result;
         } catch (error) {
             console.error(`사용자 정보 저장 실패 (ID: ${userData.id}):`, error);
-            throw new Error('사용자 정보 저장에 실패했습니다');
+            // 오류 상세 정보 추가
+            if (error.message) {
+                throw new Error(`사용자 정보 저장 실패: ${error.message}`);
+            } else {
+                throw new Error('사용자 정보 저장에 실패했습니다');
+            }
         }
     };
 

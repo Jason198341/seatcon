@@ -99,6 +99,13 @@ GitHub Pages 또는 다른 정적 웹 호스팅 서비스에 배포할 수 있�
 - **Supabase URL**: `https://dolywnpcrutdxuxkozae.supabase.co`
 - **Google Cloud Translation API**: 메시지 자동 번역 기능 제공
 
+## 업데이트 내역 (2025.05.17)
+
+1. 기본 언어를 한국어에서 영어로 변경
+2. 언어 관련 설정 업데이트
+3. API 호출 및 데이터 처리 개선
+4. 실시간 통신 기능 개선
+
 ## 프로젝트 구조
 
 ```

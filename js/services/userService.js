@@ -49,8 +49,8 @@ const userService = (() => {
         }
         
         try {
-            // 사용자 ID 생성 (세션 ID 또는 임의의 ID)
-            const userId = _generateUserId();
+            // 사용자 ID 생성 (UUID 형식)
+            const userId = crypto.randomUUID();
             
             // 사용자 정보 생성
             const userData = {
@@ -310,18 +310,6 @@ const userService = (() => {
             console.error('사용자 정보 업데이트 실패:', error);
             return currentUser;
         }
-    };
-    
-    /**
-     * 고유한 사용자 ID 생성
-     * @returns {string} 사용자 ID
-     * @private
-     */
-    const _generateUserId = () => {
-        // 세션 ID + 타임스탬프 + 랜덤 값으로 고유 ID 생성
-        const timestamp = new Date().getTime();
-        const random = Math.floor(Math.random() * 1000000);
-        return `user_${timestamp}_${random}`;
     };
     
     // 공개 API
