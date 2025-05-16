@@ -31,8 +31,8 @@ cd conference-chat
 
 ### 2. 환경 설정
 1. [setup_guide.md](setup_guide.md) 파일을 참고하여 Supabase 프로젝트 설정
-2. 필요한 경우 `js/services/dbService.js` 파일에서 Supabase URL 및 키를 수정
-3. 필요한 경우 `js/services/translationService.js` 파일에서 Google Cloud Translation API 키를 수정
+2. 필요한 경우 `js/config.js` 파일에서 Supabase URL 및 키를 수정
+3. 필요한 경우 `js/config.js` 파일에서 Google Cloud Translation API 키를 수정
 
 ### 3. 로컬에서 실행
 #### 방법 1: Node.js 웹 서버 사용
@@ -60,14 +60,7 @@ python -m http.server 3000
 ```
 
 ### 4. 배포
-GitHub Pages 또는 다른 정적 웹 호스팅 서비스에 배포할 수 있습니다.
-
-```bash
-# GitHub Pages 배포 예시
-git add .
-git commit -m "Initial release"
-git push origin main
-```
+GitHub Pages 또는 다른 정적 웹 호스팅 서비스에 배포할 수 있습니다. 자세한 배포 방법은 [DEPLOY.md](DEPLOY.md) 파일을 참고하세요.
 
 ## 사용자 가이드
 
@@ -101,6 +94,44 @@ git push origin main
 
 네트워크 연결이 끊어지면 자동으로 오프라인 모드로 전환됩니다. 이 상태에서 작성한 메시지는 로컬에 저장되며, 네트워크 연결이 복구되면 자동으로 서버에 전송됩니다.
 
+## API 서비스 정보
+
+- **Supabase URL**: `https://dolywnpcrutdxuxkozae.supabase.co`
+- **Google Cloud Translation API**: 메시지 자동 번역 기능 제공
+
+## 프로젝트 구조
+
+```
+conference-chat/
+├── index.html                # 메인 애플리케이션 화면
+├── admin.html                # 관리자 페이지
+├── 404.html                  # 404 오류 페이지
+├── chat/                     # 채팅 관련 파일
+│   └── index.html            # 채팅 애플리케이션 화면
+├── css/
+│   ├── styles.css            # 메인 스타일시트
+│   └── admin.css             # 관리자 페이지 스타일시트
+├── js/
+│   ├── config.js             # 애플리케이션 설정 및 API 키
+│   ├── main.js               # 메인 애플리케이션 로직
+│   ├── admin.js              # 관리자 페이지 로직
+│   └── services/
+│       ├── dbService.js      # Supabase 연결 및 데이터 관리
+│       ├── realtimeService.js# 실시간 통신 처리
+│       ├── translationService.js # 번역 기능
+│       ├── userService.js    # 사용자 관리 
+│       ├── chatService.js    # 채팅 메시지 처리
+│       └── offlineService.js # 오프라인 모드 지원
+├── assets/                   # 정적 리소스
+│   └── images/               # 이미지 파일
+├── db_schema.sql             # 데이터베이스 스키마
+├── server.js                 # Node.js 웹 서버 (로컬 테스트용)
+├── package.json              # 프로젝트 의존성 및 스크립트
+├── README.md                 # 프로젝트 설명 문서
+├── DEPLOY.md                 # 배포 가이드
+└── setup_guide.md            # 설정 가이드
+```
+
 ## 보안 고려사항
 
 - 실제 운영 환경에서는 API 키를 안전하게 관리해야 합니다.
@@ -120,6 +151,17 @@ git push origin main
 ### 번역 오류
 - Google Cloud Translation API의 할당량을 초과했을 수 있습니다. API 사용량을 확인하세요.
 - 지원하지 않는 언어로 번역을 시도했을 수 있습니다.
+
+## 성능 최적화
+
+- 메시지 번역 결과를 캐싱하여 중복된 API 요청을 방지합니다.
+- 오프라인 모드에서 사용하기 위한 필수 리소스를 미리 로드합니다.
+- 메시지 목록 페이징을 통해 대용량 채팅 처리를 최적화합니다.
+
+## 추가 정보
+
+자세한 설정 방법은 [setup_guide.md](setup_guide.md)를 참고하세요.  
+배포 방법에 대한 자세한 정보는 [DEPLOY.md](DEPLOY.md)를 참고하세요.
 
 ## 라이선스
 

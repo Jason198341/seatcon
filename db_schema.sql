@@ -1,5 +1,8 @@
 -- Global SeatCon 2025 컨퍼런스 채팅 애플리케이션 데이터베이스 스키마
 
+-- UUID 확장 활성화
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 -- 채팅방 테이블 생성
 CREATE TABLE IF NOT EXISTS chatrooms (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -46,10 +49,28 @@ CREATE INDEX IF NOT EXISTS idx_messages_user_id ON messages(user_id);
 -- 사용자 테이블에 인덱스 생성
 CREATE INDEX IF NOT EXISTS idx_users_room_id ON users(room_id);
 CREATE INDEX IF NOT EXISTS idx_users_last_activity ON users(last_activity);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 
 -- 채팅방 테이블에 인덱스 생성
 CREATE INDEX IF NOT EXISTS idx_chatrooms_is_active ON chatrooms(is_active);
 CREATE INDEX IF NOT EXISTS idx_chatrooms_sort_order ON chatrooms(sort_order);
+CREATE INDEX IF NOT EXISTS idx_chatrooms_is_private ON chatrooms(is_private);
+
+-- 채팅방 업데이트 시간 자동 갱신 함수
+CREATE OR REPLACE FUNCTION update_chatroom_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 채팅방 업데이트 시간 자동 갱신 트리거
+DROP TRIGGER IF EXISTS update_chatrooms_updated_at ON chatrooms;
+CREATE TRIGGER update_chatrooms_updated_at
+BEFORE UPDATE ON chatrooms
+FOR EACH ROW
+EXECUTE FUNCTION update_chatroom_updated_at();
 
 -- Supabase Realtime 설정을 위한 데이터베이스 트리거 함수
 CREATE OR REPLACE FUNCTION on_message_insert()
@@ -58,8 +79,13 @@ BEGIN
     PERFORM pg_notify('new_message', json_build_object(
         'chatroom_id', NEW.chatroom_id,
         'id', NEW.id,
+        'user_id', NEW.user_id,
         'username', NEW.username,
-        'message', NEW.message
+        'message', NEW.message,
+        'language', NEW.language,
+        'created_at', NEW.created_at,
+        'isannouncement', NEW.isannouncement,
+        'reply_to', NEW.reply_to
     )::text);
     RETURN NEW;
 END;
@@ -71,6 +97,72 @@ CREATE TRIGGER message_insert_trigger
 AFTER INSERT ON messages
 FOR EACH ROW
 EXECUTE FUNCTION on_message_insert();
+
+-- 사용자 변경 시 트리거 함수
+CREATE OR REPLACE FUNCTION on_user_change()
+RETURNS TRIGGER AS $$
+BEGIN
+    PERFORM pg_notify('user_change', json_build_object(
+        'id', COALESCE(NEW.id, OLD.id),
+        'username', COALESCE(NEW.username, OLD.username),
+        'preferred_language', COALESCE(NEW.preferred_language, OLD.preferred_language),
+        'room_id', COALESCE(NEW.room_id, OLD.room_id),
+        'last_activity', COALESCE(NEW.last_activity, OLD.last_activity),
+        'role', COALESCE(NEW.role, OLD.role),
+        'operation', TG_OP
+    )::text);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 사용자 변경 시 트리거 등록
+DROP TRIGGER IF EXISTS user_change_trigger ON users;
+CREATE TRIGGER user_change_trigger
+AFTER INSERT OR UPDATE OR DELETE ON users
+FOR EACH ROW
+EXECUTE FUNCTION on_user_change();
+
+-- RLS(Row Level Security) 정책 설정
+
+-- RLS 활성화
+ALTER TABLE chatrooms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+
+-- 채팅방 정책
+CREATE POLICY "Anyone can view active chatrooms"
+ON chatrooms FOR SELECT
+USING (is_active = true);
+
+CREATE POLICY "Admins can manage chatrooms"
+ON chatrooms FOR ALL
+USING (EXISTS (
+    SELECT 1 FROM users
+    WHERE users.id = current_setting('request.jwt.claim.sub', true)::text
+    AND users.role = 'admin'
+));
+
+-- 메시지 정책
+CREATE POLICY "Anyone can view messages"
+ON messages FOR SELECT
+USING (true);
+
+CREATE POLICY "Users can insert messages"
+ON messages FOR INSERT
+WITH CHECK (true);
+
+-- 사용자 정책
+CREATE POLICY "Anyone can view users"
+ON users FOR SELECT
+USING (true);
+
+CREATE POLICY "Users can update their own data"
+ON users FOR UPDATE
+USING (id = current_setting('request.jwt.claim.sub', true)::text);
+
+CREATE POLICY "Anyone can insert users"
+ON users FOR INSERT
+WITH CHECK (true);
 
 -- 기본 채팅방 생성
 INSERT INTO chatrooms (name, description, is_active, max_users, is_private, sort_order)
@@ -87,7 +179,32 @@ UPDATE chatrooms
 SET access_code = 'vip2025'
 WHERE name = 'VIP 라운지' AND access_code IS NULL;
 
--- 관리자 사용자 생성 (실제 환경에서는 더 안전한 방법으로 처리해야 함)
+-- 관리자 사용자 생성
 INSERT INTO users (id, username, preferred_language, role)
 VALUES ('admin_kcmmer', 'Admin', 'ko', 'admin')
 ON CONFLICT (id) DO NOTHING;
+
+-- 샘플 메시지 생성 (선택 사항)
+DO $$
+DECLARE
+    main_room_id UUID;
+BEGIN
+    -- 메인 채팅방 ID 가져오기
+    SELECT id INTO main_room_id FROM chatrooms WHERE name = '메인 채팅방' LIMIT 1;
+    
+    -- 샘플 메시지 추가
+    INSERT INTO messages (chatroom_id, user_id, username, message, language, isannouncement)
+    VALUES
+        (main_room_id, 'admin_kcmmer', 'Admin', 'Global SeatCon 2025 컨퍼런스 채팅에 오신 것을 환영합니다!', 'ko', TRUE),
+        (main_room_id, 'admin_kcmmer', 'Admin', '이 채팅은 실시간으로 여러 언어로 번역됩니다. 자유롭게 참여해주세요.', 'ko', TRUE),
+        (main_room_id, 'system', 'System', '채팅 시스템이 준비되었습니다.', 'ko', FALSE);
+END $$;
+
+-- Supabase Realtime 설정 활성화
+-- 주의: 이 부분은 Supabase 대시보드에서 UI를 통해 설정해야 합니다.
+-- 1. Supabase 대시보드 -> Database -> Realtime
+-- 2. "Enable Realtime" 활성화
+-- 3. chatrooms, messages, users 테이블에 대한 Realtime 활성화
+
+-- 완료 메시지
+SELECT 'Global SeatCon 2025 컨퍼런스 채팅 애플리케이션 데이터베이스 스키마 설정이 완료되었습니다.' as result;
