@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Global SeatCon 2025 - Conference Chat</title>
     <link rel="stylesheet" href="../css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -141,7 +141,7 @@
         </div>
     </div>
 
-    <!-- 스크립트 -->
+    <!-- 서비스 스크립트 -->
     <script src="../js/config.js"></script>
     <script src="../js/services/dbService.js"></script>
     <script src="../js/services/realtimeService.js"></script>
@@ -149,7 +149,15 @@
     <script src="../js/services/userService.js"></script>
     <script src="../js/services/chatService.js"></script>
     <script src="../js/services/offlineService.js"></script>
-    <script src="../js/main.js"></script>
+
+    <!-- 모듈화된 앱 스크립트 (로드 순서 중요) -->
+    <script src="../js/modules/app-core.js"></script>
+    <script src="../js/modules/app-ui.js"></script>
+    <script src="../js/modules/app-i18n.js"></script>
+    <script src="../js/modules/app-chat.js"></script>
+    <script src="../js/modules/app-users.js"></script>
+    <script src="../js/modules/app-rooms.js"></script>
+    <script src="../js/modules/main.js"></script>
     <script>
         // 메인 페이지에서 선택한 언어로 기본 언어 설정
         document.addEventListener('DOMContentLoaded', function() {

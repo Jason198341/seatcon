@@ -1,6 +1,6 @@
 /**
  * realtimeService.js
- * Supabase Realtime을 활용한 실시간 통신 처리를 담당하는 서비스
+ * Supabase Realtime을 활용한 실시간 통신 처리를 담당하는 서비스 (개선 버전)
  */
 
 const realtimeService = (() => {
@@ -12,6 +12,12 @@ const realtimeService = (() => {
     let presenceSubscription = null;
     let connectionStatus = 'disconnected'; // disconnected, connecting, connected
     let currentRoomId = null;
+    
+    // 자동 재연결 관련 변수
+    let reconnectTimer = null;
+    const RECONNECT_INTERVAL = 5000; // 5초마다 재연결 시도
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_ATTEMPTS = 10; // 최대 재연결 시도 횟수
     
     // 이벤트 콜백 함수
     let messageCallbacks = [];
@@ -40,11 +46,24 @@ const realtimeService = (() => {
             
             // 연결 상태 변경 감지
             supabase.realtime.onConnected(() => {
+                console.log('Supabase Realtime 연결됨');
                 _updateConnectionStatus('connected');
+                // 재연결 시도 카운터 초기화
+                reconnectAttempts = 0;
+                // 재연결 타이머가 있으면 취소
+                if (reconnectTimer) {
+                    clearTimeout(reconnectTimer);
+                    reconnectTimer = null;
+                }
             });
             
             supabase.realtime.onDisconnected(() => {
+                console.log('Supabase Realtime 연결 끊김');
                 _updateConnectionStatus('disconnected');
+                // 만약 현재 채팅방에 구독 중이라면 재연결 시도
+                if (currentRoomId && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                    _scheduleReconnect();
+                }
             });
             
             isInitialized = true;
@@ -58,6 +77,36 @@ const realtimeService = (() => {
     };
     
     /**
+     * 재연결 스케줄링
+     * @private
+     */
+    const _scheduleReconnect = () => {
+        if (reconnectTimer) {
+            clearTimeout(reconnectTimer);
+        }
+        
+        reconnectTimer = setTimeout(async () => {
+            reconnectAttempts++;
+            console.log(`재연결 시도 (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
+            
+            try {
+                // 현재 채팅방에 다시 구독 시도
+                if (currentRoomId) {
+                    await subscribeToMessages(currentRoomId);
+                }
+            } catch (error) {
+                console.error('재연결 시도 중 오류 발생:', error);
+                // 최대 시도 횟수를 초과하지 않았다면 다시 시도
+                if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                    _scheduleReconnect();
+                } else {
+                    console.error(`최대 재연결 시도 횟수(${MAX_RECONNECT_ATTEMPTS})를 초과했습니다.`);
+                }
+            }
+        }, RECONNECT_INTERVAL);
+    };
+    
+    /**
      * 채팅방 메시지 구독
      * @param {string} roomId - 채팅방 ID
      * @returns {Promise<boolean>} 구독 성공 여부
@@ -65,6 +114,12 @@ const realtimeService = (() => {
     const subscribeToMessages = async (roomId) => {
         if (!isInitialized) {
             await initialize();
+        }
+        
+        // 재연결 타이머가 있으면 취소
+        if (reconnectTimer) {
+            clearTimeout(reconnectTimer);
+            reconnectTimer = null;
         }
         
         // 이전 구독 취소
@@ -75,13 +130,17 @@ const realtimeService = (() => {
         try {
             _updateConnectionStatus('connecting');
             
-            // 채널 이름 생성
-            const channelName = `messages-${roomId}-${Date.now()}`; // 고유한 채널 이름 사용
+            // 채널 이름 생성 (고유한 채널 이름 사용)
+            const channelName = `messages-${roomId}-${Date.now()}`;
             console.log(`실시간 채널 이름: ${channelName}`);
             
             // 새 구독 생성
             messageSubscription = supabase
-                .channel(channelName, {transport: {params: {apikey: CONFIG.SUPABASE_KEY}}})
+                .channel(channelName, {
+                    config: {
+                        broadcast: { ack: true }, // 브로드캐스트 메시지 수신 확인
+                    }
+                })
                 .on('postgres_changes', {
                     event: 'INSERT',
                     schema: 'public',
@@ -91,14 +150,30 @@ const realtimeService = (() => {
                     console.log('새 메시지 수신 (실시간):', payload.new);
                     _notifyMessageReceived(payload.new);
                 })
-                .subscribe((status, err) => {
+                .subscribe(async (status, err) => {
                     console.log(`채팅방 메시지 구독 상태: ${status}`, err || '');
+                    
                     if (status === 'SUBSCRIBED') {
                         _updateConnectionStatus('connected');
                         currentRoomId = roomId;
                         console.log(`채팅방 메시지 구독 성공 (ID: ${roomId})`);
-                    } else {
-                        console.warn(`채팅방 메시지 구독 상태 변경: ${status}`, err || '');
+                        
+                        // 사용자 업데이트 구독도 함께 시작
+                        await subscribeToUserUpdates(roomId);
+                    } else if (status === 'CHANNEL_ERROR') {
+                        console.error('채널 오류:', err);
+                        _updateConnectionStatus('disconnected');
+                        // 오류 발생 시 재연결 시도
+                        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                            _scheduleReconnect();
+                        }
+                    } else if (status === 'TIMED_OUT') {
+                        console.warn('채널 연결 타임아웃');
+                        _updateConnectionStatus('disconnected');
+                        // 타임아웃 발생 시 재연결 시도
+                        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                            _scheduleReconnect();
+                        }
                     }
                 });
             
@@ -106,6 +181,12 @@ const realtimeService = (() => {
         } catch (error) {
             console.error(`채팅방 메시지 구독 실패 (ID: ${roomId}):`, error);
             _updateConnectionStatus('disconnected');
+            
+            // 오류 발생 시 재연결 시도
+            if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                _scheduleReconnect();
+            }
+            
             return false;
         }
     };
@@ -126,22 +207,26 @@ const realtimeService = (() => {
         }
         
         try {
+            // 채널 이름 생성 (고유한 채널 이름 사용)
+            const channelName = `users-${roomId}-${Date.now()}`;
+            
             // 새 구독 생성
             userSubscription = supabase
-                .channel(`users-${roomId}`)
+                .channel(channelName)
                 .on('postgres_changes', {
                     event: '*',
                     schema: 'public',
                     table: 'users',
                     filter: `room_id=eq.${roomId}`
                 }, (payload) => {
+                    console.log('사용자 정보 변경 감지:', payload);
                     _notifyUserUpdated(payload.new || payload.old);
                 })
-                .subscribe((status) => {
+                .subscribe((status, err) => {
                     if (status === 'SUBSCRIBED') {
                         console.log(`사용자 업데이트 구독 성공 (채팅방 ID: ${roomId})`);
-                    } else {
-                        console.warn(`사용자 업데이트 구독 상태 변경: ${status}`);
+                    } else if (status === 'CHANNEL_ERROR') {
+                        console.error('사용자 구독 채널 오류:', err);
                     }
                 });
             
@@ -169,8 +254,11 @@ const realtimeService = (() => {
         }
         
         try {
+            // 채널 이름 생성 (고유한 채널 이름 사용)
+            const channelName = `presence-${roomId}-${Date.now()}`;
+            
             // 새 구독 생성
-            const presenceChannel = supabase.channel(`presence-${roomId}`);
+            const presenceChannel = supabase.channel(channelName);
             
             presenceSubscription = presenceChannel
                 .on('presence', { event: 'sync' }, () => {
@@ -183,16 +271,20 @@ const realtimeService = (() => {
                 .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
                     _handlePresenceLeave(key, leftPresences);
                 })
-                .subscribe(async (status) => {
+                .subscribe(async (status, err) => {
                     if (status === 'SUBSCRIBED') {
                         // 사용자 presence 트래킹 시작
-                        await presenceChannel.track({
-                            user_id: userId,
-                            online_at: new Date().toISOString()
-                        });
-                        console.log(`Presence 구독 성공 (채팅방 ID: ${roomId})`);
-                    } else {
-                        console.warn(`Presence 구독 상태 변경: ${status}`);
+                        try {
+                            await presenceChannel.track({
+                                user_id: userId,
+                                online_at: new Date().toISOString()
+                            });
+                            console.log(`Presence 구독 성공 (채팅방 ID: ${roomId})`);
+                        } catch (trackError) {
+                            console.error('Presence 트래킹 시작 실패:', trackError);
+                        }
+                    } else if (status === 'CHANNEL_ERROR') {
+                        console.error('Presence 채널 오류:', err);
                     }
                 });
             
@@ -207,6 +299,11 @@ const realtimeService = (() => {
      * 모든 구독 취소
      */
     const unsubscribeAll = () => {
+        if (reconnectTimer) {
+            clearTimeout(reconnectTimer);
+            reconnectTimer = null;
+        }
+        
         if (messageSubscription) {
             messageSubscription.unsubscribe();
             messageSubscription = null;
@@ -271,8 +368,11 @@ const realtimeService = (() => {
         }
         
         try {
-            const broadcastChannel = supabase.channel(`broadcast-${roomId}`);
+            // 채널 이름 생성 (고유한 채널 이름 사용)
+            const channelName = `broadcast-${roomId}-${Date.now()}`;
+            const broadcastChannel = supabase.channel(channelName);
             
+            // 구독 및 메시지 전송
             await broadcastChannel.subscribe();
             
             await broadcastChannel.send({
@@ -284,6 +384,11 @@ const realtimeService = (() => {
                     timestamp: new Date().toISOString()
                 }
             });
+            
+            // 사용 후 채널 해제
+            setTimeout(() => {
+                broadcastChannel.unsubscribe();
+            }, 1000);
             
             return true;
         } catch (error) {
@@ -297,6 +402,11 @@ const realtimeService = (() => {
      * @returns {string} 연결 상태 (disconnected, connecting, connected)
      */
     const getConnectionStatus = () => {
+        // 네트워크 연결 확인
+        if (!navigator.onLine) {
+            return 'disconnected';
+        }
+        
         return connectionStatus;
     };
     
@@ -316,6 +426,7 @@ const realtimeService = (() => {
     const _updateConnectionStatus = (status) => {
         if (connectionStatus !== status) {
             connectionStatus = status;
+            console.log(`Realtime 연결 상태 변경: ${status}`);
             _notifyConnectionChanged(status);
         }
     };
@@ -326,7 +437,14 @@ const realtimeService = (() => {
      * @private
      */
     const _notifyMessageReceived = (message) => {
-        messageCallbacks.forEach(callback => {
+        if (!message || !message.id) {
+            console.warn('유효하지 않은 메시지 수신:', message);
+            return;
+        }
+        
+        // 콜백 배열을 복사하여 내부에서 콜백이 추가/제거되어도 영향 없게 함
+        const callbacks = [...messageCallbacks];
+        callbacks.forEach(callback => {
             try {
                 callback(message);
             } catch (error) {
@@ -341,7 +459,14 @@ const realtimeService = (() => {
      * @private
      */
     const _notifyUserUpdated = (user) => {
-        userUpdateCallbacks.forEach(callback => {
+        if (!user || !user.id) {
+            console.warn('유효하지 않은 사용자 정보 수신:', user);
+            return;
+        }
+        
+        // 콜백 배열을 복사하여 내부에서 콜백이 추가/제거되어도 영향 없게 함
+        const callbacks = [...userUpdateCallbacks];
+        callbacks.forEach(callback => {
             try {
                 callback(user);
             } catch (error) {
@@ -356,7 +481,9 @@ const realtimeService = (() => {
      * @private
      */
     const _notifyConnectionChanged = (status) => {
-        connectionCallbacks.forEach(callback => {
+        // 콜백 배열을 복사하여 내부에서 콜백이 추가/제거되어도 영향 없게 함
+        const callbacks = [...connectionCallbacks];
+        callbacks.forEach(callback => {
             try {
                 callback(status);
             } catch (error) {
@@ -372,7 +499,7 @@ const realtimeService = (() => {
      */
     const _handlePresenceSync = (state) => {
         console.log('Presence 상태 동기화:', state);
-        // 여기서 현재 접속 중인 사용자 목록을 업데이트할 수 있음
+        // TODO: 사용자 목록 업데이트
     };
     
     /**
@@ -383,7 +510,16 @@ const realtimeService = (() => {
      */
     const _handlePresenceJoin = (key, newPresences) => {
         console.log('Presence 참가:', key, newPresences);
-        // 여기서 새로운 사용자가 접속했을 때의 처리를 할 수 있음
+        
+        // 사용자 정보가 있으면 사용자 업데이트 콜백 호출
+        if (newPresences && newPresences.length > 0) {
+            const user = newPresences[0];
+            if (user && user.user_id) {
+                // 사용자 정보를 기반으로 업데이트 알림
+                const userId = user.user_id;
+                // TODO: 사용자 정보 조회 및 업데이트
+            }
+        }
     };
     
     /**
@@ -394,8 +530,39 @@ const realtimeService = (() => {
      */
     const _handlePresenceLeave = (key, leftPresences) => {
         console.log('Presence 이탈:', key, leftPresences);
-        // 여기서 사용자가 접속을 종료했을 때의 처리를 할 수 있음
+        
+        // 사용자 정보가 있으면 사용자 업데이트 콜백 호출
+        if (leftPresences && leftPresences.length > 0) {
+            const user = leftPresences[0];
+            if (user && user.user_id) {
+                // 사용자 정보를 기반으로 업데이트 알림
+                const userId = user.user_id;
+                // TODO: 사용자 정보 조회 및 업데이트
+            }
+        }
     };
+    
+    /**
+     * 네트워크 이벤트 리스너 등록
+     */
+    const _setupNetworkListeners = () => {
+        // 온라인 상태 변경 감지
+        window.addEventListener('online', () => {
+            console.log('네트워크 연결 복구');
+            // 온라인 상태일 때 현재 채팅방에 재연결 시도
+            if (currentRoomId) {
+                _scheduleReconnect();
+            }
+        });
+        
+        window.addEventListener('offline', () => {
+            console.log('네트워크 연결 끊김');
+            _updateConnectionStatus('disconnected');
+        });
+    };
+    
+    // 네트워크 이벤트 리스너 등록
+    _setupNetworkListeners();
     
     // 공개 API
     return {
