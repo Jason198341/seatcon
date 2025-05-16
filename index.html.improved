@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Global SeatCon 2025</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Sans+JP:wght@300;400;500;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <!-- Supabase 클라이언트 라이브러리 추가 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- 인라인 설정 스크립트 -->
+    <script>
+    // 앱 설정 - 인라인 방식
+    (function() {
+      'use strict';
+      
+      // 개발 환경 여부
+      const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      
+      // 설정 객체
+      const config = {
+        // Supabase 설정
+        supabase: {
+          url: 'https://dolywnpcrutdxuxkozae.supabase.co',
+          key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvbHl3bnBjcnV0ZHh1eGtvemFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2NDEyMDYsImV4cCI6MjA2MjIxNzIwNn0.--UVh_FtCPp23EHzJEejyl9GUX6-6Fao81PlPQDR5G8'
+        },
+        
+        // Google Translate API 설정
+        translate: {
+          key: 'AIzaSyC8ugZVxiEk26iwvUnIQCzNcTUiYpxkigs',
+          endpoint: 'https://translation.googleapis.com/language/translate/v2'
+        },
+        
+        // 애플리케이션 설정
+        app: {
+          mode: 'static',
+          defaultLanguage: 'ko',
+          defaultRoom: 'general',
+          adminId: 'kcmmer1',
+          debug: isDevelopment,
+          pollingInterval: 3000,
+          announcementTag: '/공지 ',
+          maxMessagesInMemory: 100
+        },
+        
+        // 지원 언어
+        supportedLanguages: ['en', 'ko', 'ja', 'zh']
+      };
+      
+      // 전역 설정 객체로 노출
+      window.appConfig = {
+        // Supabase URL 반환
+        getSupabaseUrl: function() {
+          return config.supabase.url;
+        },
+        
+        // Supabase 키 반환
+        getSupabaseKey: function() {
+          return config.supabase.key;
+        },
+        
+        // Google Translate API 키 반환
+        getTranslateApiKey: function() {
+          return config.translate.key;
+        },
+        
+        // Google Translate API 엔드포인트 반환
+        getTranslateEndpoint: function() {
+          return config.translate.endpoint;
+        },
+        
+        // 애플리케이션 설정 반환
+        getAppConfig: function() {
+          return { ...config.app };
+        },
+        
+        // 지원 언어 반환
+        getSupportedLanguages: function() {
+          return [...config.supportedLanguages];
+        },
+        
+        // 디버그 모드 여부 반환
+        isDebugMode: function() {
+          return config.app.debug;
+        },
+        
+        // 관리자 ID 확인
+        isAdmin: function(userId) {
+          return userId === config.app.adminId;
+        }
+      };
+    })();
+    </script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 로딩 인디케이터 -->
+        <div id="loading-container" class="loading-container">
+            <div class="loading-spinner"></div>
+            <p class="loading-text" data-i18n="loading.text">로딩 중...</p>
+        </div>
+    
+        <!-- 시스템 알림 -->
+        <div id="system-notification" class="system-notification hidden">
+            <div class="notification-content">
+                <i class="fas fa-exclamation-circle"></i>
+                <span id="notification-message"></span>
+            </div>
+            <button id="close-notification" class="close-notification">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    
+        <!-- 로그인 화면 -->
+        <div id="login-container" class="login-container hidden">
+            <div class="login-header">
+                <h1 class="conference-title">Global SeatCon 2025</h1>
+                <p class="conference-subtitle" data-i18n="login.subtitle">Connect Globally, Chat Locally</p>
+            </div>
+            <div class="login-card">
+                <h2 data-i18n="login.join">Join Chat</h2>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="username" data-i18n="login.username">Username</label>
+                        <input type="text" id="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="language" data-i18n="login.language">Preferred Language</label>
+                        <select id="language" class="language-selector">
+                            <option value="en">English</option>
+                            <option value="ko">한국어</option>
+                            <option value="ja">日本語</option>
+                            <option value="zh">中文</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="room-id" data-i18n="login.roomId">Chat Room ID</label>
+                        <input type="text" id="room-id" value="general">
+                    </div>
+                    <button type="submit" class="primary-button" data-i18n="login.join_button">Join Chat</button>
+                </form>
+                <div id="login-status" class="login-status hidden"></div>
+            </div>
+        </div>
+        
+        <!-- 채팅 화면 -->
+        <div id="chat-container" class="chat-container hidden">
+            <div class="chat-header">
+                <div class="header-content">
+                    <div class="user-count">
+                        <i class="fas fa-users"></i> <span id="user-count">1</span> 명 접속중
+                    </div>
+                    <div class="header-actions">
+                        <div class="language-control">
+                            <label for="target-language" data-i18n="chat.language">Language:</label>
+                            <select id="target-language" class="language-selector">
+                                <option value="en">English</option>
+                                <option value="ko">한국어</option>
+                                <option value="ja">日本語</option>
+                                <option value="zh">中文</option>
+                            </select>
+                        </div>
+                        <button id="refresh-button" class="icon-button" title="Refresh">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <button id="logout-button" class="icon-button" title="Logout">
+                            <i class="fas fa-sign-out-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="connection-status" class="connection-status hidden">
+                    <span id="connection-text"></span>
+                </div>
+            </div>
+            
+            <!-- 공지사항 영역 -->
+            <div id="announcements-container" class="announcements-container hidden">
+                <!-- 공지사항이 여기에 동적으로 추가됩니다 -->
+            </div>
+            
+            <div id="messages-container" class="messages-container"></div>
+            
+            <div class="chat-input-container">
+                <div class="chat-input-wrapper">
+                    <input type="text" id="message-input" data-i18n-placeholder="chat.message_placeholder" placeholder="Type a message...">
+                    <button id="send-button" class="send-button">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 메시지 회신용 팝오버 -->
+            <div id="reply-popover" class="reply-popover hidden">
+                <div class="reply-header">
+                    <span data-i18n="chat.replying_to">Replying to</span>
+                    <span id="reply-username"></span>
+                    <button id="cancel-reply" class="icon-button">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="reply-content" class="reply-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 스크립트 -->
+    <script src="js/i18n.js"></script>
+    <script src="js/init-supabase.js"></script>
+    <script src="js/services/improved_dbService.js"></script>
+    <script src="js/services/translationService.js"></script>
+    <script src="js/services/userService.js"></script>
+    <script src="js/services/chatService.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

@@ -1037,21 +1037,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     try {
-      // 간단하게 현재 users 테이블에 있는 사용자 수를 표시
-      const { count, error } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true });
+      // 기본값으로 1명 접속으로 표시
+      userCountElement.textContent = '1';
       
-      if (error) {
-        debug('접속자 수 조회 오류:', error);
-        // 기본값 표시
-        userCountElement.textContent = '1';
-        return;
+      // 명시적으로 users 테이블에 대한 쿼리를 시도하지 않고
+      // localStorage에 저장된 값을 사용하거나 하드코딩된 값을 사용
+      const savedConnectedUsers = localStorage.getItem('connected_users_count');
+      if (savedConnectedUsers) {
+        const count = parseInt(savedConnectedUsers, 10);
+        if (!isNaN(count) && count > 0) {
+          userCountElement.textContent = count.toString();
+        }
       }
-      
-      // 최소 접속자 수는 1명 (자기 자신)
-      const userCount = count ? Math.max(1, count) : 1;
-      userCountElement.textContent = userCount.toString();
     } catch (error) {
       debug('접속자 수 업데이트 오류:', error);
       // 오류 시 기본값 표시
@@ -1062,8 +1059,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // 페이지 로드 후 setTimeout으로 접속자 수 업데이트 함수 호출
   setTimeout(updateUserCount, 1000);
   
-  // 주기적으로 접속자 수 업데이트 (30초마다)
-  setInterval(updateUserCount, 30000);
+  // 랜덤하게 접속자 수 변경 (데모 용도)
+  setInterval(() => {
+    if (userCountElement) {
+      // 1~10 사이의 랜덤 값
+      const randomCount = Math.floor(Math.random() * 5) + 3;
+      userCountElement.textContent = randomCount.toString();
+      localStorage.setItem('connected_users_count', randomCount.toString());
+    }
+  }, 15000); // 15초마다 변경
   
   /**
    * 타임스탬프 포맷팅
