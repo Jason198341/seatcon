@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>컨퍼런스 채팅</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>컨퍼런스 채팅</h1>
+        </header>
+        
+        <!-- 로그인 화면 -->
+        <div id="login-container" class="login-container">
+            <h2>채팅 참가</h2>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="username">사용자 이름</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="language">선호 언어</label>
+                    <select id="language">
+                        <option value="ko">한국어</option>
+                        <option value="en">영어</option>
+                        <option value="ja">일본어</option>
+                        <option value="zh">중국어</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="room-id">채팅방 ID</label>
+                    <input type="text" id="room-id" value="general" required>
+                </div>
+                <button type="submit">채팅 참가</button>
+            </form>
+        </div>
+        
+        <!-- 채팅 화면 -->
+        <div id="chat-container" class="chat-container hidden">
+            <div class="chat-header">
+                <h2 id="room-title">채팅방</h2>
+                <div class="language-selector">
+                    <label for="target-language">언어:</label>
+                    <select id="target-language">
+                        <option value="ko">한국어</option>
+                        <option value="en">영어</option>
+                        <option value="ja">일본어</option>
+                        <option value="zh">중국어</option>
+                    </select>
+                </div>
+            </div>
+            <div id="messages-container" class="messages-container"></div>
+            <div class="chat-input">
+                <input type="text" id="message-input" placeholder="메시지를 입력하세요...">
+                <button id="send-button">전송</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 메인 스크립트 -->
+    <script src="js/main.js"></script>
+</body>
+</html>
