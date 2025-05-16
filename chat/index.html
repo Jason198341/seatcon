@@ -157,10 +157,31 @@
     <script>
         // 전역 APP 객체 정의 (앱의 모든 모듈이 공유할 객체)
         window.APP = {
-            state: {},
+            state: {
+                initialized: false,
+                isLoggedIn: false,
+                currentUser: null,
+                currentRoomId: null,
+                currentRoom: null,
+                preferredLanguage: 'en',
+                isUserListVisible: false,
+                activityInterval: null,
+                servicesReady: false,
+                isInitializing: false,
+                userListUpdateInterval: null
+            },
             elements: {},
-            messages: {},
-            performance: {}
+            messages: {
+                lastMessageTime: null,
+                pendingScrollToBottom: false
+            },
+            performance: {
+                userListUpdateInterval: 30000,
+                activityUpdateInterval: 60000,
+                messageRenderBatchSize: 10,
+                renderTimer: null,
+                userListUpdateTimer: null
+            }
         };
     </script>
     <script src="../js/modules/app-core.js"></script>

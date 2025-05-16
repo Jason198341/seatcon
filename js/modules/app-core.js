@@ -8,43 +8,67 @@
 
 // 앱 코어 모듈
 APP.core = (() => {
-    // 앱 상태 초기화 (이미 APP.state 객체가 존재함)
-    // APP.state = {
-        initialized: false,
-        isLoggedIn: false,
-        currentUser: null,
-        currentRoomId: null,
-        currentRoom: null,
-        preferredLanguage: 'en',
-        isUserListVisible: false,
-        activityInterval: null,
-        servicesReady: false,
-        isInitializing: false, // 초기화 진행 중 상태
-        userListUpdateInterval: null // 사용자 목록 업데이트 타이머
-    };
+    // 앱 상태 초기화
+    if (!APP.state) {
+        APP.state = {
+            initialized: false,
+            isLoggedIn: false,
+            currentUser: null,
+            currentRoomId: null,
+            currentRoom: null,
+            preferredLanguage: 'en',
+            isUserListVisible: false,
+            activityInterval: null,
+            servicesReady: false,
+            isInitializing: false, // 초기화 진행 중 상태
+            userListUpdateInterval: null // 사용자 목록 업데이트 타이머
+        };
+    }
     
     // DOM 요소 참조
-    APP.elements = {};
+    if (!APP.elements) {
+        APP.elements = {};
+    }
     
     // 메시지 렌더링 설정
-    APP.messages = {
-        lastMessageTime: null,
-        timeFormat: new Intl.DateTimeFormat('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-        }),
-        pendingScrollToBottom: false
-    };
+    if (!APP.messages) {
+        APP.messages = {
+            lastMessageTime: null,
+            pendingScrollToBottom: false
+        };
+    }
+    
+    // timeFormat 초기화
+    if (!APP.messages.timeFormat) {
+        try {
+            APP.messages.timeFormat = new Intl.DateTimeFormat('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+        } catch (error) {
+            console.error('DateTimeFormat 초기화 실패:', error);
+            // 폴백 함수 제공
+            APP.messages.timeFormat = {
+                format: function(date) {
+                    return date.toLocaleTimeString ? 
+                        date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : 
+                        date.toString();
+                }
+            };
+        }
+    }
     
     // 성능 최적화 설정
-    APP.performance = {
-        userListUpdateInterval: 30000, // 사용자 목록 업데이트 간격 (30초)
-        activityUpdateInterval: 60000, // 활동 시간 업데이트 간격 (60초)
-        messageRenderBatchSize: 10, // 한 번에 렌더링할 메시지 수
-        renderTimer: null, // 렌더링 타이머
-        userListUpdateTimer: null // 사용자 목록 업데이트 타이머
-    };
+    if (!APP.performance) {
+        APP.performance = {
+            userListUpdateInterval: 30000, // 사용자 목록 업데이트 간격 (30초)
+            activityUpdateInterval: 60000, // 활동 시간 업데이트 간격 (60초)
+            messageRenderBatchSize: 10, // 한 번에 렌더링할 메시지 수
+            renderTimer: null, // 렌더링 타이머
+            userListUpdateTimer: null // 사용자 목록 업데이트 타이머
+        };
+    }
     
     // 서비스 초기화 확인 함수
     const checkServicesReady = async function(maxAttempts = 10, delay = 200) {
