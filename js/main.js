@@ -63,9 +63,10 @@ const APP = {
     // 메시지 렌더링 설정
     messages: {
         lastMessageTime: null,
-        timeFormat: new Intl.DateTimeFormat('ko-KR', {
+        timeFormat: new Intl.DateTimeFormat('en-US', {
             hour: '2-digit',
-            minute: '2-digit'
+            minute: '2-digit',
+            hour12: true
         })
     }
 };
@@ -471,22 +472,32 @@ APP.sendMessage = async function() {
 
 // 메시지 이벤트 처리
 APP.handleMessageEvent = function(eventType, messageData) {
+    console.log(`메시지 이벤트 받음: ${eventType}`, messageData);
+    
     switch (eventType) {
         case 'new':
-            // 새 메시지 추가
-            APP.renderMessage(messageData);
-            APP.scrollToBottom();
+            // 새 메시지 추가 - 중복 메시지 확인
+            const existingMessage = document.querySelector(`.message[data-id="${messageData.id}"]`);
+            if (!existingMessage) {
+                APP.renderMessage(messageData);
+                APP.scrollToBottom();
+                console.log(`새 메시지 렌더링: ${messageData.id}`);
+            } else {
+                console.log(`중복 메시지 무시: ${messageData.id}`);
+            }
             break;
             
         case 'list':
             // 메시지 목록 렌더링
             APP.renderMessageList(messageData);
             APP.scrollToBottom();
+            console.log(`메시지 목록 렌더링: ${messageData.length}개`);
             break;
             
         case 'update':
             // 메시지 업데이트
             APP.updateMessage(messageData);
+            console.log(`메시지 업데이트: ${messageData.id}`);
             break;
     }
 };

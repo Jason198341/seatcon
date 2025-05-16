@@ -76,21 +76,23 @@ const realtimeService = (() => {
             _updateConnectionStatus('connecting');
             
             // 채널 이름 생성
-            const channelName = `messages-${roomId}`;
+            const channelName = `messages-${roomId}-${Date.now()}`; // 고유한 채널 이름 사용
+            console.log(`실시간 채널 이름: ${channelName}`);
             
             // 새 구독 생성
             messageSubscription = supabase
-                .channel(channelName)
+                .channel(channelName, {transport: {params: {apikey: CONFIG.SUPABASE_KEY}}})
                 .on('postgres_changes', {
                     event: 'INSERT',
                     schema: 'public',
                     table: 'messages',
                     filter: `chatroom_id=eq.${roomId}`
                 }, (payload) => {
-                    console.log('새 메시지 수신:', payload.new);
+                    console.log('새 메시지 수신 (실시간):', payload.new);
                     _notifyMessageReceived(payload.new);
                 })
                 .subscribe((status, err) => {
+                    console.log(`채팅방 메시지 구독 상태: ${status}`, err || '');
                     if (status === 'SUBSCRIBED') {
                         _updateConnectionStatus('connected');
                         currentRoomId = roomId;

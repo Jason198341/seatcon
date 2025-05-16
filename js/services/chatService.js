@@ -37,10 +37,11 @@ const chatService = (() => {
             lastMessageId = null;
             
             // 채팅 메시지 로드
-            await loadMessages();
+            const loadedMessages = await loadMessages();
             
             // 실시간 구독 설정
-            await _setupRealtime();
+            const realtimeSetup = await _setupRealtime();
+            console.log("실시간 설정 결과:", realtimeSetup);
             
             // 폴링 시작 (실시간 통신의 백업으로 사용)
             _startPolling();
@@ -48,7 +49,7 @@ const chatService = (() => {
             // 사용자 목록 불러오기
             await userService.getRoomUsers(roomId);
             
-            return messages;
+            return loadedMessages;
         } catch (error) {
             console.error(`채팅방 입장 실패 (ID: ${roomId}):`, error);
             throw new Error('채팅방 입장에 실패했습니다');
@@ -359,12 +360,13 @@ const chatService = (() => {
      * @param {number} interval - 폴링 간격 (밀리초)
      * @private
      */
-    const _startPolling = (interval = 10000) => {
+    const _startPolling = (interval = 2000) => { // 간격을 2초로 줄임
         if (isPolling || !currentRoomId) {
             return;
         }
         
         isPolling = true;
+        console.log(`메시지 폴링 시작 (${interval}ms 간격)`);
         
         // 정기적으로 새 메시지 확인
         pollingInterval = setInterval(async () => {
@@ -376,6 +378,8 @@ const chatService = (() => {
                 const newMessages = await dbService.getNewMessages(currentRoomId, lastMessageId);
                 
                 if (newMessages.length > 0) {
+                    console.log(`폴링으로 ${newMessages.length}개의 새 메시지 받음`);
+                    
                     // 사용자 선호 언어로 메시지 번역
                     const user = userService.getCurrentUser();
                     if (user && user.preferred_language) {
@@ -388,15 +392,19 @@ const chatService = (() => {
                         messages = [...messages, ...translatedMessages];
                         lastMessageId = messages[messages.length - 1].id;
                         
-                        // 메시지 수신 이벤트 발생
-                        _notifyMessagesReceived(translatedMessages);
+                        // 각 메시지를 개별적으로 명시적으로 통보
+                        translatedMessages.forEach(message => {
+                            _notifyMessageReceived(message);
+                        });
                     } else {
                         // 번역 없이 메시지 목록에 추가
                         messages = [...messages, ...newMessages];
                         lastMessageId = messages[messages.length - 1].id;
                         
-                        // 메시지 수신 이벤트 발생
-                        _notifyMessagesReceived(newMessages);
+                        // 각 메시지를 개별적으로 통보
+                        newMessages.forEach(message => {
+                            _notifyMessageReceived(message);
+                        });
                     }
                 }
             } catch (error) {
