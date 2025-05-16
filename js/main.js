@@ -474,6 +474,13 @@ APP.sendMessage = async function() {
 APP.handleMessageEvent = function(eventType, messageData) {
     console.log(`메시지 이벤트 받음: ${eventType}`, messageData);
     
+    // 메시지가 현재 채팅방에 속한지 확인 (모바일에서 실시간 메시지만 확인)
+    if (eventType === 'new' && 
+        messageData && messageData.chatroom_id !== APP.state.currentRoomId) {
+        console.log(`다른 채팅방 메시지 무시: ${messageData.id}, 방: ${messageData.chatroom_id}`);
+        return; // 현재 채팅방이 아닌 메시지는 무시
+    }
+    
     switch (eventType) {
         case 'new':
             // 새 메시지 추가 - 중복 메시지 확인
@@ -488,10 +495,10 @@ APP.handleMessageEvent = function(eventType, messageData) {
             break;
             
         case 'list':
-            // 메시지 목록 렌더링
+            // 메시지 목록 렌더링 - 필터링 전 로깅
+            console.log(`메시지 목록 렌더링 시작: ${messageData.length}개`);
             APP.renderMessageList(messageData);
             APP.scrollToBottom();
-            console.log(`메시지 목록 렌더링: ${messageData.length}개`);
             break;
             
         case 'update':
@@ -510,15 +517,40 @@ APP.renderMessageList = function(messages) {
     APP.elements.messageContainer.innerHTML = '';
     APP.messages.lastMessageTime = null;
     
+    // 현재 채팅방에 속한 메시지만 필터링
+    // 401 오류가 생길 수 있으므로, 이전 필터링 제거 방식에서 안전하게 수정
+    const filteredMessages = Array.isArray(messages) ? messages.filter(message => 
+        message && message.chatroom_id === APP.state.currentRoomId
+    ) : [];
+    
+    console.log(`필터링 후 메시지 개수: ${filteredMessages.length}`);
+    
+    // 만약 메시지가 없으면 안내 메시지 표시
+    if (filteredMessages.length === 0) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'empty-messages';
+        emptyDiv.textContent = 'No messages in this chat room yet. Start the conversation!';
+        APP.elements.messageContainer.appendChild(emptyDiv);
+        return;
+    }
+    
+    // 날짜순 정렬 (추가)
+    filteredMessages.sort((a, b) => {
+        return new Date(a.created_at) - new Date(b.created_at);
+    });
+    
     // 각 메시지 렌더링
-    messages.forEach(message => {
+    filteredMessages.forEach(message => {
         APP.renderMessage(message, true);
     });
 };
 
 // 단일 메시지 렌더링
 APP.renderMessage = function(message, skipScroll = false) {
-    if (!message) return;
+    if (!message || !message.id || !message.message) {
+        console.warn('유효하지 않은 메시지 무시:', message);
+        return;
+    }
     
     // 메시지 시간 표시 여부 결정
     const messageDate = new Date(message.created_at);

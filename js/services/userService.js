@@ -49,8 +49,8 @@ const userService = (() => {
         }
         
         try {
-            // 사용자 ID 생성 (UUID 형식)
-            const userId = crypto.randomUUID();
+            // 사용자 ID 생성 (간단하게 변경)
+            const userId = 'user_' + Math.floor(Math.random() * 10000).toString();
             
             // 사용자 정보 생성
             const userData = {

@@ -158,10 +158,11 @@ input:focus, select:focus, textarea:focus {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    max-width: 1200px;
+    width: 100%;
+    max-width: 100%;
     margin: 0 auto;
     background-color: var(--card-color);
-    box-shadow: var(--shadow);
+    box-shadow: none; /* 생략 */
 }
 
 /* 로그인 컨테이너 */
@@ -214,7 +215,7 @@ input:focus, select:focus, textarea:focus {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem;
+    padding: 0.5rem; /* 줄임 */
     background-color: var(--primary-color);
     color: white;
     box-shadow: var(--shadow);
@@ -222,7 +223,11 @@ input:focus, select:focus, textarea:focus {
 
 .chat-header h2 {
     margin: 0;
-    font-size: 1.2rem;
+    font-size: 1rem; /* 초고 */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 60%;
 }
 
 .header-actions {
@@ -298,12 +303,13 @@ input:focus, select:focus, textarea:focus {
 
 /* 메시지 스타일 */
 .message {
-    margin-bottom: 1rem;
-    padding: 0.75rem;
+    margin-bottom: 0.6rem; /* 줄임 */
+    padding: 0.5rem; /* 줄임 */
     border-radius: var(--border-radius);
-    max-width: 80%;
+    max-width: 90%; /* 모바일용 너비 넓힘 */
     position: relative;
     background-color: #f1f1f1;
+    font-size: 0.9rem; /* 글자 크기 초고 */
 }
 
 .message.own {
@@ -403,7 +409,7 @@ input:focus, select:focus, textarea:focus {
 .message-input-container {
     display: flex;
     align-items: center;
-    padding: 0.75rem;
+    padding: 0.5rem; /* 줄임 */
     border-top: 1px solid var(--border-color);
     background-color: var(--card-color);
 }
@@ -411,23 +417,33 @@ input:focus, select:focus, textarea:focus {
 #message-input {
     flex: 1;
     resize: none;
-    padding: 0.75rem;
-    height: 60px;
-    max-height: 120px;
-    margin-right: 0.75rem;
+    padding: 0.5rem; /* 줄임 */
+    height: 40px; /* 줄임 */
+    max-height: 80px; /* 줄임 */
+    margin-right: 0.5rem; /* 줄임 */
+    font-size: 0.9rem; /* 초고 */
+}
+
+/* 메시지 없을 때 표시 */
+.empty-messages {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 2rem 0;
+    font-style: italic;
+    font-size: 0.9rem;
 }
 
 .send-button {
     background-color: var(--primary-color);
     color: white;
     border-radius: 50%;
-    width: 48px;
-    height: 48px;
+    width: 36px; /* 줄임 */
+    height: 36px; /* 줄임 */
     padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.2rem;
+    font-size: 1rem; /* 줄임 */
 }
 
 .send-button:hover {
@@ -525,10 +541,27 @@ input:focus, select:focus, textarea:focus {
         max-width: 90%;
     }
     
+    /* 채팅방 헤더 축소 */
+    .chat-header {
+        padding: 0.3rem 0.5rem;
+    }
+    
     .chat-header h2 {
+        font-size: 0.9rem;
+        max-width: 40%;
+    }
+    
+    /* 헤더 작업 버튼 축소 */
+    .icon-button {
+        padding: 0.2rem 0.3rem;
         font-size: 1rem;
     }
     
+    .header-actions {
+        gap: 0.5rem;
+    }
+    
+    /* 사용자 목록 팬널 */
     .user-list-panel {
         position: absolute;
         right: 0;
@@ -536,5 +569,29 @@ input:focus, select:focus, textarea:focus {
         height: 100%;
         z-index: 10;
         box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+        width: 180px; /* 줄임 */
+    }
+    
+    /* 메세지 스타일 초고 */
+    .message {
+        font-size: 0.85rem;
+        padding: 0.4rem;
+        margin-bottom: 0.4rem;
+    }
+    
+    .message-header {
+        margin-bottom: 0.3rem;
+    }
+    
+    .reply-info {
+        padding: 0.3rem;
+        margin-bottom: 0.3rem;
+        font-size: 0.8rem;
+    }
+    
+    /* 연결 상태 바 축소 */
+    .chat-connection-status {
+        padding: 0.3rem 0.5rem;
+        font-size: 0.7rem;
     }
 }

@@ -192,11 +192,11 @@ const dbService = (() => {
     /**
      * 채팅방 메시지 가져오기
      * @param {string} roomId - 채팅방 ID
-     * @param {number} limit - 가져올 메시지 수 (기본값 50)
+     * @param {number} limit - 가져올 메시지 수 (기본값 30)
      * @param {number} offset - 오프셋 (기본값 0)
      * @returns {Promise<Array>} 메시지 목록
      */
-    const getMessages = async (roomId, limit = 50, offset = 0) => {
+    const getMessages = async (roomId, limit = 100, offset = 0) => {
         try {
             const client = initializeClient();
             const { data, error } = await client
@@ -292,15 +292,25 @@ const dbService = (() => {
         try {
             const client = initializeClient();
             
+            // 사용자 ID 정제 (중요 - 406 오류 수정)
+            let userId = userData.id;
+            // 사용자 ID 길이 제한 (30자 이내로)
+            if (userId.length > 30) {
+                userId = userId.substring(0, 30);
+            }
+            
+            // 영문자, 숫자, 하이픈만 허용하도록 정제
+            userId = userId.replace(/[^a-zA-Z0-9-_]/g, '');
+            
             // 사용자 존재 여부 확인
             const { data: existingUser, error: checkError } = await client
                 .from('users')
                 .select('*')
-                .eq('id', userData.id)
+                .eq('id', userId)
                 .maybeSingle();
             
             if (checkError) {
-                console.warn(`사용자 확인 중 오류 발생 (ID: ${userData.id}):`, checkError);
+                console.warn(`사용자 확인 중 오류 발생 (ID: ${userId}):`, checkError);
             }
             
             let result;
@@ -321,16 +331,19 @@ const dbService = (() => {
                 const { data, error } = await client
                     .from('users')
                     .update(updateData)
-                    .eq('id', userData.id)
+                    .eq('id', userId)
                     .select()
                     .single();
                 
-                if (error) throw error;
+                if (error) {
+                    console.error('Update user error:', error);
+                    throw error;
+                }
                 result = data;
             } else {
                 // 새 사용자 생성
                 const insertData = {
-                    id: userData.id,
+                    id: userId,
                     username: userData.username,
                     preferred_language: userData.preferred_language || 'en',
                     role: userData.role || 'user',
@@ -427,10 +440,17 @@ const dbService = (() => {
     const updateUserActivity = async (userId) => {
         try {
             const client = initializeClient();
+            // 사용자 ID 정제 (중요)
+            let cleanUserId = userId;
+            if (cleanUserId.length > 30) {
+                cleanUserId = cleanUserId.substring(0, 30);
+            }
+            cleanUserId = cleanUserId.replace(/[^a-zA-Z0-9-_]/g, '');
+            
             const { error } = await client
                 .from('users')
                 .update({ last_activity: new Date().toISOString() })
-                .eq('id', userId);
+                .eq('id', cleanUserId);
             
             if (error) {
                 throw error;

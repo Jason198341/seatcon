@@ -90,7 +90,7 @@ const chatService = (() => {
      * @param {number} limit - 로드할 메시지 수
      * @returns {Promise<Array>} 채팅 메시지 목록
      */
-    const loadMessages = async (limit = 50) => {
+    const loadMessages = async (limit = 30) => { // 메시지 개수 줄임
         if (!currentRoomId) {
             throw new Error('채팅방에 입장하지 않았습니다');
         }
@@ -360,7 +360,7 @@ const chatService = (() => {
      * @param {number} interval - 폴링 간격 (밀리초)
      * @private
      */
-    const _startPolling = (interval = 2000) => { // 간격을 2초로 줄임
+    const _startPolling = (interval = 1500) => { // 폴링 주기 더 줄임
         if (isPolling || !currentRoomId) {
             return;
         }
@@ -380,22 +380,34 @@ const chatService = (() => {
                 if (newMessages.length > 0) {
                     console.log(`폴링으로 ${newMessages.length}개의 새 메시지 받음`);
                     
-                    // 사용자 선호 언어로 메시지 번역
+                    // 사용자 선호 언어로 메시지 번역 (최적화: 동시 업데이트 변경)
                     const user = userService.getCurrentUser();
                     if (user && user.preferred_language) {
-                        const translatedMessages = await translationService.translateMessages(
-                            newMessages, 
-                            user.preferred_language
-                        );
-                        
-                        // 메시지 목록에 추가
-                        messages = [...messages, ...translatedMessages];
+                        // 번역 전에 메시지 추가 및 마지막 ID 업데이트
+                        messages = [...messages, ...newMessages];
                         lastMessageId = messages[messages.length - 1].id;
                         
-                        // 각 메시지를 개별적으로 명시적으로 통보
-                        translatedMessages.forEach(message => {
+                        // 각 메시지 통보 먼저 (노출영역 최소화)
+                        newMessages.forEach(message => {
                             _notifyMessageReceived(message);
                         });
+                        
+                        // 백그라운드에서 안보이는 부분은 후처리
+                        setTimeout(async () => {
+                            const translatedMessages = await translationService.translateMessages(
+                                newMessages,
+                                user.preferred_language
+                            );
+                            
+                            // 번역 완료된 메시지만 업데이트
+                            translatedMessages.forEach(translatedMsg => {
+                                const index = messages.findIndex(m => m.id === translatedMsg.id);
+                                if (index !== -1) {
+                                    messages[index] = translatedMsg;
+                                    _notifyMessageUpdated(translatedMsg);
+                                }
+                            });
+                        }, 100);
                     } else {
                         // 번역 없이 메시지 목록에 추가
                         messages = [...messages, ...newMessages];
