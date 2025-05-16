@@ -75,7 +75,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // 채팅방 자동 연결
         state.currentRoom = savedUser.roomId || window.appConfig.getAppConfig().defaultRoom;
-        roomTitle.textContent = `Global SeatCon 2025 - ${state.currentRoom}`;
         
         // 이전 메시지 로드
         await loadMessages();
@@ -1027,15 +1026,10 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   async function updateUserCount() {
     try {
-      // 현재 시간 기준 최근 5분 이내에 활동한 사용자를 '접속 중'으로 간주
-      const fiveMinutesAgo = new Date();
-      fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
-      
-      const { data, error } = await supabase
+      // 간단하게 현재 users 테이블에 있는 사용자 수를 표시
+      const { count, error } = await supabase
         .from('users')
-        .select('id')
-        .eq('room_id', state.currentRoom)
-        .gt('last_activity', fiveMinutesAgo.toISOString());
+        .select('*', { count: 'exact', head: true });
       
       if (error) {
         debug('접속자 수 조회 오류:', error);
@@ -1045,8 +1039,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       // 최소 접속자 수는 1명 (자기 자신)
-      const count = data ? Math.max(1, data.length) : 1;
-      userCountElement.textContent = count.toString();
+      const userCount = count ? Math.max(1, count) : 1;
+      userCountElement.textContent = userCount.toString();
     } catch (error) {
       debug('접속자 수 업데이트 오류:', error);
       // 오류 시 기본값 표시
