@@ -1,5 +1,6 @@
 # 환경 변수
 .env
+config.js
 
 # node.js
 /node_modules

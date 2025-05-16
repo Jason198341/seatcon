@@ -1,78 +1,255 @@
 // main.js - Global SeatCon 2025
 document.addEventListener('DOMContentLoaded', () => {
-  // 요소 가져오기
-  const loginContainer = document.getElementById('login-container');
-  const chatContainer = document.getElementById('chat-container');
-  const loginForm = document.getElementById('login-form');
-  const messagesContainer = document.getElementById('messages-container');
-  const messageInput = document.getElementById('message-input');
-  const sendButton = document.getElementById('send-button');
-  const roomTitle = document.getElementById('room-title');
-  const targetLanguageSelect = document.getElementById('target-language');
-  const refreshButton = document.getElementById('refresh-button');
-  const logoutButton = document.getElementById('logout-button');
-  const replyPopover = document.getElementById('reply-popover');
-  const cancelReplyButton = document.getElementById('cancel-reply');
-  const replyUsername = document.getElementById('reply-username');
-  const replyContent = document.getElementById('reply-content');
-  const announcementsContainer = document.getElementById('announcements-container');
+  'use strict';
   
-  // API 키 설정
-  const TRANSLATE_API_KEY = 'AIzaSyC8ugZVxiEk26iwvUnIQCzNcTUiYpxkigs';
-
-  // Supabase 설정
-  const SUPABASE_URL = 'https://dolywnpcrutdxuxkozae.supabase.co';
-  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvbHl3bnBjcnV0ZHh1eGtvemFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2NDEyMDYsImV4cCI6MjA2MjIxNzIwNn0.--UVh_FtCPp23EHzJEejyl9GUX6-6Fao81PlPQDR5G8';
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-  // 사용자 정보
-  let currentUser = {
-    id: null,
-    username: '',
-    language: 'en'
+  // UI 요소
+  const UI = {
+    loginContainer: document.getElementById('login-container'),
+    chatContainer: document.getElementById('chat-container'),
+    loginForm: document.getElementById('login-form'),
+    messagesContainer: document.getElementById('messages-container'),
+    messageInput: document.getElementById('message-input'),
+    sendButton: document.getElementById('send-button'),
+    roomTitle: document.getElementById('room-title'),
+    targetLanguageSelect: document.getElementById('target-language'),
+    refreshButton: document.getElementById('refresh-button'),
+    logoutButton: document.getElementById('logout-button'),
+    replyPopover: document.getElementById('reply-popover'),
+    cancelReplyButton: document.getElementById('cancel-reply'),
+    replyUsername: document.getElementById('reply-username'),
+    replyContent: document.getElementById('reply-content'),
+    announcementsContainer: document.getElementById('announcements-container')
   };
   
-  // 현재 채팅방
-  let currentRoom = 'general';
+  // 애플리케이션 상태
+  const state = {
+    targetLanguage: window.appConfig.getAppConfig().defaultLanguage,
+    replyingToMessage: null
+  };
   
-  // 선택된 번역 언어
-  let targetLanguage = 'en';
+  /**
+   * 애플리케이션 초기화
+   */
+  async function initializeApp() {
+    // 초기 디버그 정보
+    if (window.appConfig.isDebugMode()) {
+      console.log('Global SeatCon 2025 채팅 애플리케이션 초기화...');
+      console.log('설정:', window.appConfig.getAppConfig());
+    }
+    
+    // 저장된 언어 설정 불러오기
+    const savedLanguage = localStorage.getItem('preferred_language') || window.appConfig.getAppConfig().defaultLanguage;
+    state.targetLanguage = savedLanguage;
+    
+    // 언어 선택기 설정
+    document.querySelectorAll('.language-selector').forEach(select => {
+      select.value = savedLanguage;
+    });
+    
+    // i18n 언어 변경
+    window.i18n.changeLanguage(savedLanguage);
+    
+    // 데이터베이스 초기화
+    const connectionStatus = await window.dbService.initialize();
+    
+    // 저장된 세션이 있으면 자동 로그인
+    const savedUser = window.userService.restoreSession();
+    if (savedUser) {
+      try {
+        // 채팅방 자동 연결
+        const roomId = savedUser.roomId || window.appConfig.getAppConfig().defaultRoom;
+        await loginUser(savedUser.username, savedUser.preferred_language, roomId);
+      } catch (error) {
+        console.error('세션 복원 오류:', error);
+        showLoginForm();
+      }
+    } else {
+      showLoginForm();
+    }
+    
+    // 이벤트 핸들러 등록
+    registerEventHandlers();
+  }
   
-  // 실시간 채널 구독 설정
-  let currentChannel = null;
+  /**
+   * 이벤트 핸들러 등록
+   */
+  function registerEventHandlers() {
+    // 로그인 폼 제출
+    UI.loginForm.addEventListener('submit', handleLogin);
+    
+    // 메시지 전송
+    UI.sendButton.addEventListener('click', handleSendMessage);
+    UI.messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSendMessage();
+      }
+    });
+    
+    // 새로고침 버튼
+    UI.refreshButton.addEventListener('click', () => {
+      window.chatService.checkNewMessages();
+      showStatus(window.i18n.translate('status.refreshed'));
+    });
+    
+    // 로그아웃 버튼
+    UI.logoutButton.addEventListener('click', handleLogout);
+    
+    // 언어 변경
+    UI.targetLanguageSelect.addEventListener('change', (e) => {
+      state.targetLanguage = e.target.value;
+      window.userService.updateLanguage(e.target.value);
+      updateMessagesTranslation();
+    });
+    
+    // 번역 취소
+    UI.cancelReplyButton.addEventListener('click', cancelReply);
+    
+    // 채팅 서비스 이벤트 등록
+    window.chatService.addEventListener('messageReceived', displayMessage);
+    window.chatService.addEventListener('announcementReceived', addAnnouncement);
+  }
   
-  // 마지막 메시지 타임스탬프 (폴링 방식에 사용)
-  let lastMessageTimestamp = null;
+  /**
+   * 로그인 폼 표시
+   */
+  function showLoginForm() {
+    UI.loginContainer.classList.remove('hidden');
+    UI.chatContainer.classList.add('hidden');
+  }
   
-  // 폴링 간격 (밀리초)
-  const POLLING_INTERVAL = 3000;
-  
-  // 폴링 타이머 참조
-  let pollingTimer = null;
-  
-  // 관리자 ID
-  const ADMIN_ID = 'kcmmer1';
-  
-  // 대답할 메시지
-  let replyingToMessage = null;
-  
-  // 디버그 모드
-  const DEBUG = true;
-  
-  // 디버그 로그
-  function debug(...args) {
-    if (DEBUG) {
-      console.log('[DEBUG]', ...args);
+  /**
+   * 사용자 로그인 처리
+   * @param {string} username - 사용자 이름
+   * @param {string} language - 선호 언어
+   * @param {string} roomId - 채팅방 ID
+   */
+  async function loginUser(username, language, roomId) {
+    try {
+      // 언어 설정
+      window.i18n.changeLanguage(language);
+      UI.targetLanguageSelect.value = language;
+      state.targetLanguage = language;
+      
+      // 사용자 생성
+      const { user, local } = await window.userService.createUser(
+        username, 
+        language, 
+        roomId
+      );
+      
+      // 채팅방 설정
+      await window.chatService.joinRoom(roomId);
+      
+      // 타이틀 업데이트
+      UI.roomTitle.textContent = `Global SeatCon 2025 - ${roomId}${local ? ' (로컬 모드)' : ''}`;
+      
+      // 이전 메시지 로드
+      const { messages } = await window.chatService.loadMessages();
+      
+      // 메시지 표시
+      UI.messagesContainer.innerHTML = '';
+      messages.forEach(message => displayMessage(message));
+      
+      // 공지사항 가져오기
+      const { announcement } = await window.chatService.getAnnouncements();
+      if (announcement) {
+        addAnnouncement(announcement);
+      }
+      
+      // 입장 메시지 추가
+      const joinMessageText = window.i18n.translate('system.user_joined', { username });
+      window.chatService.sendSystemMessage(joinMessageText);
+      
+      // 화면 전환
+      UI.loginContainer.classList.add('hidden');
+      UI.chatContainer.classList.remove('hidden');
+      
+      // 스크롤 최하단으로
+      scrollToBottom();
+    } catch (error) {
+      console.error('로그인 오류:', error);
+      showStatus(window.i18n.translate('status.login_error'), true);
     }
   }
   
-  // 상태 표시
+  /**
+   * 로그인 폼 처리
+   * @param {Event} e - 이벤트 객체
+   */
+  async function handleLogin(e) {
+    e.preventDefault();
+    
+    // 폼 데이터 가져오기
+    const username = document.getElementById('username').value.trim();
+    const language = document.getElementById('language').value;
+    const roomId = document.getElementById('room-id').value.trim() || window.appConfig.getAppConfig().defaultRoom;
+    
+    if (!username) return;
+    
+    // 로그인 처리
+    await loginUser(username, language, roomId);
+  }
+  
+  /**
+   * 로그아웃 처리
+   */
+  function handleLogout() {
+    // 로그아웃
+    window.userService.logout();
+    window.chatService.leaveRoom();
+    
+    // 화면 전환
+    showLoginForm();
+    
+    // 페이지 새로고침
+    window.location.reload();
+  }
+  
+  /**
+   * 메시지 전송 처리
+   */
+  async function handleSendMessage() {
+    const messageText = UI.messageInput.value.trim();
+    
+    if (!messageText) return;
+    
+    try {
+      // 메시지 전송
+      const { message } = await window.chatService.sendMessage(
+        messageText, 
+        state.replyingToMessage
+      );
+      
+      // 내가 보낸 메시지 표시
+      displayMessage(message);
+      
+      // 입력창 초기화
+      UI.messageInput.value = '';
+      
+      // 답장 모드 취소
+      cancelReply();
+      
+      // 스크롤 최하단으로
+      scrollToBottom();
+    } catch (error) {
+      console.error('메시지 전송 오류:', error);
+      showStatus(window.i18n.translate('status.send_error'), true);
+    }
+  }
+  
+  /**
+   * 상태 메시지 표시
+   * @param {string} message - 메시지 내용
+   * @param {boolean} isError - 오류 여부
+   */
   function showStatus(message, isError = false) {
     const statusDiv = document.createElement('div');
     statusDiv.className = `status-message ${isError ? 'error' : 'success'}`;
     statusDiv.textContent = message;
     
-    messagesContainer.appendChild(statusDiv);
+    UI.messagesContainer.appendChild(statusDiv);
     
     setTimeout(() => {
       if (statusDiv && statusDiv.parentNode) {
@@ -83,636 +260,25 @@ document.addEventListener('DOMContentLoaded', () => {
     scrollToBottom();
   }
   
-  // Supabase Realtime 구독 설정
-  function setupRealtimeSubscription(roomId) {
-    debug('Realtime 구독 설정 중...', roomId);
-    
-    // 이전 구독이 있으면 해제
-    if (currentChannel) {
-      debug('이전 구독 해제');
-      currentChannel.unsubscribe();
-    }
-    
-    // 새 채널 구독
-    currentChannel = supabase
-      .channel(`room:${roomId}`)
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'messages',
-        filter: `room_id=eq.${roomId}`
-      }, (payload) => {
-        // 새 메시지가 수신되면 화면에 표시 (자신이 보낸 메시지는 제외)
-        debug('새 메시지 수신:', payload);
-        const message = payload.new;
-        if (message.user_id !== currentUser.id) {
-          displayMessage(message);
-          
-          // 관리자 메시지면 공지사항으로 처리
-          if (message.user_id === ADMIN_ID && message.isannouncement) {
-            addAnnouncement(message);
-          }
-          
-          scrollToBottom();
-        }
-      })
-      .subscribe((status) => {
-        debug('Realtime 구독 상태:', status);
-        if (status === 'SUBSCRIBED') {
-          showStatus(window.i18n.translate('status.connected'));
-        } else if (status === 'CHANNEL_ERROR') {
-          showStatus(window.i18n.translate('status.connection_error'), true);
-          // Realtime 연결이 안되면 폴링 방식으로 전환
-          startPolling(roomId);
-        }
-      });
-  }
-  
-  // 폴링 방식으로 메시지 가져오기 시작
-  function startPolling(roomId) {
-    debug('폴링 방식으로 메시지 가져오기 시작');
-    
-    // 기존 타이머가 있으면 정리
-    if (pollingTimer) {
-      clearInterval(pollingTimer);
-    }
-    
-    // 마지막 메시지 타임스탬프가 없으면 현재 시간 기준으로 설정
-    if (!lastMessageTimestamp) {
-      lastMessageTimestamp = new Date().toISOString();
-    }
-    
-    // 주기적으로 새 메시지 확인
-    pollingTimer = setInterval(async () => {
-      try {
-        const { data, error } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('room_id', roomId)
-          .gt('created_at', lastMessageTimestamp)
-          .order('created_at', { ascending: true });
-        
-        if (error) {
-          debug('폴링 오류:', error);
-          return;
-        }
-        
-        if (data && data.length > 0) {
-          debug(`새 메시지 ${data.length}개 가져옴`);
-          
-          // 메시지 표시
-          data.forEach(message => {
-            // 내가 보낸 메시지는 이미 표시되었으므로 제외
-            if (message.user_id !== currentUser.id) {
-              displayMessage(message);
-              
-              // 관리자 메시지면 공지사항으로 처리
-              if (message.user_id === ADMIN_ID && message.isannouncement) {
-                addAnnouncement(message);
-              }
-            }
-          });
-          
-          // 마지막 메시지 타임스탬프 업데이트
-          lastMessageTimestamp = data[data.length - 1].created_at;
-          
-          // 스크롤을 최하단으로
-          scrollToBottom();
-        }
-      } catch (error) {
-        debug('폴링 중 오류 발생:', error);
-      }
-    }, POLLING_INTERVAL);
-  }
-  
-  // 새로운 메시지 수동으로 확인
-  async function checkNewMessages() {
-    try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('room_id', currentRoom)
-        .gt('created_at', lastMessageTimestamp)
-        .order('created_at', { ascending: true });
-      
-      if (error) {
-        throw error;
-      }
-      
-      if (data && data.length > 0) {
-        const message = window.i18n.translate('status.new_messages', { count: data.length });
-        showStatus(message);
-        
-        // 메시지 표시
-        data.forEach(message => {
-          // 내가 보낸 메시지는 이미 표시되었으므로 제외
-          if (message.user_id !== currentUser.id) {
-            displayMessage(message);
-            
-            // 관리자 메시지면 공지사항으로 처리
-            if (message.user_id === ADMIN_ID && message.isannouncement) {
-              addAnnouncement(message);
-            }
-          }
-        });
-        
-        // 마지막 메시지 타임스탬프 업데이트
-        lastMessageTimestamp = data[data.length - 1].created_at;
-        
-        // 스크롤을 최하단으로
-        scrollToBottom();
-      } else {
-        showStatus(window.i18n.translate('status.no_new_messages'));
-      }
-    } catch (error) {
-      console.error('메시지 새로고침 오류:', error);
-      showStatus('새로고침 중 오류가 발생했습니다.', true);
-    }
-  }
-  
-  // 타임스탬프 포맷팅
+  /**
+   * 타임스탬프 포맷팅
+   * @param {string} timestamp - ISO 형식 타임스탬프
+   * @returns {string} 포맷된 시간
+   */
   function formatTimestamp(timestamp) {
     const date = new Date(timestamp);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
   
-  // 메시지 번역
-  async function translateText(text, targetLanguage) {
-    try {
-      const response = await fetch(`https://translation.googleapis.com/language/translate/v2?key=${TRANSLATE_API_KEY}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          q: text,
-          target: targetLanguage
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (data.data && data.data.translations && data.data.translations.length > 0) {
-        return data.data.translations[0].translatedText;
-      }
-      
-      throw new Error('번역 실패');
-    } catch (error) {
-      console.error('Translation error:', error);
-      return text; // 오류 발생 시 원본 텍스트 반환
-    }
-  }
-  
-  // 메시지 번역 처리
-  async function translateMessage(message, targetLang) {
-    if (message.language === targetLang) {
-      return {
-        ...message,
-        translatedMessage: message.message
-      };
-    }
-    
-    try {
-      const translatedText = await translateText(message.message, targetLang);
-      return {
-        ...message,
-        translatedMessage: translatedText
-      };
-    } catch (error) {
-      console.error('Error translating message:', error);
-      return {
-        ...message,
-        translatedMessage: window.i18n.translate('message.translation_failed')
-      };
-    }
-  }
-  
-  // 시스템 메시지 추가
-  function addSystemMessage(message) {
-    const messageElement = document.createElement('div');
-    messageElement.classList.add('message', 'system');
-    messageElement.innerHTML = `<div class="message-content">${message}</div>`;
-    messagesContainer.appendChild(messageElement);
-    scrollToBottom();
-  }
-  
-  // 공지사항 추가
-  function addAnnouncement(message) {
-    // 이미 표시된 공지사항은 다시 추가하지 않음
-    if (document.querySelector(`.announcement[data-id="${message.id}"]`)) {
-      return;
-    }
-    
-    announcementsContainer.innerHTML = ''; // 이전 공지사항 제거
-    
-    const announcementElement = document.createElement('div');
-    announcementElement.classList.add('announcement');
-    announcementElement.dataset.id = message.id;
-    
-    announcementElement.innerHTML = `
-      <div class="announcement-icon">
-        <i class="fas fa-bullhorn"></i>
-      </div>
-      <div class="announcement-content">
-        <h3>${window.i18n.translate('announcement.title')}</h3>
-        <div class="announcement-text">${message.message}</div>
-      </div>
-    `;
-    
-    announcementsContainer.appendChild(announcementElement);
-    announcementsContainer.classList.remove('hidden');
-  }
-  
-  // 공지사항 가져오기
-  async function fetchAnnouncements(roomId) {
-    try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('room_id', roomId)
-        .eq('user_id', ADMIN_ID)
-        .eq('isannouncement', true)
-        .order('created_at', { ascending: false })
-        .limit(1);
-      
-      if (error) {
-        debug('공지사항 오류:', error);
-        throw error;
-      }
-      
-      if (data && data.length > 0) {
-        addAnnouncement(data[0]);
-      }
-    } catch (error) {
-      console.error('공지사항 가져오기 오류:', error);
-    }
-  }
-  
-  // 폼 제출 처리 (로그인)
-  loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const username = document.getElementById('username').value.trim();
-    const language = document.getElementById('language').value;
-    const roomId = document.getElementById('room-id').value.trim() || 'general';
-    
-    if (!username) return;
-    
-    try {
-      // 언어 설정 변경
-      window.i18n.changeLanguage(language);
-      targetLanguageSelect.value = language;
-      targetLanguage = language;
-      
-      // 사용자 ID 생성
-      const userId = username === ADMIN_ID ? ADMIN_ID : 'user_' + Date.now().toString(16) + Math.random().toString(16).substr(2, 8);
-      debug('사용자 ID 생성:', userId);
-      
-      // Supabase에 사용자 저장
-      debug('Supabase에 사용자 저장 중...');
-      const { data, error } = await supabase
-        .from('users')
-        .insert({
-          id: userId,
-          username: username,
-          preferred_language: language,
-          created_at: new Date().toISOString()
-        })
-        .select();
-      
-      if (error) {
-        debug('사용자 저장 오류:', error);
-        throw error;
-      }
-      
-      debug('사용자 저장 완료:', data);
-      
-      // 사용자 정보 저장
-      currentUser = {
-        id: userId,
-        username,
-        language
-      };
-      
-      // LocalStorage에 사용자 정보 저장
-      localStorage.setItem('chat_current_user', JSON.stringify(currentUser));
-      localStorage.setItem('preferred_language', language);
-      
-      // 채팅방 설정
-      currentRoom = roomId;
-      roomTitle.textContent = `Global SeatCon 2025 - ${roomId}`;
-      
-      // 타겟 언어 설정
-      targetLanguage = language;
-      targetLanguageSelect.value = language;
-      
-      // 이전 메시지 로드
-      await loadMessages(roomId);
-      
-      // 공지사항 가져오기
-      await fetchAnnouncements(roomId);
-      
-      // 시스템 메시지 추가
-      const joinMessageKey = 'system.user_joined';
-      const joinMessage = window.i18n.translate(joinMessageKey, { username });
-      addSystemMessage(joinMessage);
-      
-      // Supabase에 입장 메시지 저장
-      debug('입장 메시지 저장 중...');
-      await supabase
-        .from('messages')
-        .insert({
-          room_id: roomId,
-          user_id: 'system',
-          username: 'System',
-          message: joinMessage,
-          language: 'system',
-          created_at: new Date().toISOString()
-        });
-      
-      // 화면 전환
-      loginContainer.classList.add('hidden');
-      chatContainer.classList.remove('hidden');
-    } catch (error) {
-      console.error('Login error:', error);
-      alert('로그인 중 오류가 발생했습니다: ' + error.message);
-      
-      // 오류 발생 시 로컬 모드로 폴백
-      debug('로컬 모드로 전환');
-      const userId = username === ADMIN_ID ? ADMIN_ID : 'user_' + Date.now().toString(16) + Math.random().toString(16).substr(2, 8);
-      currentUser = {
-        id: userId,
-        username,
-        language
-      };
-      
-      localStorage.setItem('chat_current_user', JSON.stringify(currentUser));
-      localStorage.setItem('preferred_language', language);
-      
-      currentRoom = roomId;
-      roomTitle.textContent = `Global SeatCon 2025 - ${roomId} (로컬 모드)`;
-      targetLanguage = language;
-      targetLanguageSelect.value = language;
-      
-      loadLocalMessages(roomId);
-      
-      const joinMessageKey = 'system.user_joined';
-      const joinMessage = window.i18n.translate(joinMessageKey, { username });
-      addSystemMessage(joinMessage + ' (로컬 모드)');
-      
-      loginContainer.classList.add('hidden');
-      chatContainer.classList.remove('hidden');
-    }
-  });
-  
-  // 메시지 전송
-  sendButton.addEventListener('click', sendMessage);
-  messageInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  });
-  
-  // 새로고침 버튼
-  refreshButton.addEventListener('click', () => {
-    checkNewMessages();
-  });
-  
-  // 로그아웃 버튼
-  logoutButton.addEventListener('click', () => {
-    // 세션 정보 삭제
-    localStorage.removeItem('chat_current_user');
-    
-    // 언어 설정은 유지
-    const language = localStorage.getItem('preferred_language') || 'en';
-    
-    // 페이지 새로고침
-    window.location.reload();
-  });
-  
-  // 언어 변경
-  targetLanguageSelect.addEventListener('change', (e) => {
-    targetLanguage = e.target.value;
-    // 언어 설정 저장
-    localStorage.setItem('preferred_language', targetLanguage);
-    // 기존 메시지 번역 상태 업데이트
-    updateMessagesTranslation();
-  });
-  
-  // 번역 취소
-  cancelReplyButton.addEventListener('click', () => {
-    replyPopover.classList.add('hidden');
-    replyingToMessage = null;
-  });
-  
-  // 메시지 전송 함수
-  async function sendMessage() {
-    const message = messageInput.value.trim();
-    
-    if (!message) return;
-    
-    try {
-      debug('메시지 전송 중...', message);
-      
-      // 공지사항 여부 확인 (관리자만 가능)
-      const isAnnouncement = currentUser.id === ADMIN_ID && message.startsWith('/공지 ');
-      
-      // 메시지 객체 생성
-      const messageObj = {
-        room_id: currentRoom,
-        user_id: currentUser.id,
-        username: currentUser.username,
-        message: isAnnouncement ? message.substring(4) : message,
-        language: currentUser.language,
-        created_at: new Date().toISOString(),
-        isannouncement: isAnnouncement
-      };
-      
-      // 답장 정보 추가
-      if (replyingToMessage) {
-        messageObj.reply_to = {
-          id: replyingToMessage.id,
-          username: replyingToMessage.username,
-          message: replyingToMessage.message
-        };
-      }
-      
-      // Supabase에 메시지 저장
-      const { data, error } = await supabase
-        .from('messages')
-        .insert(messageObj)
-        .select();
-      
-      if (error) {
-        debug('메시지 저장 오류:', error);
-        debug('오류 메시지:', error.message);
-        debug('오류 세부정보:', error.details);
-        throw error;
-      }
-      
-      debug('메시지 저장 완료:', data);
-      
-      // 내가 보낸 메시지 표시
-      displayMessage(data[0]);
-      
-      // 공지사항이면 공지사항 영역에 추가
-      if (isAnnouncement) {
-        addAnnouncement(data[0]);
-      }
-      
-      // 입력창 초기화
-      messageInput.value = '';
-      
-      // 답장 모드 취소
-      if (replyingToMessage) {
-        replyPopover.classList.add('hidden');
-        replyingToMessage = null;
-      }
-      
-      // 스크롤을 최하단으로
-      scrollToBottom();
-      
-      // 마지막 메시지 타임스탬프 업데이트
-      lastMessageTimestamp = data[0].created_at;
-    } catch (error) {
-      console.error('Error sending message:', error);
-      
-      // 오류 발생 시 로컬에만 저장
-      debug('로컬에 메시지 저장');
-      
-      // 메시지 객체 생성
-      const localMessage = {
-        id: `local_${Date.now()}`,
-        room_id: currentRoom,
-        user_id: currentUser.id,
-        username: currentUser.username,
-        message: message,
-        language: currentUser.language,
-        created_at: new Date().toISOString(),
-        isannouncement: false
-      };
-      
-      // 답장 정보 추가
-      if (replyingToMessage) {
-        localMessage.reply_to = {
-          id: replyingToMessage.id,
-          username: replyingToMessage.username,
-          message: replyingToMessage.message
-        };
-        
-        // 답장 모드 취소
-        replyPopover.classList.add('hidden');
-        replyingToMessage = null;
-      }
-      
-      // 로컬 메시지 저장
-      const messages = getLocalMessages(currentRoom);
-      messages.push(localMessage);
-      saveLocalMessages(currentRoom, messages);
-      
-      // 메시지 표시
-      displayMessage(localMessage);
-      
-      // 입력창 초기화
-      messageInput.value = '';
-      
-      // 스크롤을 최하단으로
-      scrollToBottom();
-      
-      // 사용자에게 알림
-      showStatus('메시지 전송 중 오류가 발생했습니다. 로컬에만 저장됩니다.', true);
-    }
-  }
-  
-  // 이전 메시지 로드 (Supabase)
-  async function loadMessages(roomId) {
-    try {
-      debug('메시지 로드 중...', roomId);
-      // Supabase에서 메시지 가져오기
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('room_id', roomId)
-        .order('created_at', { ascending: true });
-      
-      if (error) {
-        debug('메시지 로드 오류:', error);
-        throw error;
-      }
-      
-      debug(`${data.length}개의 메시지 로드 완료`);
-      
-      // 메시지 표시
-      messagesContainer.innerHTML = '';
-      data.forEach(message => {
-        displayMessage(message);
-      });
-      
-      // 마지막 메시지 타임스탬프 설정
-      if (data.length > 0) {
-        lastMessageTimestamp = data[data.length - 1].created_at;
-      } else {
-        lastMessageTimestamp = new Date().toISOString();
-      }
-      
-      // 실시간 업데이트 설정
-      setupRealtimeUpdate(roomId);
-      
-      // 스크롤을 최하단으로
-      scrollToBottom();
-    } catch (error) {
-      console.error('Error loading messages:', error);
-      
-      // 오류 발생 시 로컬 메시지 사용
-      debug('로컬 메시지 사용');
-      loadLocalMessages(roomId);
-      
-      // 사용자에게 알림
-      showStatus('메시지를 불러오는 중 오류가 발생했습니다. 로컬 메시지를 표시합니다.', true);
-    }
-  }
-  
-  // 실시간 업데이트 설정 (폴링 + Supabase Realtime 모두 시도)
-  function setupRealtimeUpdate(roomId) {
-    // 1. Supabase Realtime 구독 시도
-    setupRealtimeSubscription(roomId);
-    
-    // 2. 폴링 방식도 같이 사용 (백업)
-    startPolling(roomId);
-  }
-  
-  // 로컬 메시지 관련 함수
-  function getLocalMessages(roomId) {
-    const messagesJson = localStorage.getItem(`chat_messages_${roomId}`);
-    return messagesJson ? JSON.parse(messagesJson) : [];
-  }
-  
-  function saveLocalMessages(roomId, messages) {
-    localStorage.setItem(`chat_messages_${roomId}`, JSON.stringify(messages));
-  }
-  
-  function loadLocalMessages(roomId) {
-    const messages = getLocalMessages(roomId);
-    
-    // 메시지 표시
-    messagesContainer.innerHTML = '';
-    messages.forEach(message => {
-      displayMessage(message);
-    });
-    
-    // 스크롤을 최하단으로
-    scrollToBottom();
-  }
-  
-  // 메시지 표시
+  /**
+   * 메시지 표시
+   * @param {Object} message - 메시지 객체
+   */
   function displayMessage(message) {
     // 이미 표시된 메시지인지 확인 (중복 방지)
     if (document.querySelector(`.message[data-id="${message.id}"]`)) {
       return;
     }
-    
-    debug('메시지 표시:', message);
     
     const messageElement = document.createElement('div');
     messageElement.classList.add('message');
@@ -723,9 +289,11 @@ document.addEventListener('DOMContentLoaded', () => {
       messageElement.innerHTML = `<div class="message-content">${message.message}</div>`;
     } else {
       // 일반 메시지
-      if (message.user_id === currentUser.id) {
+      const currentUser = window.userService.getCurrentUser();
+      
+      if (currentUser && message.user_id === currentUser.id) {
         messageElement.classList.add('self');
-      } else if (message.user_id === ADMIN_ID) {
+      } else if (window.appConfig.isAdmin(message.user_id)) {
         messageElement.classList.add('admin');
       } else {
         messageElement.classList.add('other');
@@ -750,7 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <span class="username">${message.username}`;
       
       // 관리자 배지
-      if (message.user_id === ADMIN_ID) {
+      if (window.appConfig.isAdmin(message.user_id)) {
         messageHtml += `<span class="admin-badge">${window.i18n.translate('message.admin')}</span>`;
       }
       
@@ -761,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
       
       // 메시지 액션 버튼 (다른 사람의 메시지에 대한 회신 기능)
-      if (message.user_id !== currentUser.id) {
+      if (currentUser && message.user_id !== currentUser.id) {
         messageHtml += `
           <div class="message-actions">
             <button class="message-action-button reply-button" title="${window.i18n.translate('button.reply')}">
@@ -781,57 +349,19 @@ document.addEventListener('DOMContentLoaded', () => {
       if (replyButton) {
         replyButton.addEventListener('click', () => {
           // 회신 정보 설정
-          replyingToMessage = {
+          startReply({
             id: message.id,
             username: message.username,
             message: message.message
-          };
-          
-          // 회신 팝오버 표시
-          replyUsername.textContent = message.username;
-          replyContent.textContent = message.message;
-          replyPopover.classList.remove('hidden');
-          
-          // 입력창에 포커스
-          messageInput.focus();
+          });
         });
       }
       
       // 스와이프 이벤트 설정 (모바일)
-      let touchStartX = 0;
-      let touchEndX = 0;
-      
-      messageElement.addEventListener('touchstart', (e) => {
-        touchStartX = e.changedTouches[0].screenX;
-      });
-      
-      messageElement.addEventListener('touchend', (e) => {
-        touchEndX = e.changedTouches[0].screenX;
-        handleSwipe();
-      });
-      
-      function handleSwipe() {
-        // 왼쪽으로 스와이프 (다른 사람의 메시지에 대한 회신)
-        if (message.user_id !== currentUser.id && touchEndX < touchStartX - 50) {
-          // 회신 정보 설정
-          replyingToMessage = {
-            id: message.id,
-            username: message.username,
-            message: message.message
-          };
-          
-          // 회신 팝오버 표시
-          replyUsername.textContent = message.username;
-          replyContent.textContent = message.message;
-          replyPopover.classList.remove('hidden');
-          
-          // 입력창에 포커스
-          messageInput.focus();
-        }
-      }
+      setupSwipeEvents(messageElement, message);
       
       // 번역이 필요한 경우
-      if (message.language !== targetLanguage && message.language !== 'system') {
+      if (message.language !== state.targetLanguage && message.language !== 'system') {
         translateMessageElement(message, messageElement);
       }
     }
@@ -840,10 +370,52 @@ document.addEventListener('DOMContentLoaded', () => {
     messageElement.dataset.id = message.id;
     messageElement.dataset.language = message.language;
     
-    messagesContainer.appendChild(messageElement);
+    UI.messagesContainer.appendChild(messageElement);
+    
+    // 스크롤 최하단으로 (새 메시지일 경우)
+    const isNewMessage = Date.now() - new Date(message.created_at).getTime() < 10000;
+    if (isNewMessage) {
+      scrollToBottom();
+    }
   }
   
-  // 메시지 요소 번역
+  /**
+   * 스와이프 이벤트 설정
+   * @param {HTMLElement} element - 메시지 요소
+   * @param {Object} message - 메시지 객체
+   */
+  function setupSwipeEvents(element, message) {
+    let touchStartX = 0;
+    let touchEndX = 0;
+    
+    element.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    });
+    
+    element.addEventListener('touchend', (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      handleSwipe();
+    });
+    
+    function handleSwipe() {
+      // 왼쪽으로 스와이프 (다른 사람의 메시지에 대한 회신)
+      const currentUser = window.userService.getCurrentUser();
+      if (currentUser && message.user_id !== currentUser.id && touchEndX < touchStartX - 50) {
+        // 회신 정보 설정
+        startReply({
+          id: message.id,
+          username: message.username,
+          message: message.message
+        });
+      }
+    }
+  }
+  
+  /**
+   * 메시지 요소 번역
+   * @param {Object} message - 메시지 객체
+   * @param {HTMLElement} messageElement - 메시지 요소
+   */
   async function translateMessageElement(message, messageElement) {
     try {
       // 번역 중임을 표시
@@ -856,12 +428,15 @@ document.addEventListener('DOMContentLoaded', () => {
       messageBubble.appendChild(translatingElement);
       
       // 번역 요청
-      const translatedMessage = await translateMessage(message, targetLanguage);
+      const translatedMessage = await window.translationService.translateMessage(
+        message, 
+        state.targetLanguage
+      );
       
       // 번역 결과 표시
       translatingElement.textContent = translatedMessage.translatedMessage;
     } catch (error) {
-      console.error('Translation error:', error);
+      console.error('번역 오류:', error);
       
       // 번역 실패 메시지
       const translatedElement = messageElement.querySelector('.translated-message');
@@ -871,86 +446,80 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
   
-  // 언어 변경 시 메시지 번역 상태 업데이트
-  function updateMessagesTranslation() {
-    const messageElements = messagesContainer.querySelectorAll('.message:not(.system)');
+  /**
+   * 메시지 번역 상태 업데이트
+   */
+  async function updateMessagesTranslation() {
+    const messageElements = UI.messagesContainer.querySelectorAll('.message:not(.system)');
     
-    messageElements.forEach(async (messageElement) => {
+    for (const messageElement of messageElements) {
       const messageLanguage = messageElement.dataset.language;
       const messageId = messageElement.dataset.id;
       let translatedElement = messageElement.querySelector('.translated-message');
       
       // 번역이 필요한 경우
-      if (messageLanguage !== targetLanguage && messageLanguage !== 'system') {
+      if (messageLanguage !== state.targetLanguage && messageLanguage !== 'system') {
         if (!translatedElement) {
-          // Supabase에서 메시지 가져오기 (로컬에 없는 경우)
+          // 메시지 요소 찾기
+          const messageBubble = messageElement.querySelector('.message-bubble');
+          if (!messageBubble) continue;
+          
+          // 번역 요소 생성
+          translatedElement = document.createElement('div');
+          translatedElement.classList.add('translated-message');
+          translatedElement.textContent = window.i18n.translate('message.translated');
+          messageBubble.appendChild(translatedElement);
+          
+          // 메시지 가져오기
           try {
-            const { data, error } = await supabase
-              .from('messages')
-              .select('*')
-              .eq('id', messageId)
-              .single();
+            // 이미 표시된 메시지의 내용 가져오기
+            const contentElement = messageElement.querySelector('.message-content');
+            if (!contentElement) continue;
             
-            if (error) throw error;
+            const message = {
+              id: messageId,
+              message: contentElement.textContent,
+              language: messageLanguage
+            };
             
-            const messageBubble = messageElement.querySelector('.message-bubble');
-            if (!messageBubble) return;
+            // 번역 요청
+            const translatedMessage = await window.translationService.translateMessage(
+              message, 
+              state.targetLanguage
+            );
             
-            const newTranslatedElement = document.createElement('div');
-            newTranslatedElement.classList.add('translated-message');
-            newTranslatedElement.textContent = window.i18n.translate('message.translated');
-            messageBubble.appendChild(newTranslatedElement);
-            
-            const translatedMessage = await translateMessage(data, targetLanguage);
-            newTranslatedElement.textContent = translatedMessage.translatedMessage;
+            // 번역 결과 표시
+            translatedElement.textContent = translatedMessage.translatedMessage;
           } catch (error) {
-            console.error('Error fetching message for translation:', error);
-            
-            // 로컬에서 메시지 찾기
-            const messages = getLocalMessages(currentRoom);
-            const message = messages.find(m => m.id === messageId);
-            
-            if (message) {
-              const messageBubble = messageElement.querySelector('.message-bubble');
-              if (!messageBubble) return;
-              
-              const newTranslatedElement = document.createElement('div');
-              newTranslatedElement.classList.add('translated-message');
-              newTranslatedElement.textContent = window.i18n.translate('message.translated');
-              messageBubble.appendChild(newTranslatedElement);
-              
-              const translatedMessage = await translateMessage(message, targetLanguage);
-              newTranslatedElement.textContent = translatedMessage.translatedMessage;
-            }
+            console.error('번역 업데이트 오류:', error);
+            translatedElement.textContent = window.i18n.translate('message.translation_failed');
           }
         } else {
           // 이미 번역 요소가 있는 경우, 다시 번역
           translatedElement.textContent = window.i18n.translate('message.translated');
           
           try {
-            const { data, error } = await supabase
-              .from('messages')
-              .select('*')
-              .eq('id', messageId)
-              .single();
+            // 이미 표시된 메시지의 내용 가져오기
+            const contentElement = messageElement.querySelector('.message-content');
+            if (!contentElement) continue;
             
-            if (error) throw error;
+            const message = {
+              id: messageId,
+              message: contentElement.textContent,
+              language: messageLanguage
+            };
             
-            const translatedMessage = await translateMessage(data, targetLanguage);
+            // 번역 요청
+            const translatedMessage = await window.translationService.translateMessage(
+              message, 
+              state.targetLanguage
+            );
+            
+            // 번역 결과 표시
             translatedElement.textContent = translatedMessage.translatedMessage;
           } catch (error) {
-            console.error('Error updating translation:', error);
-            
-            // 로컬에서 메시지 찾기
-            const messages = getLocalMessages(currentRoom);
-            const message = messages.find(m => m.id === messageId);
-            
-            if (message) {
-              const translatedMessage = await translateMessage(message, targetLanguage);
-              translatedElement.textContent = translatedMessage.translatedMessage;
-            } else {
-              translatedElement.textContent = window.i18n.translate('message.translation_failed');
-            }
+            console.error('번역 업데이트 오류:', error);
+            translatedElement.textContent = window.i18n.translate('message.translation_failed');
           }
         }
       } else {
@@ -959,80 +528,73 @@ document.addEventListener('DOMContentLoaded', () => {
           translatedElement.remove();
         }
       }
-    });
+    }
   }
   
-  // 스크롤을 최하단으로
+  /**
+   * 답장 시작
+   * @param {Object} message - 답장할 메시지
+   */
+  function startReply(message) {
+    state.replyingToMessage = message;
+    
+    // 답장 팝오버 표시
+    UI.replyUsername.textContent = message.username;
+    UI.replyContent.textContent = message.message;
+    UI.replyPopover.classList.remove('hidden');
+    
+    // 입력창에 포커스
+    UI.messageInput.focus();
+  }
+  
+  /**
+   * 답장 취소
+   */
+  function cancelReply() {
+    state.replyingToMessage = null;
+    UI.replyPopover.classList.add('hidden');
+  }
+  
+  /**
+   * 공지사항 추가
+   * @param {Object} message - 공지사항 메시지
+   */
+  function addAnnouncement(message) {
+    // 이미 표시된 공지사항은 다시 추가하지 않음
+    if (document.querySelector(`.announcement[data-id="${message.id}"]`)) {
+      return;
+    }
+    
+    // 이전 공지사항 제거
+    UI.announcementsContainer.innerHTML = '';
+    
+    // 공지사항 요소 생성
+    const announcementElement = document.createElement('div');
+    announcementElement.classList.add('announcement');
+    announcementElement.dataset.id = message.id;
+    
+    announcementElement.innerHTML = `
+      <div class="announcement-icon">
+        <i class="fas fa-bullhorn"></i>
+      </div>
+      <div class="announcement-content">
+        <h3>${window.i18n.translate('announcement.title')}</h3>
+        <div class="announcement-text">${message.message}</div>
+      </div>
+    `;
+    
+    // 공지사항 표시
+    UI.announcementsContainer.appendChild(announcementElement);
+    UI.announcementsContainer.classList.remove('hidden');
+  }
+  
+  /**
+   * 스크롤을 최하단으로
+   */
   function scrollToBottom() {
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    UI.messagesContainer.scrollTop = UI.messagesContainer.scrollHeight;
   }
   
-  // Supabase 연결 상태 확인
-  async function checkSupabaseConnection() {
-    try {
-      debug('Supabase 연결 확인 중...');
-      const { error } = await supabase.from('messages').select('count').limit(1);
-      
-      if (error) {
-        debug('Supabase 연결 실패:', error);
-        showStatus('Supabase 데이터베이스에 연결할 수 없습니다. 로컬 모드로 작동합니다.', true);
-        return false;
-      }
-      
-      debug('Supabase 연결 성공');
-      return true;
-    } catch (error) {
-      debug('Supabase 연결 확인 중 오류:', error);
-      showStatus('Supabase 연결 확인 중 오류가 발생했습니다.', true);
-      return false;
-    }
-  }
-  
-  // 초기화
-  async function init() {
-    // 저장된 언어 설정 불러오기
-    const savedLanguage = localStorage.getItem('preferred_language') || 'en';
-    targetLanguage = savedLanguage;
-    
-    // 언어 선택기 설정
-    document.querySelectorAll('.language-selector').forEach(select => {
-      select.value = savedLanguage;
-    });
-    
-    // i18n 언어 변경
-    window.i18n.changeLanguage(savedLanguage);
-    
-    // Supabase 연결 확인
-    await checkSupabaseConnection();
-    
-    // 저장된 사용자 정보 확인
-    const savedUser = localStorage.getItem('chat_current_user');
-    if (savedUser) {
-      try {
-        currentUser = JSON.parse(savedUser);
-        
-        // 채팅방 자동 연결
-        currentRoom = 'general'; // 기본 채팅방
-        roomTitle.textContent = `Global SeatCon 2025 - ${currentRoom}`;
-        
-        // 이전 메시지 로드
-        await loadMessages(currentRoom);
-        
-        // 공지사항 가져오기
-        await fetchAnnouncements(currentRoom);
-        
-        // 화면 전환
-        loginContainer.classList.add('hidden');
-        chatContainer.classList.remove('hidden');
-        
-        debug('세션 복원 완료:', currentUser);
-      } catch (error) {
-        console.error('세션 복원 오류:', error);
-        localStorage.removeItem('chat_current_user');
-      }
-    }
-  }
-  
-  // 초기화 함수 실행
-  init();
+  // 애플리케이션 초기화
+  initializeApp();
 });
