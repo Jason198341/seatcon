@@ -1,4 +1,4 @@
-// main.js - Supabase Realtime 연동 버전 (디버깅 개선)
+// main.js - 근본적 개선 버전
 document.addEventListener('DOMContentLoaded', () => {
   // 요소 가져오기
   const loginContainer = document.getElementById('login-container');
@@ -34,6 +34,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // 실시간 채널 구독 설정
   let currentChannel = null;
   
+  // 마지막 메시지 타임스탬프 (폴링 방식에 사용)
+  let lastMessageTimestamp = null;
+  
+  // 폴링 간격 (밀리초)
+  const POLLING_INTERVAL = 3000;
+  
+  // 폴링 타이머 참조
+  let pollingTimer = null;
+  
   // 디버그 모드
   const DEBUG = true;
   
@@ -59,10 +68,12 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
       statusDiv.remove();
     }, 5000);
+    
+    scrollToBottom();
   }
   
-  // Supabase Realtime 구독 설정
-  function setupRealtime(roomId) {
+  // Supabase Realtime 구독 설정 (기존 방식 - 백업용)
+  function setupRealtimeSubscription(roomId) {
     debug('Realtime 구독 설정 중...', roomId);
     
     // 이전 구독이 있으면 해제
@@ -94,8 +105,62 @@ document.addEventListener('DOMContentLoaded', () => {
           showStatus('실시간 채팅에 연결되었습니다.');
         } else if (status === 'CHANNEL_ERROR') {
           showStatus('실시간 채팅 연결에 문제가 발생했습니다.', true);
+          // Realtime 연결이 안되면 폴링 방식으로 전환
+          startPolling(roomId);
         }
       });
+  }
+  
+  // 폴링 방식으로 메시지 가져오기 시작
+  function startPolling(roomId) {
+    debug('폴링 방식으로 메시지 가져오기 시작');
+    
+    // 기존 타이머가 있으면 정리
+    if (pollingTimer) {
+      clearInterval(pollingTimer);
+    }
+    
+    // 마지막 메시지 타임스탬프가 없으면 현재 시간 기준으로 설정
+    if (!lastMessageTimestamp) {
+      lastMessageTimestamp = new Date().toISOString();
+    }
+    
+    // 주기적으로 새 메시지 확인
+    pollingTimer = setInterval(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('room_id', roomId)
+          .gt('created_at', lastMessageTimestamp)
+          .order('created_at', { ascending: true });
+        
+        if (error) {
+          debug('폴링 오류:', error);
+          return;
+        }
+        
+        if (data && data.length > 0) {
+          debug(`새 메시지 ${data.length}개 가져옴`);
+          
+          // 메시지 표시
+          data.forEach(message => {
+            // 내가 보낸 메시지는 이미 표시되었으므로 제외
+            if (message.user_id !== currentUser.id) {
+              displayMessage(message);
+            }
+          });
+          
+          // 마지막 메시지 타임스탬프 업데이트
+          lastMessageTimestamp = data[data.length - 1].created_at;
+          
+          // 스크롤을 최하단으로
+          scrollToBottom();
+        }
+      } catch (error) {
+        debug('폴링 중 오류 발생:', error);
+      }
+    }, POLLING_INTERVAL);
   }
   
   // 타임스탬프 포맷팅
@@ -307,7 +372,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       debug('메시지 저장 완료:', data);
       
-      // 메시지 표시 (실시간 구독을 통해 받아볼 수도 있지만, 자신이 보낸 메시지는 바로 표시)
+      // 내가 보낸 메시지 표시
       displayMessage(data[0]);
       
       // 입력창 초기화
@@ -315,6 +380,9 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // 스크롤을 최하단으로
       scrollToBottom();
+      
+      // 마지막 메시지 타임스탬프 업데이트
+      lastMessageTimestamp = data[0].created_at;
     } catch (error) {
       console.error('Error sending message:', error);
       
@@ -373,8 +441,15 @@ document.addEventListener('DOMContentLoaded', () => {
         displayMessage(message);
       });
       
-      // 실시간 구독 설정
-      setupRealtime(roomId);
+      // 마지막 메시지 타임스탬프 설정
+      if (data.length > 0) {
+        lastMessageTimestamp = data[data.length - 1].created_at;
+      } else {
+        lastMessageTimestamp = new Date().toISOString();
+      }
+      
+      // 실시간 업데이트 설정
+      setupRealtimeUpdate(roomId);
       
       // 스크롤을 최하단으로
       scrollToBottom();
@@ -388,6 +463,15 @@ document.addEventListener('DOMContentLoaded', () => {
       // 사용자에게 알림
       showStatus('메시지를 불러오는 중 오류가 발생했습니다. 로컬 메시지를 표시합니다.', true);
     }
+  }
+  
+  // 실시간 업데이트 설정 (폴링 + Supabase Realtime 모두 시도)
+  function setupRealtimeUpdate(roomId) {
+    // 1. Supabase Realtime 구독 시도
+    setupRealtimeSubscription(roomId);
+    
+    // 2. 폴링 방식도 같이 사용 (백업)
+    startPolling(roomId);
   }
   
   // 로컬 메시지 관련 함수
@@ -581,9 +665,68 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
   
+  // 수동 새로고침 버튼 추가
+  function addRefreshButton() {
+    const refreshButton = document.createElement('button');
+    refreshButton.textContent = '새로운 메시지 확인';
+    refreshButton.style.margin = '10px 0';
+    refreshButton.style.padding = '8px 16px';
+    refreshButton.style.backgroundColor = '#4a6fa5';
+    refreshButton.style.color = 'white';
+    refreshButton.style.border = 'none';
+    refreshButton.style.borderRadius = '4px';
+    refreshButton.style.cursor = 'pointer';
+    
+    refreshButton.addEventListener('click', async () => {
+      try {
+        const { data, error } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('room_id', currentRoom)
+          .gt('created_at', lastMessageTimestamp)
+          .order('created_at', { ascending: true });
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (data && data.length > 0) {
+          showStatus(`${data.length}개의 새 메시지를 가져왔습니다.`);
+          
+          // 메시지 표시
+          data.forEach(message => {
+            // 내가 보낸 메시지는 이미 표시되었으므로 제외
+            if (message.user_id !== currentUser.id) {
+              displayMessage(message);
+            }
+          });
+          
+          // 마지막 메시지 타임스탬프 업데이트
+          lastMessageTimestamp = data[data.length - 1].created_at;
+          
+          // 스크롤을 최하단으로
+          scrollToBottom();
+        } else {
+          showStatus('새 메시지가 없습니다.');
+        }
+      } catch (error) {
+        console.error('메시지 새로고침 오류:', error);
+        showStatus('메시지를 새로고침하는 중 오류가 발생했습니다.', true);
+      }
+    });
+    
+    // 채팅 헤더에 추가
+    const chatHeader = document.querySelector('.chat-header');
+    chatHeader.appendChild(refreshButton);
+  }
+  
   // 초기화
   async function init() {
+    // Supabase 연결 확인
     await checkSupabaseConnection();
+    
+    // 수동 새로고침 버튼 추가
+    addRefreshButton();
   }
   
   // 이전 세션에서 사용자 정보 복원
