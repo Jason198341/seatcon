@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
           displayMessage(message);
           
           // 관리자 메시지면 공지사항으로 처리
-          if (message.user_id === ADMIN_ID && message.isAnnouncement) {
+          if (message.user_id === ADMIN_ID && message.isannouncement) {
             addAnnouncement(message);
           }
           
@@ -167,7 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
               displayMessage(message);
               
               // 관리자 메시지면 공지사항으로 처리
-              if (message.user_id === ADMIN_ID && message.isAnnouncement) {
+              if (message.user_id === ADMIN_ID && message.isannouncement) {
                 addAnnouncement(message);
               }
             }
@@ -210,7 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
             displayMessage(message);
             
             // 관리자 메시지면 공지사항으로 처리
-            if (message.user_id === ADMIN_ID && message.isAnnouncement) {
+            if (message.user_id === ADMIN_ID && message.isannouncement) {
               addAnnouncement(message);
             }
           }
@@ -331,11 +331,12 @@ document.addEventListener('DOMContentLoaded', () => {
         .select('*')
         .eq('room_id', roomId)
         .eq('user_id', ADMIN_ID)
-        .eq('isAnnouncement', true)
+        .eq('isannouncement', true)
         .order('created_at', { ascending: false })
         .limit(1);
       
       if (error) {
+        debug('공지사항 오류:', error);
         throw error;
       }
       
@@ -525,7 +526,7 @@ document.addEventListener('DOMContentLoaded', () => {
         message: isAnnouncement ? message.substring(4) : message,
         language: currentUser.language,
         created_at: new Date().toISOString(),
-        isAnnouncement: isAnnouncement
+        isannouncement: isAnnouncement
       };
       
       // 답장 정보 추가
@@ -545,6 +546,8 @@ document.addEventListener('DOMContentLoaded', () => {
       
       if (error) {
         debug('메시지 저장 오류:', error);
+        debug('오류 메시지:', error.message);
+        debug('오류 세부정보:', error.details);
         throw error;
       }
       
@@ -587,7 +590,7 @@ document.addEventListener('DOMContentLoaded', () => {
         message: message,
         language: currentUser.language,
         created_at: new Date().toISOString(),
-        isAnnouncement: false
+        isannouncement: false
       };
       
       // 답장 정보 추가
