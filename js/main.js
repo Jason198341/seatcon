@@ -1,4 +1,4 @@
-// main.js - Supabase Realtime 연동 버전
+// main.js - Supabase Realtime 연동 버전 (디버깅 개선)
 document.addEventListener('DOMContentLoaded', () => {
   // 요소 가져오기
   const loginContainer = document.getElementById('login-container');
@@ -34,10 +34,40 @@ document.addEventListener('DOMContentLoaded', () => {
   // 실시간 채널 구독 설정
   let currentChannel = null;
   
+  // 디버그 모드
+  const DEBUG = true;
+  
+  // 디버그 로그
+  function debug(...args) {
+    if (DEBUG) {
+      console.log('[DEBUG]', ...args);
+    }
+  }
+  
+  // 상태 표시
+  function showStatus(message, isError = false) {
+    const statusDiv = document.createElement('div');
+    statusDiv.textContent = message;
+    statusDiv.style.padding = '5px 10px';
+    statusDiv.style.margin = '5px 0';
+    statusDiv.style.borderRadius = '4px';
+    statusDiv.style.backgroundColor = isError ? '#ffebee' : '#e8f5e9';
+    statusDiv.style.color = isError ? '#c62828' : '#2e7d32';
+    statusDiv.style.textAlign = 'center';
+    
+    messagesContainer.appendChild(statusDiv);
+    setTimeout(() => {
+      statusDiv.remove();
+    }, 5000);
+  }
+  
   // Supabase Realtime 구독 설정
   function setupRealtime(roomId) {
+    debug('Realtime 구독 설정 중...', roomId);
+    
     // 이전 구독이 있으면 해제
     if (currentChannel) {
+      debug('이전 구독 해제');
       currentChannel.unsubscribe();
     }
     
@@ -51,13 +81,21 @@ document.addEventListener('DOMContentLoaded', () => {
         filter: `room_id=eq.${roomId}`
       }, (payload) => {
         // 새 메시지가 수신되면 화면에 표시 (자신이 보낸 메시지는 제외)
+        debug('새 메시지 수신:', payload);
         const message = payload.new;
         if (message.user_id !== currentUser.id) {
           displayMessage(message);
           scrollToBottom();
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        debug('Realtime 구독 상태:', status);
+        if (status === 'SUBSCRIBED') {
+          showStatus('실시간 채팅에 연결되었습니다.');
+        } else if (status === 'CHANNEL_ERROR') {
+          showStatus('실시간 채팅 연결에 문제가 발생했습니다.', true);
+        }
+      });
   }
   
   // 타임스탬프 포맷팅
@@ -139,8 +177,10 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       // 사용자 ID 생성
       const userId = 'user_' + Date.now().toString(16) + Math.random().toString(16).substr(2, 8);
+      debug('사용자 ID 생성:', userId);
       
       // Supabase에 사용자 저장
+      debug('Supabase에 사용자 저장 중...');
       const { data, error } = await supabase
         .from('users')
         .insert({
@@ -152,8 +192,11 @@ document.addEventListener('DOMContentLoaded', () => {
         .select();
       
       if (error) {
+        debug('사용자 저장 오류:', error);
         throw error;
       }
+      
+      debug('사용자 저장 완료:', data);
       
       // 사용자 정보 저장
       currentUser = {
@@ -181,6 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
       addSystemMessage(joinMessage);
       
       // Supabase에 입장 메시지 저장 (선택사항)
+      debug('입장 메시지 저장 중...');
       await supabase
         .from('messages')
         .insert({
@@ -200,6 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
       alert('로그인 중 오류가 발생했습니다: ' + error.message);
       
       // 오류 발생 시 로컬 모드로 폴백
+      debug('로컬 모드로 전환');
       const userId = 'user_' + Date.now().toString(16) + Math.random().toString(16).substr(2, 8);
       currentUser = {
         id: userId,
@@ -241,6 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!message) return;
     
     try {
+      debug('메시지 전송 중...', message);
       // Supabase에 메시지 저장
       const { data, error } = await supabase
         .from('messages')
@@ -255,8 +301,11 @@ document.addEventListener('DOMContentLoaded', () => {
         .select();
       
       if (error) {
+        debug('메시지 저장 오류:', error);
         throw error;
       }
+      
+      debug('메시지 저장 완료:', data);
       
       // 메시지 표시 (실시간 구독을 통해 받아볼 수도 있지만, 자신이 보낸 메시지는 바로 표시)
       displayMessage(data[0]);
@@ -270,6 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Error sending message:', error);
       
       // 오류 발생 시 로컬에만 저장
+      debug('로컬에 메시지 저장');
       const localMessage = {
         id: `local_${Date.now()}`,
         room_id: currentRoom,
@@ -295,13 +345,14 @@ document.addEventListener('DOMContentLoaded', () => {
       scrollToBottom();
       
       // 사용자에게 알림
-      alert('메시지 전송 중 오류가 발생했습니다. 로컬에만 저장됩니다.');
+      showStatus('메시지 전송 중 오류가 발생했습니다. 로컬에만 저장됩니다.', true);
     }
   }
   
   // 이전 메시지 로드 (Supabase)
   async function loadMessages(roomId) {
     try {
+      debug('메시지 로드 중...', roomId);
       // Supabase에서 메시지 가져오기
       const { data, error } = await supabase
         .from('messages')
@@ -310,8 +361,11 @@ document.addEventListener('DOMContentLoaded', () => {
         .order('created_at', { ascending: true });
       
       if (error) {
+        debug('메시지 로드 오류:', error);
         throw error;
       }
+      
+      debug(`${data.length}개의 메시지 로드 완료`);
       
       // 메시지 표시
       messagesContainer.innerHTML = '';
@@ -328,10 +382,11 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Error loading messages:', error);
       
       // 오류 발생 시 로컬 메시지 사용
+      debug('로컬 메시지 사용');
       loadLocalMessages(roomId);
       
       // 사용자에게 알림
-      alert('메시지를 불러오는 중 오류가 발생했습니다. 로컬 메시지를 표시합니다.');
+      showStatus('메시지를 불러오는 중 오류가 발생했습니다. 로컬 메시지를 표시합니다.', true);
     }
   }
   
@@ -364,6 +419,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.querySelector(`.message[data-id="${message.id}"]`)) {
       return;
     }
+    
+    debug('메시지 표시:', message);
     
     const messageElement = document.createElement('div');
     messageElement.classList.add('message');
@@ -503,6 +560,32 @@ document.addEventListener('DOMContentLoaded', () => {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
   }
   
+  // Supabase 연결 상태 확인
+  async function checkSupabaseConnection() {
+    try {
+      debug('Supabase 연결 확인 중...');
+      const { error } = await supabase.from('messages').select('count').limit(1);
+      
+      if (error) {
+        debug('Supabase 연결 실패:', error);
+        showStatus('Supabase 데이터베이스에 연결할 수 없습니다. 로컬 모드로 작동합니다.', true);
+        return false;
+      }
+      
+      debug('Supabase 연결 성공');
+      return true;
+    } catch (error) {
+      debug('Supabase 연결 확인 중 오류:', error);
+      showStatus('Supabase 연결 확인 중 오류가 발생했습니다.', true);
+      return false;
+    }
+  }
+  
+  // 초기화
+  async function init() {
+    await checkSupabaseConnection();
+  }
+  
   // 이전 세션에서 사용자 정보 복원
   const savedUser = localStorage.getItem('chat_current_user');
   if (savedUser) {
@@ -521,4 +604,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     loginForm.appendChild(restoreButton);
   }
+  
+  // 초기화 함수 실행
+  init();
 });
