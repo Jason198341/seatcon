@@ -3,10 +3,6 @@
  * Supabase 데이터베이스 연결 및 데이터 처리를 담당하는 서비스
  */
 
-// Supabase 클라이언트 설정을 위한 상수
-const SUPABASE_URL = 'https://dolywnpcrutdxuxkozae.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvbHl3bnBjcnV0ZHh1eGtvemFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2NDEyMDYsImV4cCI6MjA2MjIxNzIwNn0.--UVh_FtCPp23EHzJEejyl9GUX6-6Fao81PlPQDR5G8';
-
 // Supabase 클라이언트 인스턴스 생성
 const dbService = (() => {
     let supabase;
@@ -18,6 +14,10 @@ const dbService = (() => {
     const initializeClient = () => {
         if (!supabase) {
             try {
+                // config.js에서 API 키 가져오기
+                const SUPABASE_URL = CONFIG.SUPABASE_URL;
+                const SUPABASE_KEY = CONFIG.SUPABASE_KEY;
+                
                 supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                 console.log('Supabase 클라이언트 초기화 완료');
             } catch (error) {
@@ -405,9 +405,8 @@ const dbService = (() => {
      * @returns {Promise<boolean>} 인증 성공 여부
      */
     const authenticateAdmin = async (adminId, password) => {
-        // 실제 환경에서는 보안을 위해 서버 측에서 처리해야 함
-        // 현재는 하드코딩된 값으로 확인
-        return adminId === 'kcmmer' && password === 'rnrud9881@@HH';
+        // config.js에서 관리자 계정 정보 가져오기
+        return adminId === CONFIG.ADMIN_ID && password === CONFIG.ADMIN_PASSWORD;
     };
 
     /**

@@ -1,0 +1,23 @@
+# 의존성 패키지
+node_modules/
+
+# 환경 변수 및 설정 파일 (실제 배포 시 주석 해제)
+# js/config.js
+
+# 로그 파일
+*.log
+
+# 에디터 설정
+.vscode/
+.idea/
+
+# 운영체제 파일
+.DS_Store
+Thumbs.db
+
+# npm 패키지 파일
+package-lock.json
+
+# 빌드 디렉토리
+/dist
+/build

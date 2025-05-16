@@ -4,17 +4,12 @@
  */
 
 const translationService = (() => {
-    // Google Cloud Translation API 키
-    const API_KEY = 'AIzaSyC8ugZVxiEk26iwvUnIQCzNcTUiYpxkigs';
-    const API_URL = 'https://translation.googleapis.com/language/translate/v2';
+    // config.js에서 API 키 및 설정 가져오기
+    const API_KEY = CONFIG.TRANSLATION_API_KEY;
+    const API_URL = CONFIG.TRANSLATION_API_URL;
     
     // 지원 언어 목록
-    const supportedLanguages = [
-        { code: 'ko', name: '한국어' },
-        { code: 'en', name: '영어' },
-        { code: 'ja', name: '일본어' },
-        { code: 'zh', name: '중국어' }
-    ];
+    const supportedLanguages = CONFIG.SUPPORTED_LANGUAGES;
     
     // 번역 캐시 (동일한 텍스트에 대한 반복 요청 방지)
     const translationCache = new Map();
