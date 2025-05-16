@@ -271,25 +271,31 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       // 새 채널 구독
       state.currentChannel = supabase
-        .channel(`room:${state.currentRoom}`)
+        .channel(`public:messages`)
         .on('postgres_changes', { 
-          event: 'INSERT', 
+          event: '*', 
           schema: 'public', 
-          table: 'messages',
-          filter: `room_id=eq.${state.currentRoom}`
+          table: 'messages'
         }, (payload) => {
           // 새 메시지가 수신되면 화면에 표시 (자신이 보낸 메시지는 제외)
           debug('새 메시지 수신:', payload);
-          const message = payload.new;
-          if (message.user_id !== state.currentUser.id) {
-            displayMessage(message);
-            
-            // 관리자 메시지면 공지사항으로 처리
-            if (message.user_id === ADMIN_ID && message.isannouncement) {
-              addAnnouncement(message);
+          
+          // INSERT 이벤트만 처리
+          if (payload.eventType === 'INSERT') {
+            const message = payload.new;
+            if (message.room_id === state.currentRoom && message.user_id !== state.currentUser.id) {
+              displayMessage(message);
+              
+              // 관리자 메시지면 공지사항으로 처리
+              if (message.user_id === ADMIN_ID && message.isannouncement) {
+                addAnnouncement(message);
+              }
+              
+              scrollToBottom();
+              
+              // 알림음 재생
+              playNotificationSound();
             }
-            
-            scrollToBottom();
           }
         })
         .subscribe((status) => {
@@ -311,6 +317,19 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   /**
+   * 알림음 재생
+   */
+  function playNotificationSound() {
+    try {
+      const audio = new Audio('https://cdn.pixabay.com/download/audio/2021/08/04/audio_0625c1539c.mp3?filename=notification-sound-7062.mp3');
+      audio.volume = 0.5;
+      audio.play();
+    } catch (error) {
+      debug('알림음 재생 오류:', error);
+    }
+  }
+  
+  /**
    * 폴링 방식으로 메시지 가져오기 시작
    */
   function startPolling() {
@@ -326,47 +345,13 @@ document.addEventListener('DOMContentLoaded', () => {
       state.lastMessageTimestamp = new Date().toISOString();
     }
     
-    // 주기적으로 새 메시지 확인
+    // 처음에 즉시 한 번 실행
+    checkNewMessages();
+    
+    // 주기적으로 새 메시지 확인 (2초마다 - 더 짧게 설정)
     state.pollingTimer = setInterval(async () => {
-      try {
-        const { data, error } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('room_id', state.currentRoom)
-          .gt('created_at', state.lastMessageTimestamp)
-          .order('created_at', { ascending: true });
-        
-        if (error) {
-          debug('폴링 오류:', error);
-          return;
-        }
-        
-        if (data && data.length > 0) {
-          debug(`새 메시지 ${data.length}개 가져옴`);
-          
-          // 메시지 표시
-          data.forEach(message => {
-            // 내가 보낸 메시지는 이미 표시되었으므로 제외
-            if (message.user_id !== state.currentUser.id) {
-              displayMessage(message);
-              
-              // 관리자 메시지면 공지사항으로 처리
-              if (message.user_id === ADMIN_ID && message.isannouncement) {
-                addAnnouncement(message);
-              }
-            }
-          });
-          
-          // 마지막 메시지 타임스탬프 업데이트
-          state.lastMessageTimestamp = data[data.length - 1].created_at;
-          
-          // 스크롤을 최하단으로
-          scrollToBottom();
-        }
-      } catch (error) {
-        debug('폴링 중 오류 발생:', error);
-      }
-    }, window.appConfig.getAppConfig().pollingInterval);
+      checkNewMessages();
+    }, 2000); // 2초마다 체크
   }
   
   /**
@@ -455,10 +440,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   /**
-   * 새로운 메시지 수동으로 확인
+   * 새로운 메시지 확인
    */
   async function checkNewMessages() {
+    if (!state.currentRoom || !state.lastMessageTimestamp) {
+      return;
+    }
+    
     try {
+      debug('새 메시지 확인 중...', state.lastMessageTimestamp);
+      
       const { data, error } = await supabase
         .from('messages')
         .select('*')
@@ -467,23 +458,32 @@ document.addEventListener('DOMContentLoaded', () => {
         .order('created_at', { ascending: true });
       
       if (error) {
-        throw error;
+        debug('새 메시지 확인 오류:', error);
+        return;
       }
       
       if (data && data.length > 0) {
-        const message = window.i18n.translate('status.new_messages', { count: data.length });
-        showStatus(message);
+        debug(`새 메시지 ${data.length}개 가져옴`);
+        
+        // 이미 수신한 메시지 중복 출력 방지를 위한 ID 추적
+        const displayedMessageIds = new Set(
+          Array.from(document.querySelectorAll('.message[data-id]'))
+            .map(el => el.dataset.id)
+        );
         
         // 메시지 표시
         data.forEach(message => {
-          // 내가 보낸 메시지는 이미 표시되었으므로 제외
-          if (message.user_id !== state.currentUser.id) {
+          // 이미 표시된 메시지나 내가 보낸 메시지는 제외
+          if (!displayedMessageIds.has(message.id) && message.user_id !== state.currentUser.id) {
             displayMessage(message);
             
             // 관리자 메시지면 공지사항으로 처리
             if (message.user_id === ADMIN_ID && message.isannouncement) {
               addAnnouncement(message);
             }
+            
+            // 알림음 재생
+            playNotificationSound();
           }
         });
         
@@ -492,12 +492,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // 스크롤을 최하단으로
         scrollToBottom();
-      } else {
-        showStatus(window.i18n.translate('status.no_new_messages'));
       }
     } catch (error) {
-      console.error('메시지 새로고침 오류:', error);
-      showStatus('새로고침 중 오류가 발생했습니다.', true);
+      debug('새 메시지 확인 중 오류 발생:', error);
     }
   }
   
@@ -1093,7 +1090,23 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   
   refreshButton.addEventListener('click', () => {
-    checkNewMessages();
+    const prevTimestamp = state.lastMessageTimestamp;
+    // 마지막 메시지 타임스탬프를 살짝 과거로 설정하여 더 많은 메시지를 가져오도록 함
+    try {
+      // 타임스탬프를 10분 전으로 설정
+      const tenMinutesAgo = new Date();
+      tenMinutesAgo.setMinutes(tenMinutesAgo.getMinutes() - 10);
+      state.lastMessageTimestamp = tenMinutesAgo.toISOString();
+      
+      // 새 메시지 확인
+      checkNewMessages();
+      
+      showStatus(window.i18n.translate('status.refreshed'));
+    } catch (error) {
+      // 오류 발생 시 원래 타임스탬프 복원
+      state.lastMessageTimestamp = prevTimestamp;
+      showStatus('새로고침 실패', true);
+    }
   });
   
   logoutButton.addEventListener('click', () => {
