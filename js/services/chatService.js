@@ -1,466 +1,596 @@
-// js/services/chatService.js
-(function() {
-  'use strict';
-  
-  /**
-   * 채팅 서비스 모듈 - 메시지 관리 및 실시간 통신
-   * 
-   * 설명: 이 모듈은 채팅 메시지 처리 및 실시간 통신을 담당합니다.
-   * 메시지 전송, 수신, 저장, 실시간 업데이트 등의 기능을 제공합니다.
-   */
-  
-  // 설정 불러오기
-  const config = window.appConfig;
-  
-  // 디버그 로깅
-  function debug(...args) {
-    if (config.isDebugMode()) {
-      console.log('[Chat Service]', ...args);
-    }
-  }
-  
-  // 현재 채팅방 정보
-  let currentRoom = null;
-  
-  // 마지막 메시지 타임스탬프
-  let lastMessageTimestamp = null;
-  
-  // 실시간 구독 채널
-  let realtimeChannel = null;
-  
-  // 폴링 타이머
-  let pollingTimer = null;
-  
-  // 이벤트 리스너
-  const eventListeners = {
-    messageReceived: [],
-    announcementReceived: [],
-    connectionStatusChanged: []
-  };
-  
-  /**
-   * 이벤트 발생
-   * @param {string} eventName - 이벤트 이름
-   * @param {Object} data - 이벤트 데이터
-   */
-  function triggerEvent(eventName, data) {
-    if (eventListeners[eventName]) {
-      eventListeners[eventName].forEach(listener => {
-        try {
-          listener(data);
-        } catch (error) {
-          debug('이벤트 리스너 오류:', error);
+/**
+ * chatService.js
+ * 채팅 메시지 처리를 담당하는 서비스
+ */
+
+const chatService = (() => {
+    // 현재 채팅방 및 메시지 관련 상태
+    let currentRoomId = null;
+    let lastMessageId = null;
+    let messages = [];
+    let isPolling = false;
+    let pollingInterval = null;
+    let replyToMessage = null;
+    
+    // 이벤트 콜백 함수
+    let messageCallbacks = [];
+    
+    /**
+     * 채팅방 입장
+     * @param {string} roomId - 채팅방 ID
+     * @returns {Promise<Array>} 채팅 메시지 목록
+     */
+    const joinRoom = async (roomId) => {
+        if (!roomId) {
+            throw new Error('유효하지 않은 채팅방입니다');
         }
-      });
-    }
-  }
-  
-  /**
-   * 채팅방 참가
-   * @param {string} roomId - 채팅방 ID
-   * @returns {Promise<Object>} 채팅방 정보
-   */
-  async function joinRoom(roomId) {
-    if (!roomId) {
-      roomId = config.getAppConfig().defaultRoom;
-    }
-    
-    // 이전 채팅방이 있으면 정리
-    if (currentRoom && currentRoom.id !== roomId) {
-      leaveRoom();
-    }
-    
-    // 채팅방 정보 설정
-    currentRoom = {
-      id: roomId,
-      joined: true,
-      joinedAt: new Date().toISOString()
-    };
-    
-    // 실시간 업데이트 설정
-    setupRealtimeUpdates();
-    
-    debug('채팅방 참가:', roomId);
-    
-    return currentRoom;
-  }
-  
-  /**
-   * 채팅방 퇴장
-   */
-  function leaveRoom() {
-    if (!currentRoom) {
-      return;
-    }
-    
-    // 실시간 업데이트 정리
-    clearRealtimeUpdates();
-    
-    // 채팅방 정보 초기화
-    currentRoom = null;
-    lastMessageTimestamp = null;
-    
-    debug('채팅방 퇴장');
-  }
-  
-  /**
-   * 실시간 업데이트 설정
-   */
-  function setupRealtimeUpdates() {
-    if (!currentRoom) {
-      return;
-    }
-    
-    // 이전 설정이 있으면 정리
-    clearRealtimeUpdates();
-    
-    // 1. Supabase Realtime 구독 설정
-    realtimeChannel = window.dbService.setupRealtimeSubscription(
-      currentRoom.id,
-      handleNewMessage
-    );
-    
-    // 2. 폴링 방식 설정 (백업)
-    startPolling();
-    
-    debug('실시간 업데이트 설정 완료');
-  }
-  
-  /**
-   * 실시간 업데이트 정리
-   */
-  function clearRealtimeUpdates() {
-    // Supabase Realtime 구독 해제
-    if (realtimeChannel) {
-      realtimeChannel.unsubscribe();
-      realtimeChannel = null;
-    }
-    
-    // 폴링 타이머 정리
-    if (pollingTimer) {
-      clearInterval(pollingTimer);
-      pollingTimer = null;
-    }
-    
-    debug('실시간 업데이트 정리 완료');
-  }
-  
-  /**
-   * 폴링 시작
-   */
-  function startPolling() {
-    // 이전 타이머가 있으면 정리
-    if (pollingTimer) {
-      clearInterval(pollingTimer);
-    }
-    
-    // 마지막 메시지 타임스탬프가 없으면 현재 시간으로 설정
-    if (!lastMessageTimestamp) {
-      lastMessageTimestamp = new Date().toISOString();
-    }
-    
-    // 폴링 간격 설정
-    const interval = config.getAppConfig().pollingInterval;
-    
-    // 폴링 타이머 설정
-    pollingTimer = setInterval(
-      checkNewMessages, 
-      interval
-    );
-    
-    debug('폴링 시작:', interval + 'ms 간격');
-  }
-  
-  /**
-   * 새 메시지 확인 (폴링)
-   */
-  async function checkNewMessages() {
-    if (!currentRoom || !lastMessageTimestamp) {
-      return;
-    }
-    
-    try {
-      debug('새 메시지 확인 중...', lastMessageTimestamp);
-      
-      // 새 메시지 가져오기
-      const { data, error, local } = await window.dbService.getNewMessages(
-        currentRoom.id,
-        lastMessageTimestamp
-      );
-      
-      if (error && !local) {
-        debug('새 메시지 확인 오류:', error);
-        return;
-      }
-      
-      // 새 메시지가 있으면 처리
-      if (data && data.length > 0) {
-        debug(`${data.length}개의 새 메시지 수신`);
         
-        // 새 메시지 처리
-        data.forEach(handleNewMessage);
+        try {
+            // 이전 채팅방에서 나가기
+            if (currentRoomId) {
+                await leaveRoom();
+            }
+            
+            // 현재 채팅방 설정
+            currentRoomId = roomId;
+            messages = [];
+            lastMessageId = null;
+            
+            // 채팅 메시지 로드
+            await loadMessages();
+            
+            // 실시간 구독 설정
+            await _setupRealtime();
+            
+            // 폴링 시작 (실시간 통신의 백업으로 사용)
+            _startPolling();
+            
+            // 사용자 목록 불러오기
+            await userService.getRoomUsers(roomId);
+            
+            return messages;
+        } catch (error) {
+            console.error(`채팅방 입장 실패 (ID: ${roomId}):`, error);
+            throw new Error('채팅방 입장에 실패했습니다');
+        }
+    };
+    
+    /**
+     * 채팅방 퇴장
+     * @returns {Promise<boolean>} 퇴장 성공 여부
+     */
+    const leaveRoom = async () => {
+        if (!currentRoomId) {
+            return true;
+        }
         
-        // 마지막 메시지 타임스탬프 업데이트
-        lastMessageTimestamp = data[data.length - 1].created_at;
-      }
-    } catch (error) {
-      debug('폴링 오류:', error);
-    }
-  }
-  
-  /**
-   * 새 메시지 처리
-   * @param {Object} message - 새 메시지
-   */
-  function handleNewMessage(message) {
-    if (!message) {
-      return;
-    }
-    
-    // 내가 보낸 메시지는 무시 (이미 화면에 표시되어 있으므로)
-    const currentUser = window.userService.getCurrentUser();
-    if (currentUser && message.user_id === currentUser.id) {
-      debug('내가 보낸 메시지 무시:', message.id);
-      return;
-    }
-    
-    debug('새 메시지 처리:', message);
-    
-    // 이벤트 발생
-    triggerEvent('messageReceived', message);
-    
-    // 공지사항이면 추가 이벤트 발생
-    if (message.isannouncement) {
-      triggerEvent('announcementReceived', message);
-    }
-  }
-  
-  /**
-   * 메시지 전송
-   * @param {string} messageText - 메시지 내용
-   * @param {Object} replyTo - 답장 대상 정보 (선택)
-   * @returns {Promise<Object>} 저장된 메시지
-   */
-  async function sendMessage(messageText, replyTo = null) {
-    if (!messageText || messageText.trim() === '') {
-      throw new Error('메시지 내용은 필수입니다.');
-    }
-    
-    if (!currentRoom) {
-      throw new Error('참가한 채팅방이 없습니다.');
-    }
-    
-    const currentUser = window.userService.getCurrentUser();
-    if (!currentUser) {
-      throw new Error('로그인된 사용자가 없습니다.');
-    }
-    
-    // 공지사항 여부 확인 (관리자만 가능)
-    const isAnnouncement = window.userService.isAdmin() && 
-                         messageText.startsWith(config.getAppConfig().announcementTag);
-    
-    // 공지사항이면 명령어 제거
-    const finalMessage = isAnnouncement 
-      ? messageText.substring(config.getAppConfig().announcementTag.length) 
-      : messageText;
-    
-    // 메시지 객체 생성
-    const messageData = {
-      room_id: currentRoom.id,
-      user_id: currentUser.id,
-      username: currentUser.username,
-      message: finalMessage,
-      language: currentUser.preferred_language,
-      isannouncement: isAnnouncement
+        try {
+            // 실시간 구독 취소
+            realtimeService.unsubscribeAll();
+            
+            // 폴링 중지
+            _stopPolling();
+            
+            // 상태 초기화
+            currentRoomId = null;
+            messages = [];
+            lastMessageId = null;
+            replyToMessage = null;
+            
+            return true;
+        } catch (error) {
+            console.error('채팅방 퇴장 실패:', error);
+            return false;
+        }
     };
     
-    // 답장 정보 추가
-    if (replyTo) {
-      messageData.reply_to = {
-        id: replyTo.id,
-        username: replyTo.username,
-        message: replyTo.message
-      };
-    }
-    
-    debug('메시지 전송 중...', messageData);
-    
-    try {
-      // 메시지 저장
-      const { data, error, local } = await window.dbService.saveMessage(messageData);
-      
-      if (error && !local) {
-        throw error;
-      }
-      
-      const savedMessage = data[0];
-      debug('메시지 저장 완료:', savedMessage);
-      
-      // 마지막 메시지 타임스탬프 업데이트
-      lastMessageTimestamp = savedMessage.created_at;
-      
-      return { message: savedMessage, local };
-    } catch (error) {
-      debug('메시지 전송 오류:', error);
-      throw error;
-    }
-  }
-  
-  /**
-   * 시스템 메시지 전송
-   * @param {string} messageText - 메시지 내용
-   * @returns {Object} 시스템 메시지
-   */
-  function sendSystemMessage(messageText) {
-    if (!messageText || !currentRoom) {
-      return null;
-    }
-    
-    // 시스템 메시지 객체 생성
-    const systemMessage = {
-      id: `system_${Date.now()}`,
-      room_id: currentRoom.id,
-      user_id: 'system',
-      username: 'System',
-      message: messageText,
-      language: 'system',
-      created_at: new Date().toISOString(),
-      isannouncement: false
+    /**
+     * 초기 메시지 로드
+     * @param {number} limit - 로드할 메시지 수
+     * @returns {Promise<Array>} 채팅 메시지 목록
+     */
+    const loadMessages = async (limit = 50) => {
+        if (!currentRoomId) {
+            throw new Error('채팅방에 입장하지 않았습니다');
+        }
+        
+        try {
+            // 메시지 로드
+            const newMessages = await dbService.getMessages(currentRoomId, limit);
+            
+            if (newMessages.length > 0) {
+                messages = newMessages;
+                lastMessageId = messages[messages.length - 1].id;
+            }
+            
+            // 사용자 선호 언어로 메시지 번역
+            const user = userService.getCurrentUser();
+            if (user && user.preferred_language) {
+                messages = await translationService.translateMessages(
+                    messages, 
+                    user.preferred_language
+                );
+            }
+            
+            // 메시지 수신 이벤트 발생
+            _notifyMessagesReceived(messages);
+            
+            return messages;
+        } catch (error) {
+            console.error('메시지 로드 실패:', error);
+            throw new Error('메시지를 불러오는데 실패했습니다');
+        }
     };
     
-    debug('시스템 메시지 생성:', systemMessage);
+    /**
+     * 더 오래된 메시지 로드 (스크롤 업)
+     * @param {number} limit - 로드할 메시지 수
+     * @returns {Promise<Array>} 채팅 메시지 목록
+     */
+    const loadOlderMessages = async (limit = 20) => {
+        if (!currentRoomId || messages.length === 0) {
+            return [];
+        }
+        
+        try {
+            // 가장 오래된 메시지의 시간 확인
+            const oldestMessage = messages[0];
+            
+            // TODO: 구현 필요
+            // 현재는 클라이언트 측에서 특정 시간 이전의 메시지를 가져오는 기능이 제한됨
+            // 필요 시 서버 측에서 추가 구현해야 함
+            
+            return [];
+        } catch (error) {
+            console.error('이전 메시지 로드 실패:', error);
+            return [];
+        }
+    };
     
-    // 이벤트 발생
-    triggerEvent('messageReceived', systemMessage);
+    /**
+     * 메시지 전송
+     * @param {string} messageText - 메시지 텍스트
+     * @param {boolean} isAnnouncement - 공지 여부
+     * @returns {Promise<Object>} 전송된 메시지
+     */
+    const sendMessage = async (messageText, isAnnouncement = false) => {
+        if (!currentRoomId) {
+            throw new Error('채팅방에 입장하지 않았습니다');
+        }
+        
+        const user = userService.getCurrentUser();
+        if (!user) {
+            throw new Error('로그인되지 않았습니다');
+        }
+        
+        // 메시지 텍스트 검증
+        if (!messageText || messageText.trim() === '') {
+            throw new Error('메시지를 입력해주세요');
+        }
+        
+        // 공지사항 권한 확인 (관리자만 가능)
+        if (isAnnouncement && user.role !== 'admin') {
+            throw new Error('공지사항 작성 권한이 없습니다');
+        }
+        
+        try {
+            // 메시지 데이터 생성
+            const messageData = {
+                chatroom_id: currentRoomId,
+                user_id: user.id,
+                username: user.username,
+                message: messageText.trim(),
+                language: user.preferred_language,
+                created_at: new Date().toISOString(),
+                isannouncement: isAnnouncement,
+                reply_to: replyToMessage ? {
+                    id: replyToMessage.id,
+                    username: replyToMessage.username,
+                    message: replyToMessage.message
+                } : null
+            };
+            
+            // 메시지 전송
+            const sentMessage = await dbService.sendMessage(messageData);
+            
+            // 답장 정보 초기화
+            replyToMessage = null;
+            
+            return sentMessage;
+        } catch (error) {
+            console.error('메시지 전송 실패:', error);
+            
+            // 네트워크 오류 시 오프라인 모드에서 처리
+            if (error.message.includes('네트워크') || error.message.includes('연결')) {
+                return _handleOfflineMessage(messageText, isAnnouncement);
+            }
+            
+            throw new Error('메시지 전송에 실패했습니다');
+        }
+    };
     
-    return systemMessage;
-  }
-  
-  /**
-   * 이전 메시지 로드
-   * @param {number} limit - 가져올 메시지 수
-   * @returns {Promise<Array>} 메시지 목록
-   */
-  async function loadMessages(limit = 50) {
-    if (!currentRoom) {
-      throw new Error('참가한 채팅방이 없습니다.');
-    }
+    /**
+     * 공지사항 전송
+     * @param {string} messageText - 공지 텍스트
+     * @returns {Promise<Object>} 전송된 공지사항
+     */
+    const sendAnnouncement = async (messageText) => {
+        return await sendMessage(messageText, true);
+    };
     
-    debug('이전 메시지 로드 중...', currentRoom.id);
+    /**
+     * 메시지에 답장 설정
+     * @param {Object} message - 답장할 메시지
+     */
+    const setReplyTo = (message) => {
+        replyToMessage = message;
+    };
     
-    try {
-      // 메시지 가져오기
-      const { data, error, local } = await window.dbService.getMessages(
-        currentRoom.id,
-        limit
-      );
-      
-      if (error && !local) {
-        throw error;
-      }
-      
-      debug(`${data.length}개의 메시지 로드 완료`);
-      
-      // 마지막 메시지 타임스탬프 설정
-      if (data.length > 0) {
-        lastMessageTimestamp = data[data.length - 1].created_at;
-      } else {
-        lastMessageTimestamp = new Date().toISOString();
-      }
-      
-      return { messages: data, local };
-    } catch (error) {
-      debug('메시지 로드 오류:', error);
-      throw error;
-    }
-  }
-  
-  /**
-   * 공지사항 가져오기
-   * @returns {Promise<Object>} 공지사항
-   */
-  async function getAnnouncements() {
-    if (!currentRoom) {
-      return { announcement: null, local: true };
-    }
+    /**
+     * 답장 정보 가져오기
+     * @returns {Object|null} 답장 정보
+     */
+    const getReplyTo = () => {
+        return replyToMessage;
+    };
     
-    try {
-      debug('공지사항 가져오기 중...', currentRoom.id);
-      
-      // 공지사항 가져오기
-      const { data, error, local } = await window.dbService.getAnnouncements(
-        currentRoom.id,
-        config.getAppConfig().adminId
-      );
-      
-      if (error && !local) {
-        debug('공지사항 가져오기 오류:', error);
-      }
-      
-      // 공지사항이 있으면 반환
-      if (data && data.length > 0) {
-        debug('공지사항 로드 완료:', data[0]);
-        return { announcement: data[0], local };
-      }
-      
-      return { announcement: null, local };
-    } catch (error) {
-      debug('공지사항 가져오기 오류:', error);
-      return { announcement: null, local: true };
-    }
-  }
-  
-  /**
-   * 이벤트 리스너 등록
-   * @param {string} eventName - 이벤트 이름
-   * @param {Function} callback - 콜백 함수
-   */
-  function addEventListener(eventName, callback) {
-    if (!eventListeners[eventName]) {
-      eventListeners[eventName] = [];
-    }
+    /**
+     * 답장 정보 초기화
+     */
+    const clearReplyTo = () => {
+        replyToMessage = null;
+    };
     
-    eventListeners[eventName].push(callback);
+    /**
+     * 메시지 목록 가져오기
+     * @returns {Array} 현재 메시지 목록
+     */
+    const getMessages = () => {
+        return [...messages];
+    };
     
-    debug('이벤트 리스너 등록:', eventName);
-  }
-  
-  /**
-   * 이벤트 리스너 제거
-   * @param {string} eventName - 이벤트 이름
-   * @param {Function} callback - 콜백 함수
-   */
-  function removeEventListener(eventName, callback) {
-    if (!eventListeners[eventName]) {
-      return;
-    }
+    /**
+     * 메시지 수신 이벤트에 콜백 등록
+     * @param {Function} callback - 메시지 수신 시 호출할 콜백 함수
+     */
+    const onMessage = (callback) => {
+        if (typeof callback === 'function') {
+            messageCallbacks.push(callback);
+        }
+    };
     
-    eventListeners[eventName] = eventListeners[eventName].filter(
-      listener => listener !== callback
-    );
+    /**
+     * 내부: 실시간 서비스 설정
+     * @returns {Promise<boolean>} 설정 성공 여부
+     * @private
+     */
+    const _setupRealtime = async () => {
+        if (!currentRoomId) {
+            return false;
+        }
+        
+        try {
+            const user = userService.getCurrentUser();
+            
+            // 실시간 서비스 초기화
+            await realtimeService.initialize();
+            
+            // 메시지 구독
+            await realtimeService.subscribeToMessages(currentRoomId);
+            
+            // 사용자 업데이트 구독
+            await realtimeService.subscribeToUserUpdates(currentRoomId);
+            
+            // Presence 구독 (사용자가 있는 경우)
+            if (user) {
+                await realtimeService.subscribeToPresence(currentRoomId, user.id);
+            }
+            
+            // 메시지 수신 이벤트 처리
+            realtimeService.onMessage(_handleNewMessage);
+            
+            // 연결 상태 변경 이벤트 처리
+            realtimeService.onConnectionChange(_handleConnectionChange);
+            
+            return true;
+        } catch (error) {
+            console.error('실시간 서비스 설정 실패:', error);
+            return false;
+        }
+    };
     
-    debug('이벤트 리스너 제거:', eventName);
-  }
-  
-  /**
-   * 현재 채팅방 정보 가져오기
-   * @returns {Object|null} 채팅방 정보
-   */
-  function getCurrentRoom() {
-    return currentRoom;
-  }
-  
-  // 공개 API
-  window.chatService = {
-    joinRoom,
-    leaveRoom,
-    sendMessage,
-    sendSystemMessage,
-    loadMessages,
-    getAnnouncements,
-    addEventListener,
-    removeEventListener,
-    getCurrentRoom,
-    checkNewMessages  // 수동 새로고침용
-  };
+    /**
+     * 내부: 새 메시지 처리
+     * @param {Object} message - 수신된 메시지
+     * @private
+     */
+    const _handleNewMessage = async (message) => {
+        if (!message || !currentRoomId || message.chatroom_id !== currentRoomId) {
+            return;
+        }
+        
+        try {
+            // 중복 메시지 확인
+            const isDuplicate = messages.some(m => m.id === message.id);
+            if (isDuplicate) {
+                return;
+            }
+            
+            // 사용자 선호 언어로 메시지 번역
+            const user = userService.getCurrentUser();
+            if (user && user.preferred_language) {
+                message = await translationService.translateMessage(
+                    message, 
+                    user.preferred_language
+                );
+            }
+            
+            // 메시지 목록에 추가
+            messages.push(message);
+            lastMessageId = message.id;
+            
+            // 메시지 수신 이벤트 발생
+            _notifyMessageReceived(message);
+            
+            // 사용자 활동 시간 업데이트
+            userService.updateActivity();
+        } catch (error) {
+            console.error('새 메시지 처리 실패:', error);
+        }
+    };
+    
+    /**
+     * 내부: 연결 상태 변경 처리
+     * @param {string} status - 변경된 연결 상태
+     * @private
+     */
+    const _handleConnectionChange = (status) => {
+        if (status === 'connected') {
+            // 연결 복구 시 동기화
+            _syncOfflineMessages();
+        } else if (status === 'disconnected') {
+            // 연결 끊김 시 폴링 시작
+            _startPolling();
+        }
+    };
+    
+    /**
+     * 내부: 메시지 폴링 시작
+     * @param {number} interval - 폴링 간격 (밀리초)
+     * @private
+     */
+    const _startPolling = (interval = 10000) => {
+        if (isPolling || !currentRoomId) {
+            return;
+        }
+        
+        isPolling = true;
+        
+        // 정기적으로 새 메시지 확인
+        pollingInterval = setInterval(async () => {
+            if (!currentRoomId || !lastMessageId) {
+                return;
+            }
+            
+            try {
+                const newMessages = await dbService.getNewMessages(currentRoomId, lastMessageId);
+                
+                if (newMessages.length > 0) {
+                    // 사용자 선호 언어로 메시지 번역
+                    const user = userService.getCurrentUser();
+                    if (user && user.preferred_language) {
+                        const translatedMessages = await translationService.translateMessages(
+                            newMessages, 
+                            user.preferred_language
+                        );
+                        
+                        // 메시지 목록에 추가
+                        messages = [...messages, ...translatedMessages];
+                        lastMessageId = messages[messages.length - 1].id;
+                        
+                        // 메시지 수신 이벤트 발생
+                        _notifyMessagesReceived(translatedMessages);
+                    } else {
+                        // 번역 없이 메시지 목록에 추가
+                        messages = [...messages, ...newMessages];
+                        lastMessageId = messages[messages.length - 1].id;
+                        
+                        // 메시지 수신 이벤트 발생
+                        _notifyMessagesReceived(newMessages);
+                    }
+                }
+            } catch (error) {
+                console.error('메시지 폴링 실패:', error);
+            }
+        }, interval);
+    };
+    
+    /**
+     * 내부: 메시지 폴링 중지
+     * @private
+     */
+    const _stopPolling = () => {
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+        }
+        
+        isPolling = false;
+    };
+    
+    /**
+     * 내부: 오프라인 메시지 처리
+     * @param {string} messageText - 메시지 텍스트
+     * @param {boolean} isAnnouncement - 공지 여부
+     * @returns {Object} 임시 저장된 메시지
+     * @private
+     */
+    const _handleOfflineMessage = (messageText, isAnnouncement = false) => {
+        const user = userService.getCurrentUser();
+        
+        // 임시 메시지 생성
+        const tempMessage = {
+            id: `temp_${Date.now()}`,
+            chatroom_id: currentRoomId,
+            user_id: user.id,
+            username: user.username,
+            message: messageText.trim(),
+            language: user.preferred_language,
+            created_at: new Date().toISOString(),
+            isannouncement: isAnnouncement,
+            reply_to: replyToMessage ? {
+                id: replyToMessage.id,
+                username: replyToMessage.username,
+                message: replyToMessage.message
+            } : null,
+            isPending: true // 오프라인 전송 표시
+        };
+        
+        // 오프라인 메시지 저장
+        offlineService.saveOfflineMessage(tempMessage);
+        
+        // 메시지 목록에 추가
+        messages.push(tempMessage);
+        
+        // 메시지 수신 이벤트 발생
+        _notifyMessageReceived(tempMessage);
+        
+        return tempMessage;
+    };
+    
+    /**
+     * 내부: 오프라인 메시지 동기화
+     * @private
+     */
+    const _syncOfflineMessages = async () => {
+        if (!currentRoomId) {
+            return;
+        }
+        
+        try {
+            // 오프라인 메시지 가져오기
+            const offlineMessages = offlineService.getOfflineMessages(currentRoomId);
+            
+            if (offlineMessages.length === 0) {
+                return;
+            }
+            
+            // 오프라인 메시지 전송 중 상태로 변경
+            offlineMessages.forEach(message => {
+                const index = messages.findIndex(m => m.id === message.id);
+                if (index !== -1) {
+                    messages[index].isSyncing = true;
+                    _notifyMessageUpdated(messages[index]);
+                }
+            });
+            
+            // 오프라인 메시지 순차적으로 전송
+            for (const message of offlineMessages) {
+                try {
+                    // 메시지 데이터 준비
+                    const messageData = {
+                        chatroom_id: message.chatroom_id,
+                        user_id: message.user_id,
+                        username: message.username,
+                        message: message.message,
+                        language: message.language,
+                        created_at: new Date().toISOString(), // 현재 시간으로 업데이트
+                        isannouncement: message.isannouncement,
+                        reply_to: message.reply_to
+                    };
+                    
+                    // 메시지 전송
+                    const sentMessage = await dbService.sendMessage(messageData);
+                    
+                    // 임시 메시지 제거
+                    const index = messages.findIndex(m => m.id === message.id);
+                    if (index !== -1) {
+                        messages.splice(index, 1);
+                    }
+                    
+                    // 전송된 메시지 추가
+                    messages.push(sentMessage);
+                    lastMessageId = sentMessage.id;
+                    
+                    // 메시지 수신 이벤트 발생
+                    _notifyMessageReceived(sentMessage);
+                    
+                    // 오프라인 메시지 제거
+                    offlineService.removeOfflineMessage(message.id);
+                } catch (error) {
+                    console.error(`오프라인 메시지 동기화 실패 (ID: ${message.id}):`, error);
+                    
+                    // 오류 발생 시 동기화 실패 상태로 변경
+                    const index = messages.findIndex(m => m.id === message.id);
+                    if (index !== -1) {
+                        messages[index].syncFailed = true;
+                        messages[index].isSyncing = false;
+                        _notifyMessageUpdated(messages[index]);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('오프라인 메시지 동기화 실패:', error);
+        }
+    };
+    
+    /**
+     * 내부: 메시지 수신 콜백 호출
+     * @param {Object} message - 수신된 메시지
+     * @private
+     */
+    const _notifyMessageReceived = (message) => {
+        messageCallbacks.forEach(callback => {
+            try {
+                callback('new', message);
+            } catch (error) {
+                console.error('메시지 수신 콜백 실행 중 오류 발생:', error);
+            }
+        });
+    };
+    
+    /**
+     * 내부: 메시지 목록 수신 콜백 호출
+     * @param {Array} newMessages - 수신된 메시지 목록
+     * @private
+     */
+    const _notifyMessagesReceived = (newMessages) => {
+        messageCallbacks.forEach(callback => {
+            try {
+                callback('list', newMessages);
+            } catch (error) {
+                console.error('메시지 목록 수신 콜백 실행 중 오류 발생:', error);
+            }
+        });
+    };
+    
+    /**
+     * 내부: 메시지 업데이트 콜백 호출
+     * @param {Object} message - 업데이트된 메시지
+     * @private
+     */
+    const _notifyMessageUpdated = (message) => {
+        messageCallbacks.forEach(callback => {
+            try {
+                callback('update', message);
+            } catch (error) {
+                console.error('메시지 업데이트 콜백 실행 중 오류 발생:', error);
+            }
+        });
+    };
+    
+    // 공개 API
+    return {
+        joinRoom,
+        leaveRoom,
+        loadMessages,
+        loadOlderMessages,
+        sendMessage,
+        sendAnnouncement,
+        setReplyTo,
+        getReplyTo,
+        clearReplyTo,
+        getMessages,
+        onMessage
+    };
 })();

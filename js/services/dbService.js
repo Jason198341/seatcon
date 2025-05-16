@@ -1,430 +1,508 @@
-// js/services/dbService.js
-(function() {
-  'use strict';
-  
-  /**
-   * 데이터베이스 서비스 모듈 - Supabase 연결 및 통신 관리
-   * 
-   * 설명: 이 모듈은 Supabase 데이터베이스 연결 및 데이터 작업을 담당합니다.
-   * 연결 실패 시 로컬 스토리지로 폴백하는 메커니즘을 포함합니다.
-   */
-  
-  // 설정 불러오기
-  const config = window.appConfig;
-  
-  // 디버그 로깅
-  function debug(...args) {
-    if (config.isDebugMode()) {
-      console.log('[DB Service]', ...args);
-    }
-  }
-  
-  // Supabase 클라이언트
-  let supabase = null;
-  
-  // 연결 상태
-  let connectionStatus = {
-    online: false,
-    initialized: false,
-    lastError: null
-  };
-  
-  // 오프라인 캐시
-  let offlineCache = {
-    messages: {},
-    users: {}
-  };
-  
-  // 데이터베이스 초기화
-  function initialize() {
-    if (connectionStatus.initialized) {
-      return Promise.resolve(connectionStatus);
-    }
+/**
+ * dbService.js
+ * Supabase 데이터베이스 연결 및 데이터 처리를 담당하는 서비스
+ */
+
+// Supabase 클라이언트 설정을 위한 상수
+const SUPABASE_URL = 'https://dolywnpcrutdxuxkozae.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvbHl3bnBjcnV0ZHh1eGtvemFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2NDEyMDYsImV4cCI6MjA2MjIxNzIwNn0.--UVh_FtCPp23EHzJEejyl9GUX6-6Fao81PlPQDR5G8';
+
+// Supabase 클라이언트 인스턴스 생성
+const dbService = (() => {
+    let supabase;
     
-    try {
-      debug('Supabase 클라이언트 초기화 중...');
-      
-      // Supabase 클라이언트 생성
-      supabase = window.supabase.createClient(
-        config.getSupabaseUrl(),
-        config.getSupabaseKey()
-      );
-      
-      connectionStatus.initialized = true;
-      
-      // 연결 테스트
-      return testConnection();
-    } catch (error) {
-      debug('초기화 오류:', error);
-      connectionStatus.online = false;
-      connectionStatus.lastError = error;
-      return Promise.resolve(connectionStatus);
-    }
-  }
-  
-  // 연결 테스트
-  async function testConnection() {
-    try {
-      debug('Supabase 연결 테스트 중...');
-      
-      // 간단한 쿼리로 연결 테스트
-      const { error } = await supabase
-        .from('messages')
-        .select('count')
-        .limit(1);
-      
-      if (error) {
-        throw error;
-      }
-      
-      connectionStatus.online = true;
-      debug('Supabase 연결 성공');
-      return connectionStatus;
-    } catch (error) {
-      debug('Supabase 연결 실패:', error);
-      connectionStatus.online = false;
-      connectionStatus.lastError = error;
-      return connectionStatus;
-    }
-  }
-  
-  // 오프라인 모드에서 메시지 저장
-  function saveMessageLocally(roomId, message) {
-    if (!offlineCache.messages[roomId]) {
-      offlineCache.messages[roomId] = [];
-    }
-    
-    // 중복 방지
-    const exists = offlineCache.messages[roomId].some(m => m.id === message.id);
-    if (!exists) {
-      offlineCache.messages[roomId].push(message);
-      
-      // 로컬 스토리지에도 저장
-      const localMessages = getLocalMessages(roomId);
-      localMessages.push(message);
-      saveLocalMessages(roomId, localMessages);
-    }
-  }
-  
-  // 로컬 메시지 가져오기
-  function getLocalMessages(roomId) {
-    const messagesJson = localStorage.getItem(`chat_messages_${roomId}`);
-    return messagesJson ? JSON.parse(messagesJson) : [];
-  }
-  
-  // 로컬 메시지 저장
-  function saveLocalMessages(roomId, messages) {
-    // 메시지 수가 너무 많으면 최근 메시지만 유지
-    if (messages.length > config.getAppConfig().maxMessagesInMemory) {
-      messages = messages.slice(-config.getAppConfig().maxMessagesInMemory);
-    }
-    
-    localStorage.setItem(`chat_messages_${roomId}`, JSON.stringify(messages));
-  }
-  
-  // Supabase에 사용자 생성
-  async function createUser(userData) {
-    await initialize();
-    
-    try {
-      if (!connectionStatus.online) {
-        debug('오프라인 모드: 로컬에만 사용자 저장');
-        return {
-          data: userData,
-          error: null,
-          local: true
-        };
-      }
-      
-      debug('Supabase에 사용자 저장 중...', userData);
-      
-      const { data, error } = await supabase
-        .from('users')
-        .insert(userData)
-        .select();
-      
-      if (error) {
-        throw error;
-      }
-      
-      debug('사용자 저장 완료:', data);
-      return { data, error: null, local: false };
-    } catch (error) {
-      debug('사용자 저장 오류:', error);
-      
-      // 로컬에만 저장
-      if (!offlineCache.users[userData.id]) {
-        offlineCache.users[userData.id] = userData;
-      }
-      
-      return {
-        data: userData,
-        error,
-        local: true
-      };
-    }
-  }
-  
-  // Supabase에 메시지 저장
-  async function saveMessage(messageData) {
-    await initialize();
-    
-    try {
-      if (!connectionStatus.online) {
-        debug('오프라인 모드: 로컬에만 메시지 저장');
-        
-        // 로컬 ID 생성
-        const localMessage = {
-          ...messageData,
-          id: `local_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-          created_at: new Date().toISOString()
-        };
-        
-        saveMessageLocally(messageData.room_id, localMessage);
-        
-        return {
-          data: [localMessage],
-          error: null,
-          local: true
-        };
-      }
-      
-      debug('Supabase에 메시지 저장 중...', messageData);
-      
-      const { data, error } = await supabase
-        .from('messages')
-        .insert(messageData)
-        .select();
-      
-      if (error) {
-        throw error;
-      }
-      
-      debug('메시지 저장 완료:', data);
-      
-      // 로컬 캐시에도 저장 (오프라인 폴백을 위해)
-      saveMessageLocally(messageData.room_id, data[0]);
-      
-      return { data, error: null, local: false };
-    } catch (error) {
-      debug('메시지 저장 오류:', error);
-      
-      // 로컬 ID 생성
-      const localMessage = {
-        ...messageData,
-        id: `local_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-        created_at: new Date().toISOString()
-      };
-      
-      // 로컬에만 저장
-      saveMessageLocally(messageData.room_id, localMessage);
-      
-      return {
-        data: [localMessage],
-        error,
-        local: true
-      };
-    }
-  }
-  
-  // 메시지 목록 가져오기
-  async function getMessages(roomId, limit = 50) {
-    await initialize();
-    
-    try {
-      if (!connectionStatus.online) {
-        debug('오프라인 모드: 로컬 메시지 사용');
-        const localMessages = getLocalMessages(roomId);
-        return {
-          data: localMessages.slice(-limit),
-          error: null,
-          local: true
-        };
-      }
-      
-      debug('Supabase에서 메시지 가져오는 중...', roomId);
-      
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('room_id', roomId)
-        .order('created_at', { ascending: true })
-        .limit(limit);
-      
-      if (error) {
-        throw error;
-      }
-      
-      debug(`${data.length}개의 메시지 로드 완료`);
-      
-      // 로컬 캐시 업데이트
-      data.forEach(message => saveMessageLocally(roomId, message));
-      
-      return { data, error: null, local: false };
-    } catch (error) {
-      debug('메시지 로드 오류:', error);
-      
-      // 오류 시 로컬 메시지 사용
-      const localMessages = getLocalMessages(roomId);
-      
-      return {
-        data: localMessages.slice(-limit),
-        error,
-        local: true
-      };
-    }
-  }
-  
-  // 특정 시간 이후의 메시지 가져오기
-  async function getNewMessages(roomId, timestamp) {
-    await initialize();
-    
-    try {
-      if (!connectionStatus.online) {
-        debug('오프라인 모드: 새 메시지를 가져올 수 없음');
-        return {
-          data: [],
-          error: null,
-          local: true
-        };
-      }
-      
-      debug('새 메시지 가져오는 중...', roomId, timestamp);
-      
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('room_id', roomId)
-        .gt('created_at', timestamp)
-        .order('created_at', { ascending: true });
-      
-      if (error) {
-        throw error;
-      }
-      
-      debug(`${data.length}개의 새 메시지 로드 완료`);
-      
-      // 로컬 캐시 업데이트
-      data.forEach(message => saveMessageLocally(roomId, message));
-      
-      return { data, error: null, local: false };
-    } catch (error) {
-      debug('새 메시지 로드 오류:', error);
-      return {
-        data: [],
-        error,
-        local: true
-      };
-    }
-  }
-  
-  // 공지사항 가져오기
-  async function getAnnouncements(roomId, adminId) {
-    await initialize();
-    
-    try {
-      if (!connectionStatus.online) {
-        debug('오프라인 모드: 로컬 공지사항 사용');
-        
-        // 로컬 메시지에서 공지사항 필터링
-        const localMessages = getLocalMessages(roomId);
-        const announcements = localMessages.filter(m => 
-          m.user_id === adminId && m.isannouncement === true
-        );
-        
-        return {
-          data: announcements.length > 0 ? [announcements[announcements.length - 1]] : [],
-          error: null,
-          local: true
-        };
-      }
-      
-      debug('공지사항 가져오는 중...', roomId, adminId);
-      
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('room_id', roomId)
-        .eq('user_id', adminId)
-        .eq('isannouncement', true)
-        .order('created_at', { ascending: false })
-        .limit(1);
-      
-      if (error) {
-        throw error;
-      }
-      
-      debug('공지사항 로드 완료:', data);
-      
-      return { data, error: null, local: false };
-    } catch (error) {
-      debug('공지사항 로드 오류:', error);
-      
-      // 로컬 메시지에서 공지사항 필터링
-      const localMessages = getLocalMessages(roomId);
-      const announcements = localMessages.filter(m => 
-        m.user_id === adminId && m.isannouncement === true
-      );
-      
-      return {
-        data: announcements.length > 0 ? [announcements[announcements.length - 1]] : [],
-        error,
-        local: true
-      };
-    }
-  }
-  
-  // Realtime 구독 설정
-  function setupRealtimeSubscription(roomId, callback) {
-    if (!connectionStatus.online) {
-      debug('오프라인 모드: Realtime 구독 불가');
-      return null;
-    }
-    
-    debug('Realtime 구독 설정 중...', roomId);
-    
-    try {
-      const channel = supabase
-        .channel(`room:${roomId}`)
-        .on('postgres_changes', { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'messages',
-          filter: `room_id=eq.${roomId}`
-        }, (payload) => {
-          debug('새 메시지 수신:', payload);
-          
-          // 로컬 캐시에 저장
-          saveMessageLocally(roomId, payload.new);
-          
-          // 콜백 호출
-          if (typeof callback === 'function') {
-            callback(payload.new);
-          }
-        })
-        .subscribe((status) => {
-          debug('Realtime 구독 상태:', status);
-        });
-      
-      return channel;
-    } catch (error) {
-      debug('Realtime 구독 오류:', error);
-      return null;
-    }
-  }
-  
-  // 공개 API
-  window.dbService = {
-    initialize,
-    testConnection,
-    getConnectionStatus: () => ({ ...connectionStatus }),
-    createUser,
-    saveMessage,
-    getMessages,
-    getNewMessages,
-    getAnnouncements,
-    setupRealtimeSubscription,
-    getLocalMessages,
-    saveLocalMessages
-  };
+    /**
+     * Supabase 클라이언트 초기화
+     * @returns {Object} Supabase 클라이언트 인스턴스
+     */
+    const initializeClient = () => {
+        if (!supabase) {
+            try {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                console.log('Supabase 클라이언트 초기화 완료');
+            } catch (error) {
+                console.error('Supabase 클라이언트 초기화 실패:', error);
+                throw new Error('데이터베이스 연결에 실패했습니다');
+            }
+        }
+        return supabase;
+    };
+
+    /**
+     * 연결 상태 확인
+     * @returns {Promise<boolean>} 연결 상태
+     */
+    const testConnection = async () => {
+        try {
+            const client = initializeClient();
+            const { data, error } = await client.from('chatrooms').select('id').limit(1);
+            
+            if (error) {
+                throw error;
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('데이터베이스 연결 테스트 실패:', error);
+            return false;
+        }
+    };
+
+    /**
+     * 채팅방 목록 가져오기
+     * @param {boolean} activeOnly - 활성화된 채팅방만 가져올지 여부
+     * @returns {Promise<Array>} 채팅방 목록
+     */
+    const getChatRooms = async (activeOnly = false) => {
+        try {
+            const client = initializeClient();
+            let query = client.from('chatrooms').select('*').order('sort_order', { ascending: true });
+            
+            if (activeOnly) {
+                query = query.eq('is_active', true);
+            }
+            
+            const { data, error } = await query;
+            
+            if (error) {
+                throw error;
+            }
+            
+            return data || [];
+        } catch (error) {
+            console.error('채팅방 목록 조회 실패:', error);
+            throw new Error('채팅방 목록을 불러오는데 실패했습니다');
+        }
+    };
+
+    /**
+     * 채팅방 상세 정보 가져오기
+     * @param {string} roomId - 채팅방 ID
+     * @returns {Promise<Object>} 채팅방 정보
+     */
+    const getChatRoomById = async (roomId) => {
+        try {
+            const client = initializeClient();
+            const { data, error } = await client
+                .from('chatrooms')
+                .select('*')
+                .eq('id', roomId)
+                .single();
+            
+            if (error) {
+                throw error;
+            }
+            
+            return data;
+        } catch (error) {
+            console.error(`채팅방 상세 정보 조회 실패 (ID: ${roomId}):`, error);
+            throw new Error('채팅방 정보를 불러오는데 실패했습니다');
+        }
+    };
+
+    /**
+     * 채팅방 생성
+     * @param {Object} roomData - 채팅방 데이터
+     * @returns {Promise<Object>} 생성된 채팅방 정보
+     */
+    const createChatRoom = async (roomData) => {
+        try {
+            const client = initializeClient();
+            const { data, error } = await client
+                .from('chatrooms')
+                .insert([roomData])
+                .select()
+                .single();
+            
+            if (error) {
+                throw error;
+            }
+            
+            return data;
+        } catch (error) {
+            console.error('채팅방 생성 실패:', error);
+            throw new Error('채팅방 생성에 실패했습니다');
+        }
+    };
+
+    /**
+     * 채팅방 수정
+     * @param {string} roomId - 채팅방 ID
+     * @param {Object} roomData - 업데이트할 채팅방 데이터
+     * @returns {Promise<Object>} 수정된 채팅방 정보
+     */
+    const updateChatRoom = async (roomId, roomData) => {
+        try {
+            const client = initializeClient();
+            const { data, error } = await client
+                .from('chatrooms')
+                .update(roomData)
+                .eq('id', roomId)
+                .select()
+                .single();
+            
+            if (error) {
+                throw error;
+            }
+            
+            return data;
+        } catch (error) {
+            console.error(`채팅방 수정 실패 (ID: ${roomId}):`, error);
+            throw new Error('채팅방 수정에 실패했습니다');
+        }
+    };
+
+    /**
+     * 채팅방 삭제
+     * @param {string} roomId - 채팅방 ID
+     * @returns {Promise<boolean>} 삭제 성공 여부
+     */
+    const deleteChatRoom = async (roomId) => {
+        try {
+            const client = initializeClient();
+            const { error } = await client
+                .from('chatrooms')
+                .delete()
+                .eq('id', roomId);
+            
+            if (error) {
+                throw error;
+            }
+            
+            return true;
+        } catch (error) {
+            console.error(`채팅방 삭제 실패 (ID: ${roomId}):`, error);
+            throw new Error('채팅방 삭제에 실패했습니다');
+        }
+    };
+
+    /**
+     * 채팅방 메시지 가져오기
+     * @param {string} roomId - 채팅방 ID
+     * @param {number} limit - 가져올 메시지 수 (기본값 50)
+     * @param {number} offset - 오프셋 (기본값 0)
+     * @returns {Promise<Array>} 메시지 목록
+     */
+    const getMessages = async (roomId, limit = 50, offset = 0) => {
+        try {
+            const client = initializeClient();
+            const { data, error } = await client
+                .from('messages')
+                .select('*')
+                .eq('chatroom_id', roomId)
+                .order('created_at', { ascending: false })
+                .range(offset, offset + limit - 1);
+            
+            if (error) {
+                throw error;
+            }
+            
+            // 시간 순서대로 정렬하여 반환
+            return (data || []).reverse();
+        } catch (error) {
+            console.error(`메시지 목록 조회 실패 (채팅방 ID: ${roomId}):`, error);
+            throw new Error('메시지 목록을 불러오는데 실패했습니다');
+        }
+    };
+
+    /**
+     * 메시지 작성 (전송)
+     * @param {Object} messageData - 메시지 데이터
+     * @returns {Promise<Object>} 저장된 메시지 정보
+     */
+    const sendMessage = async (messageData) => {
+        try {
+            const client = initializeClient();
+            const { data, error } = await client
+                .from('messages')
+                .insert([messageData])
+                .select()
+                .single();
+            
+            if (error) {
+                throw error;
+            }
+            
+            return data;
+        } catch (error) {
+            console.error('메시지 전송 실패:', error);
+            throw new Error('메시지 전송에 실패했습니다');
+        }
+    };
+
+    /**
+     * 마지막 메시지 ID 이후의 새 메시지 가져오기
+     * @param {string} roomId - 채팅방 ID
+     * @param {string} lastMessageId - 마지막 메시지 ID
+     * @returns {Promise<Array>} 새 메시지 목록
+     */
+    const getNewMessages = async (roomId, lastMessageId) => {
+        try {
+            const client = initializeClient();
+            
+            // 마지막 메시지의 생성 시간 조회
+            const { data: lastMessage, error: lastMessageError } = await client
+                .from('messages')
+                .select('created_at')
+                .eq('id', lastMessageId)
+                .single();
+            
+            if (lastMessageError) {
+                throw lastMessageError;
+            }
+            
+            // 마지막 메시지 이후의 메시지 조회
+            const { data, error } = await client
+                .from('messages')
+                .select('*')
+                .eq('chatroom_id', roomId)
+                .gt('created_at', lastMessage.created_at)
+                .order('created_at', { ascending: true });
+            
+            if (error) {
+                throw error;
+            }
+            
+            return data || [];
+        } catch (error) {
+            console.error(`새 메시지 조회 실패 (채팅방 ID: ${roomId}, 마지막 메시지 ID: ${lastMessageId}):`, error);
+            throw new Error('새 메시지를 불러오는데 실패했습니다');
+        }
+    };
+
+    /**
+     * 사용자 정보 저장/업데이트
+     * @param {Object} userData - 사용자 데이터
+     * @returns {Promise<Object>} 사용자 정보
+     */
+    const saveUser = async (userData) => {
+        try {
+            const client = initializeClient();
+            
+            // 사용자 존재 여부 확인
+            const { data: existingUser, error: checkError } = await client
+                .from('users')
+                .select('*')
+                .eq('id', userData.id)
+                .maybeSingle();
+            
+            let result;
+            
+            if (existingUser) {
+                // 기존 사용자 업데이트
+                const { data, error } = await client
+                    .from('users')
+                    .update({
+                        username: userData.username,
+                        preferred_language: userData.preferred_language,
+                        room_id: userData.room_id,
+                        last_activity: new Date().toISOString()
+                    })
+                    .eq('id', userData.id)
+                    .select()
+                    .single();
+                
+                if (error) throw error;
+                result = data;
+            } else {
+                // 새 사용자 생성
+                const { data, error } = await client
+                    .from('users')
+                    .insert([{
+                        ...userData,
+                        role: userData.role || 'user',
+                        last_activity: new Date().toISOString()
+                    }])
+                    .select()
+                    .single();
+                
+                if (error) throw error;
+                result = data;
+            }
+            
+            return result;
+        } catch (error) {
+            console.error(`사용자 정보 저장 실패 (ID: ${userData.id}):`, error);
+            throw new Error('사용자 정보 저장에 실패했습니다');
+        }
+    };
+
+    /**
+     * 사용자 목록 가져오기
+     * @param {Object} options - 검색 옵션
+     * @returns {Promise<Array>} 사용자 목록
+     */
+    const getUsers = async (options = {}) => {
+        try {
+            const client = initializeClient();
+            let query = client.from('users').select('*');
+            
+            // 특정 채팅방 사용자만 조회
+            if (options.roomId) {
+                query = query.eq('room_id', options.roomId);
+            }
+            
+            // 활성 사용자만 조회 (최근 5분 이내 활동)
+            if (options.activeOnly) {
+                const fiveMinutesAgo = new Date();
+                fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
+                query = query.gt('last_activity', fiveMinutesAgo.toISOString());
+            }
+            
+            // 사용자명으로 검색
+            if (options.searchTerm) {
+                query = query.ilike('username', `%${options.searchTerm}%`);
+            }
+            
+            // 정렬 및 페이징
+            query = query.order('last_activity', { ascending: false });
+            
+            if (options.limit) {
+                query = query.limit(options.limit);
+            }
+            
+            const { data, error } = await query;
+            
+            if (error) {
+                throw error;
+            }
+            
+            return data || [];
+        } catch (error) {
+            console.error('사용자 목록 조회 실패:', error);
+            throw new Error('사용자 목록을 불러오는데 실패했습니다');
+        }
+    };
+
+    /**
+     * 사용자 활동 시간 업데이트
+     * @param {string} userId - 사용자 ID
+     * @returns {Promise<boolean>} 업데이트 성공 여부
+     */
+    const updateUserActivity = async (userId) => {
+        try {
+            const client = initializeClient();
+            const { error } = await client
+                .from('users')
+                .update({ last_activity: new Date().toISOString() })
+                .eq('id', userId);
+            
+            if (error) {
+                throw error;
+            }
+            
+            return true;
+        } catch (error) {
+            console.error(`사용자 활동 시간 업데이트 실패 (ID: ${userId}):`, error);
+            return false;
+        }
+    };
+
+    /**
+     * 관리자 인증
+     * @param {string} adminId - 관리자 ID
+     * @param {string} password - 비밀번호
+     * @returns {Promise<boolean>} 인증 성공 여부
+     */
+    const authenticateAdmin = async (adminId, password) => {
+        // 실제 환경에서는 보안을 위해 서버 측에서 처리해야 함
+        // 현재는 하드코딩된 값으로 확인
+        return adminId === 'kcmmer' && password === 'rnrud9881@@HH';
+    };
+
+    /**
+     * 통계 정보 가져오기
+     * @returns {Promise<Object>} 통계 정보
+     */
+    const getStatistics = async () => {
+        try {
+            const client = initializeClient();
+            
+            // 총 사용자 수
+            const { data: users, error: usersError } = await client
+                .from('users')
+                .select('id');
+            
+            if (usersError) throw usersError;
+            
+            // 활성 사용자 수 (최근 5분 이내 활동)
+            const fiveMinutesAgo = new Date();
+            fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
+            const { data: activeUsers, error: activeUsersError } = await client
+                .from('users')
+                .select('id')
+                .gt('last_activity', fiveMinutesAgo.toISOString());
+            
+            if (activeUsersError) throw activeUsersError;
+            
+            // 총 채팅방 수
+            const { data: rooms, error: roomsError } = await client
+                .from('chatrooms')
+                .select('id');
+            
+            if (roomsError) throw roomsError;
+            
+            // 활성 채팅방 수
+            const { data: activeRooms, error: activeRoomsError } = await client
+                .from('chatrooms')
+                .select('id')
+                .eq('is_active', true);
+            
+            if (activeRoomsError) throw activeRoomsError;
+            
+            // 총 메시지 수
+            const { data: messages, error: messagesError } = await client
+                .from('messages')
+                .select('id');
+            
+            if (messagesError) throw messagesError;
+            
+            // 오늘 메시지 수
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const { data: todayMessages, error: todayMessagesError } = await client
+                .from('messages')
+                .select('id')
+                .gt('created_at', today.toISOString());
+            
+            if (todayMessagesError) throw todayMessagesError;
+            
+            return {
+                users: {
+                    total: users.length,
+                    active: activeUsers.length
+                },
+                rooms: {
+                    total: rooms.length,
+                    active: activeRooms.length
+                },
+                messages: {
+                    total: messages.length,
+                    today: todayMessages.length
+                }
+            };
+        } catch (error) {
+            console.error('통계 정보 조회 실패:', error);
+            throw new Error('통계 정보를 불러오는데 실패했습니다');
+        }
+    };
+
+    // 공개 API
+    return {
+        initializeClient,
+        testConnection,
+        getChatRooms,
+        getChatRoomById,
+        createChatRoom,
+        updateChatRoom,
+        deleteChatRoom,
+        getMessages,
+        sendMessage,
+        getNewMessages,
+        saveUser,
+        getUsers,
+        updateUserActivity,
+        authenticateAdmin,
+        getStatistics
+    };
 })();

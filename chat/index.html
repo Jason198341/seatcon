@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global SeatCon 2025 - 컨퍼런스 채팅</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 로그인 화면 -->
+        <div id="login-container" class="container">
+            <div class="login-form">
+                <h1 class="title" data-i18n="app.title">Global SeatCon 2025</h1>
+                <h2 class="subtitle" data-i18n="login.subtitle">컨퍼런스 채팅</h2>
+                
+                <div class="form-group">
+                    <label for="username" data-i18n="login.username">사용자 이름</label>
+                    <input type="text" id="username" placeholder="이름을 입력하세요" data-i18n-placeholder="login.username.placeholder">
+                </div>
+                
+                <div class="form-group">
+                    <label for="language-select" data-i18n="login.language">선호 언어</label>
+                    <select id="language-select">
+                        <option value="ko" data-i18n="languages.korean">한국어</option>
+                        <option value="en" data-i18n="languages.english">영어</option>
+                        <option value="ja" data-i18n="languages.japanese">일본어</option>
+                        <option value="zh" data-i18n="languages.chinese">중국어</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="room-select" data-i18n="login.chatroom">채팅방 선택</label>
+                    <select id="room-select">
+                        <!-- 채팅방 목록은 JavaScript로 동적 로드 -->
+                        <option value="" disabled selected data-i18n="login.chatroom.loading">로딩 중...</option>
+                    </select>
+                </div>
+                
+                <div id="private-room-code" class="form-group hidden">
+                    <label for="access-code" data-i18n="login.accessCode">접근 코드</label>
+                    <input type="password" id="access-code" placeholder="비공개 채팅방 코드 입력" data-i18n-placeholder="login.accessCode.placeholder">
+                </div>
+                
+                <div class="error-message" id="login-error"></div>
+                
+                <button id="login-button" class="primary-button" data-i18n="login.button">입장하기</button>
+                
+                <div class="connection-status">
+                    <span id="connection-indicator" class="online"></span>
+                    <span id="connection-text" data-i18n="connection.online">온라인</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 채팅 화면 -->
+        <div id="chat-container" class="container hidden">
+            <header class="chat-header">
+                <h2 id="room-name">채팅방 이름</h2>
+                <div class="header-actions">
+                    <div class="language-display">
+                        <span data-i18n="chat.language">언어</span>: <span id="current-language">한국어</span>
+                        <button id="change-language" class="icon-button" title="언어 변경">
+                            🌐
+                        </button>
+                    </div>
+                    <button id="user-list-toggle" class="icon-button" title="사용자 목록">
+                        👥
+                    </button>
+                    <button id="exit-chat" class="icon-button" title="나가기">
+                        🚪
+                    </button>
+                </div>
+            </header>
+            
+            <div class="chat-content">
+                <div class="message-container" id="message-container">
+                    <!-- 메시지는 JavaScript로 동적 로드 -->
+                </div>
+                
+                <div class="user-list-panel" id="user-list-panel">
+                    <h3 data-i18n="chat.users">사용자 목록</h3>
+                    <ul id="user-list">
+                        <!-- 사용자 목록은 JavaScript로 동적 로드 -->
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="reply-preview" id="reply-preview">
+                <div class="reply-content"></div>
+                <button class="cancel-reply">✕</button>
+            </div>
+            
+            <div class="message-input-container">
+                <textarea 
+                    id="message-input" 
+                    placeholder="메시지를 입력하세요..."
+                    data-i18n-placeholder="chat.messageInput.placeholder"
+                ></textarea>
+                <button id="send-button" class="send-button" title="전송">
+                    ➤
+                </button>
+            </div>
+            
+            <div class="connection-status chat-connection-status">
+                <span id="chat-connection-indicator" class="online"></span>
+                <span id="chat-connection-text" data-i18n="connection.online">온라인</span>
+                <div id="sync-status" class="hidden">
+                    <span class="sync-icon">🔄</span>
+                    <span data-i18n="connection.syncing">동기화 중...</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 언어 변경 모달 -->
+        <div id="language-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 data-i18n="modal.changeLanguage.title">언어 변경</h3>
+                    <button class="close-modal">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="modal-language-select" data-i18n="modal.changeLanguage.selectLanguage">선호 언어 선택</label>
+                        <select id="modal-language-select">
+                            <option value="ko" data-i18n="languages.korean">한국어</option>
+                            <option value="en" data-i18n="languages.english">영어</option>
+                            <option value="ja" data-i18n="languages.japanese">일본어</option>
+                            <option value="zh" data-i18n="languages.chinese">중국어</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="language-save" class="primary-button" data-i18n="modal.save">저장</button>
+                    <button class="secondary-button close-modal" data-i18n="modal.cancel">취소</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 스크립트 -->
+    <script src="js/services/dbService.js"></script>
+    <script src="js/services/realtimeService.js"></script>
+    <script src="js/services/translationService.js"></script>
+    <script src="js/services/userService.js"></script>
+    <script src="js/services/chatService.js"></script>
+    <script src="js/services/offlineService.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

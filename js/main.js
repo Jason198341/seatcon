@@ -1,1139 +1,970 @@
-// main.js - Global SeatCon 2025
-document.addEventListener('DOMContentLoaded', () => {
-  'use strict';
-  
-  // Supabase 클라이언트 초기화
-  const supabase = window.supabase.createClient(
-    window.appConfig.getSupabaseUrl(),
-    window.appConfig.getSupabaseKey()
-  );
-  
-  // UI 요소
-  let loginContainer, chatContainer, loginForm, messagesContainer, messageInput, 
-      sendButton, userCountElement, targetLanguageSelect, refreshButton, 
-      logoutButton, replyPopover, cancelReplyButton, replyUsername, 
-      replyContent, announcementsContainer;
-  
-  // DOM 요소 초기화
-  function initializeUI() {
-    loginContainer = document.getElementById('login-container');
-    chatContainer = document.getElementById('chat-container');
-    loginForm = document.getElementById('login-form');
-    messagesContainer = document.getElementById('messages-container');
-    messageInput = document.getElementById('message-input');
-    sendButton = document.getElementById('send-button');
-    userCountElement = document.getElementById('user-count');
-    targetLanguageSelect = document.getElementById('target-language');
-    refreshButton = document.getElementById('refresh-button');
-    logoutButton = document.getElementById('logout-button');
-    replyPopover = document.getElementById('reply-popover');
-    cancelReplyButton = document.getElementById('cancel-reply');
-    replyUsername = document.getElementById('reply-username');
-    replyContent = document.getElementById('reply-content');
-    announcementsContainer = document.getElementById('announcements-container');
-  }
-  
-  // 초기화 함수 호출
-  initializeUI();
-  
-  // 애플리케이션 상태
-  const state = {
-    currentUser: null,
-    currentRoom: 'general',
-    targetLanguage: window.appConfig.getAppConfig().defaultLanguage,
-    replyingToMessage: null,
-    lastMessageTimestamp: null,
-    currentChannel: null,
-    pollingTimer: null,
-    translationCache: {}
-  };
+/**
+ * main.js
+ * Global SeatCon 2025 컨퍼런스 채팅 메인 애플리케이션 로직
+ */
 
-  // 디버그 모드
-  const DEBUG = window.appConfig.isDebugMode();
-  const ADMIN_ID = window.appConfig.getAppConfig().adminId;
-  
-  /**
-   * 디버그 로그
-   */
-  function debug(...args) {
-    if (DEBUG) {
-      console.log('[DEBUG]', ...args);
-    }
-  }
-  
-  /**
-   * 애플리케이션 초기화
-   */
-  async function initializeApp() {
-    // 저장된 언어 설정 불러오기
-    const savedLanguage = localStorage.getItem('preferred_language') || window.appConfig.getAppConfig().defaultLanguage;
-    state.targetLanguage = savedLanguage;
+// 전역 변수 및 상수
+const APP = {
+    // 애플리케이션 상태
+    state: {
+        initialized: false,
+        isLoggedIn: false,
+        currentUser: null,
+        currentRoomId: null,
+        currentRoom: null,
+        preferredLanguage: 'ko',
+        isUserListVisible: false,
+        activityInterval: null
+    },
     
-    // 언어 선택기 설정
-    document.querySelectorAll('.language-selector').forEach(select => {
-      select.value = savedLanguage;
-    });
+    // DOM 요소
+    elements: {},
     
-    // i18n 언어 변경
-    window.i18n.changeLanguage(savedLanguage);
+    // 언어 및 번역 관련
+    i18n: {
+        // 지원 언어 코드 매핑
+        languageCodes: {
+            'ko': '한국어',
+            'en': '영어',
+            'ja': '일본어',
+            'zh': '중국어'
+        },
+        
+        // 현재 적용된 언어 사전
+        dictionary: {}
+    },
     
-    // 저장된 세션이 있으면 자동 로그인
-    const savedUser = restoreSession();
-    if (savedUser) {
-      try {
-        // 사용자 정보 설정
-        state.currentUser = savedUser;
-        
-        // 채팅방 자동 연결
-        state.currentRoom = savedUser.roomId || window.appConfig.getAppConfig().defaultRoom;
-        
-        // 이전 메시지 로드
-        await loadMessages();
-        
-        // 공지사항 가져오기
-        await fetchAnnouncements();
-        
-        // 실시간 업데이트 설정
-        setupRealtimeUpdates();
-        
-        // 화면 전환
-        loginContainer.classList.add('hidden');
-        chatContainer.classList.remove('hidden');
-      } catch (error) {
-        console.error('세션 복원 오류:', error);
-        showLoginForm();
-      }
-    } else {
-      showLoginForm();
-    }
-  }
-  
-  /**
-   * 세션 복원
-   */
-  function restoreSession() {
-    try {
-      const savedUser = localStorage.getItem('chat_current_user');
-      const savedLanguage = localStorage.getItem('preferred_language');
-      
-      if (savedUser) {
-        const user = JSON.parse(savedUser);
-        
-        // 언어 정보 업데이트
-        if (savedLanguage && savedLanguage !== user.preferred_language) {
-          user.preferred_language = savedLanguage;
-        }
-        
-        debug('세션 복원 완료:', user);
-        return user;
-      }
-    } catch (error) {
-      debug('세션 복원 오류:', error);
-      localStorage.removeItem('chat_current_user');
-    }
-    
-    return null;
-  }
-  
-  /**
-   * 로그인 폼 표시
-   */
-  function showLoginForm() {
-    loginContainer.classList.remove('hidden');
-    chatContainer.classList.add('hidden');
-  }
-  
-  /**
-   * 로그인 폼 제출 처리
-   */
-  loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const username = document.getElementById('username').value.trim();
-    const language = document.getElementById('language').value;
-    const roomId = document.getElementById('room-id').value.trim() || window.appConfig.getAppConfig().defaultRoom;
-    
-    if (!username) return;
-    
-    try {
-      // 언어 설정 변경
-      window.i18n.changeLanguage(language);
-      targetLanguageSelect.value = language;
-      state.targetLanguage = language;
-      
-      // 사용자 ID 생성
-      const userId = username === ADMIN_ID ? ADMIN_ID : 'user_' + Date.now().toString(16) + Math.random().toString(16).substr(2, 8);
-      debug('사용자 ID 생성:', userId);
-      
-      // Supabase에 사용자 저장
-      debug('Supabase에 사용자 저장 중...');
-      try {
-        const { data, error } = await supabase
-          .from('users')
-          .insert({
-            id: userId,
-            username: username,
-            preferred_language: language,
-            created_at: new Date().toISOString()
-          })
-          .select();
-        
-        if (error) {
-          debug('사용자 저장 오류:', error);
-          throw error;
-        }
-        
-        debug('사용자 저장 완료:', data);
-      } catch (error) {
-        debug('사용자 저장 무시 (테이블이 없거나 접근 권한 없음):', error);
-      }
-      
-      // 사용자 정보 저장
-      state.currentUser = {
-        id: userId,
-        username,
-        language,
-        roomId
-      };
-      
-      // LocalStorage에 사용자 정보 저장
-      localStorage.setItem('chat_current_user', JSON.stringify(state.currentUser));
-      localStorage.setItem('preferred_language', language);
-      
-      // 채팅방 설정
-      state.currentRoom = roomId;
-      
-      // 타겟 언어 설정
-      state.targetLanguage = language;
-      targetLanguageSelect.value = language;
-      
-      // 이전 메시지 로드
-      await loadMessages();
-      
-      // 공지사항 가져오기
-      await fetchAnnouncements();
-      
-      // 실시간 업데이트 설정
-      setupRealtimeUpdates();
-      
-      // 시스템 메시지 추가
-      const joinMessageKey = 'system.user_joined';
-      const joinMessage = window.i18n.translate(joinMessageKey, { username });
-      addSystemMessage(joinMessage);
-      
-      // 화면 전환
-      loginContainer.classList.add('hidden');
-      chatContainer.classList.remove('hidden');
-    } catch (error) {
-      console.error('Login error:', error);
-      alert('로그인 중 오류가 발생했습니다: ' + error.message);
-      
-      // 오류 발생 시 로컬 모드로 폴백
-      debug('로컬 모드로 전환');
-      const userId = username === ADMIN_ID ? ADMIN_ID : 'user_' + Date.now().toString(16) + Math.random().toString(16).substr(2, 8);
-      state.currentUser = {
-        id: userId,
-        username,
-        language,
-        roomId
-      };
-      
-      localStorage.setItem('chat_current_user', JSON.stringify(state.currentUser));
-      localStorage.setItem('preferred_language', language);
-      
-      state.currentRoom = roomId;
-      state.targetLanguage = language;
-      targetLanguageSelect.value = language;
-      
-      loadLocalMessages();
-      
-      const joinMessageKey = 'system.user_joined';
-      const joinMessage = window.i18n.translate(joinMessageKey, { username });
-      addSystemMessage(joinMessage + ' (로컬 모드)');
-      
-      loginContainer.classList.add('hidden');
-      chatContainer.classList.remove('hidden');
-    }
-  });
-  
-  /**
-   * Supabase Realtime 구독 설정
-   */
-  function setupRealtimeSubscription() {
-    debug('Realtime 구독 설정 중...', state.currentRoom);
-    
-    // 이전 구독이 있으면 해제
-    if (state.currentChannel) {
-      debug('이전 구독 해제');
-      state.currentChannel.unsubscribe();
-    }
-    
-    try {
-      // 새 채널 구독
-      state.currentChannel = supabase
-        .channel(`public:messages`)
-        .on('postgres_changes', { 
-          event: '*', 
-          schema: 'public', 
-          table: 'messages'
-        }, (payload) => {
-          // 새 메시지가 수신되면 화면에 표시 (자신이 보낸 메시지는 제외)
-          debug('새 메시지 수신:', payload);
-          
-          // INSERT 이벤트만 처리
-          if (payload.eventType === 'INSERT') {
-            const message = payload.new;
-            if (message.room_id === state.currentRoom && message.user_id !== state.currentUser.id) {
-              displayMessage(message);
-              
-              // 관리자 메시지면 공지사항으로 처리
-              if (message.user_id === ADMIN_ID && message.isannouncement) {
-                addAnnouncement(message);
-              }
-              
-              scrollToBottom();
-              
-              // 알림음 재생
-              playNotificationSound();
-            }
-          }
+    // 메시지 렌더링 설정
+    messages: {
+        lastMessageTime: null,
+        timeFormat: new Intl.DateTimeFormat('ko-KR', {
+            hour: '2-digit',
+            minute: '2-digit'
         })
-        .subscribe((status) => {
-          debug('Realtime 구독 상태:', status);
-          if (status === 'SUBSCRIBED') {
-            showStatus(window.i18n.translate('status.connected'));
-          } else if (status === 'CHANNEL_ERROR') {
-            showStatus(window.i18n.translate('status.connection_error'), true);
-            // Realtime 연결이 안되면 폴링 방식으로 전환
-            startPolling();
-          }
-        });
-    } catch (error) {
-      debug('Realtime 구독 오류:', error);
-      showStatus(window.i18n.translate('status.connection_error'), true);
-      // 오류 발생 시 폴링 방식으로 전환
-      startPolling();
     }
-  }
-  
-  /**
-   * 알림음 재생
-   */
-  function playNotificationSound() {
-    try {
-      const audio = new Audio('https://cdn.pixabay.com/download/audio/2021/08/04/audio_0625c1539c.mp3?filename=notification-sound-7062.mp3');
-      audio.volume = 0.5;
-      audio.play();
-    } catch (error) {
-      debug('알림음 재생 오류:', error);
-    }
-  }
-  
-  /**
-   * 폴링 방식으로 메시지 가져오기 시작
-   */
-  function startPolling() {
-    debug('폴링 방식으로 메시지 가져오기 시작');
-    
-    // 기존 타이머가 있으면 정리
-    if (state.pollingTimer) {
-      clearInterval(state.pollingTimer);
-    }
-    
-    // 마지막 메시지 타임스탬프가 없으면 현재 시간 기준으로 설정
-    if (!state.lastMessageTimestamp) {
-      state.lastMessageTimestamp = new Date().toISOString();
-    }
-    
-    // 처음에 즉시 한 번 실행
-    checkNewMessages();
-    
-    // 주기적으로 새 메시지 확인 (2초마다 - 더 짧게 설정)
-    state.pollingTimer = setInterval(async () => {
-      checkNewMessages();
-    }, 2000); // 2초마다 체크
-  }
-  
-  /**
-   * 실시간 업데이트 설정
-   */
-  function setupRealtimeUpdates() {
-    // 1. Supabase Realtime 구독 설정
-    setupRealtimeSubscription();
-    
-    // 2. 폴링 방식 설정 (백업)
-    startPolling();
-  }
-  
-  /**
-   * 이전 메시지 로드 (Supabase)
-   */
-  async function loadMessages() {
-    try {
-      debug('메시지 로드 중...', state.currentRoom);
-      // Supabase에서 메시지 가져오기
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('room_id', state.currentRoom)
-        .order('created_at', { ascending: true });
-      
-      if (error) {
-        debug('메시지 로드 오류:', error);
-        throw error;
-      }
-      
-      debug(`${data.length}개의 메시지 로드 완료`);
-      
-      // 메시지 표시
-      messagesContainer.innerHTML = '';
-      data.forEach(message => {
-        displayMessage(message);
-      });
-      
-      // 마지막 메시지 타임스탬프 설정
-      if (data.length > 0) {
-        state.lastMessageTimestamp = data[data.length - 1].created_at;
-      } else {
-        state.lastMessageTimestamp = new Date().toISOString();
-      }
-      
-      // 스크롤을 최하단으로
-      scrollToBottom();
-    } catch (error) {
-      console.error('Error loading messages:', error);
-      
-      // 오류 발생 시 로컬 메시지 사용
-      debug('로컬 메시지 사용');
-      loadLocalMessages();
-      
-      // 사용자에게 알림
-      showStatus('메시지를 불러오는 중 오류가 발생했습니다. 로컬 메시지를 표시합니다.', true);
-    }
-  }
-  
-  /**
-   * 공지사항 가져오기
-   */
-  async function fetchAnnouncements() {
-    try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('room_id', state.currentRoom)
-        .eq('user_id', ADMIN_ID)
-        .eq('isannouncement', true)
-        .order('created_at', { ascending: false })
-        .limit(1);
-      
-      if (error) {
-        debug('공지사항 오류:', error);
-        throw error;
-      }
-      
-      if (data && data.length > 0) {
-        addAnnouncement(data[0]);
-      }
-    } catch (error) {
-      console.error('공지사항 가져오기 오류:', error);
-    }
-  }
-  
-  /**
-   * 새로운 메시지 확인
-   */
-  async function checkNewMessages() {
-    if (!state.currentRoom || !state.lastMessageTimestamp) {
-      return;
-    }
+};
+
+// 애플리케이션 초기화
+APP.init = async function() {
+    if (APP.state.initialized) return;
     
     try {
-      debug('새 메시지 확인 중...', state.lastMessageTimestamp);
-      
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('room_id', state.currentRoom)
-        .gt('created_at', state.lastMessageTimestamp)
-        .order('created_at', { ascending: true });
-      
-      if (error) {
-        debug('새 메시지 확인 오류:', error);
-        return;
-      }
-      
-      if (data && data.length > 0) {
-        debug(`새 메시지 ${data.length}개 가져옴`);
+        console.log('애플리케이션 초기화 시작...');
         
-        // 이미 수신한 메시지 중복 출력 방지를 위한 ID 추적
-        const displayedMessageIds = new Set(
-          Array.from(document.querySelectorAll('.message[data-id]'))
-            .map(el => el.dataset.id)
-        );
+        // DOM 요소 참조 설정
+        APP.setupDOMReferences();
         
-        // 메시지 표시
-        data.forEach(message => {
-          // 이미 표시된 메시지나 내가 보낸 메시지는 제외
-          if (!displayedMessageIds.has(message.id) && message.user_id !== state.currentUser.id) {
-            displayMessage(message);
-            
-            // 관리자 메시지면 공지사항으로 처리
-            if (message.user_id === ADMIN_ID && message.isannouncement) {
-              addAnnouncement(message);
-            }
-            
-            // 알림음 재생
-            playNotificationSound();
-          }
-        });
+        // 이벤트 리스너 등록
+        APP.setupEventListeners();
         
-        // 마지막 메시지 타임스탬프 업데이트
-        state.lastMessageTimestamp = data[data.length - 1].created_at;
+        // 연결 상태 표시
+        APP.updateConnectionStatus();
         
-        // 스크롤을 최하단으로
-        scrollToBottom();
-      }
+        // 저장된 사용자 정보 로드
+        const savedUser = await userService.initializeUser();
+        if (savedUser) {
+            APP.state.currentUser = savedUser;
+            APP.state.preferredLanguage = savedUser.preferred_language;
+            APP.state.isLoggedIn = true;
+        }
+        
+        // 언어 사전 로드
+        await APP.loadLanguageDictionary(APP.state.preferredLanguage);
+        
+        // 채팅방 목록 로드
+        await APP.loadChatRooms();
+        
+        // 로그인 상태에 따라 화면 전환
+        if (APP.state.isLoggedIn) {
+            await APP.enterChat(APP.state.currentUser.room_id);
+        } else {
+            APP.showLoginScreen();
+        }
+        
+        APP.state.initialized = true;
+        console.log('애플리케이션 초기화 완료');
     } catch (error) {
-      debug('새 메시지 확인 중 오류 발생:', error);
+        console.error('애플리케이션 초기화 실패:', error);
+        APP.showError('애플리케이션 초기화 중 오류가 발생했습니다. 페이지를 새로고침 해주세요.');
     }
-  }
-  
-  /**
-   * 로컬 메시지 관련 함수
-   */
-  function getLocalMessages() {
-    const messagesJson = localStorage.getItem(`chat_messages_${state.currentRoom}`);
-    return messagesJson ? JSON.parse(messagesJson) : [];
-  }
-  
-  function saveLocalMessages(messages) {
-    localStorage.setItem(`chat_messages_${state.currentRoom}`, JSON.stringify(messages));
-  }
-  
-  function loadLocalMessages() {
-    const messages = getLocalMessages();
+};
+
+// DOM 요소 참조 설정
+APP.setupDOMReferences = function() {
+    // 컨테이너
+    APP.elements.loginContainer = document.getElementById('login-container');
+    APP.elements.chatContainer = document.getElementById('chat-container');
     
-    // 메시지 표시
-    messagesContainer.innerHTML = '';
-    messages.forEach(message => {
-      displayMessage(message);
+    // 로그인 화면 요소
+    APP.elements.usernameInput = document.getElementById('username');
+    APP.elements.languageSelect = document.getElementById('language-select');
+    APP.elements.roomSelect = document.getElementById('room-select');
+    APP.elements.privateRoomCode = document.getElementById('private-room-code');
+    APP.elements.accessCode = document.getElementById('access-code');
+    APP.elements.loginButton = document.getElementById('login-button');
+    APP.elements.loginError = document.getElementById('login-error');
+    
+    // 채팅 화면 요소
+    APP.elements.roomName = document.getElementById('room-name');
+    APP.elements.messageContainer = document.getElementById('message-container');
+    APP.elements.messageInput = document.getElementById('message-input');
+    APP.elements.sendButton = document.getElementById('send-button');
+    APP.elements.userListPanel = document.getElementById('user-list-panel');
+    APP.elements.userList = document.getElementById('user-list');
+    APP.elements.userListToggle = document.getElementById('user-list-toggle');
+    APP.elements.exitChat = document.getElementById('exit-chat');
+    APP.elements.currentLanguage = document.getElementById('current-language');
+    APP.elements.changeLanguage = document.getElementById('change-language');
+    
+    // 모달
+    APP.elements.languageModal = document.getElementById('language-modal');
+    APP.elements.modalLanguageSelect = document.getElementById('modal-language-select');
+    APP.elements.languageSave = document.getElementById('language-save');
+    APP.elements.closeModalButtons = document.querySelectorAll('.close-modal');
+    
+    // 답장 관련 요소
+    APP.elements.replyPreview = document.getElementById('reply-preview');
+    
+    // 연결 상태 표시 요소
+    APP.elements.connectionIndicator = document.getElementById('connection-indicator');
+    APP.elements.connectionText = document.getElementById('connection-text');
+    APP.elements.chatConnectionIndicator = document.getElementById('chat-connection-indicator');
+    APP.elements.chatConnectionText = document.getElementById('chat-connection-text');
+    APP.elements.syncStatus = document.getElementById('sync-status');
+};
+
+// 이벤트 리스너 등록
+APP.setupEventListeners = function() {
+    // 로그인 이벤트
+    APP.elements.loginButton.addEventListener('click', APP.handleLogin);
+    APP.elements.usernameInput.addEventListener('keypress', e => {
+        if (e.key === 'Enter') APP.handleLogin();
     });
     
-    // 스크롤을 최하단으로
-    scrollToBottom();
-  }
-  
-  /**
-   * 상태 메시지 표시
-   */
-  function showStatus(message, isError = false) {
-    const statusDiv = document.createElement('div');
-    statusDiv.className = `status-message ${isError ? 'error' : 'success'}`;
-    statusDiv.textContent = message;
+    // 채팅방 선택 변경 시 비공개 채팅방 코드 필드 토글
+    APP.elements.roomSelect.addEventListener('change', APP.handleRoomSelectChange);
     
-    messagesContainer.appendChild(statusDiv);
+    // 메시지 전송 이벤트
+    APP.elements.sendButton.addEventListener('click', APP.sendMessage);
+    APP.elements.messageInput.addEventListener('keypress', e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            APP.sendMessage();
+        }
+    });
     
-    setTimeout(() => {
-      if (statusDiv && statusDiv.parentNode) {
-        statusDiv.remove();
-      }
-    }, 5000);
+    // 사용자 목록 토글
+    APP.elements.userListToggle.addEventListener('click', APP.toggleUserList);
     
-    scrollToBottom();
-  }
-  
-  /**
-   * 시스템 메시지 추가
-   */
-  function addSystemMessage(message) {
-    const messageElement = document.createElement('div');
-    messageElement.classList.add('message', 'system');
-    messageElement.innerHTML = `<div class="message-content">${message}</div>`;
-    messagesContainer.appendChild(messageElement);
-    scrollToBottom();
-  }
-  
-  /**
-   * 공지사항 추가
-   */
-  function addAnnouncement(message) {
-    // 이미 표시된 공지사항은 다시 추가하지 않음
-    if (document.querySelector(`.announcement[data-id="${message.id}"]`)) {
-      return;
+    // 채팅방 나가기
+    APP.elements.exitChat.addEventListener('click', APP.handleLogout);
+    
+    // 언어 변경
+    APP.elements.changeLanguage.addEventListener('click', APP.openLanguageModal);
+    APP.elements.languageSave.addEventListener('click', APP.saveLanguage);
+    
+    // 모달 닫기
+    APP.elements.closeModalButtons.forEach(button => {
+        button.addEventListener('click', APP.closeModals);
+    });
+    
+    // 연결 상태 변경 이벤트
+    offlineService.onConnectionChange(APP.handleConnectionChange);
+    
+    // 메시지 수신 이벤트
+    chatService.onMessage(APP.handleMessageEvent);
+    
+    // 창 종료 시 로그아웃
+    window.addEventListener('beforeunload', APP.handleBeforeUnload);
+};
+
+// 로그인 처리
+APP.handleLogin = async function() {
+    try {
+        // 입력값 가져오기
+        const username = APP.elements.usernameInput.value.trim();
+        const preferredLanguage = APP.elements.languageSelect.value;
+        const roomId = APP.elements.roomSelect.value;
+        const accessCode = APP.elements.accessCode.value;
+        
+        // 입력값 검증
+        if (!username) {
+            APP.showLoginError('사용자 이름을 입력해주세요.');
+            return;
+        }
+        
+        if (!roomId) {
+            APP.showLoginError('채팅방을 선택해주세요.');
+            return;
+        }
+        
+        // 선택한 채팅방 정보 가져오기
+        const selectedRoom = await dbService.getChatRoomById(roomId);
+        
+        // 비공개 채팅방 접근 코드 검증
+        if (selectedRoom.is_private && selectedRoom.access_code !== accessCode) {
+            APP.showLoginError('접근 코드가 올바르지 않습니다.');
+            return;
+        }
+        
+        // 로그인 수행
+        const user = await userService.login(username, preferredLanguage, roomId);
+        APP.state.currentUser = user;
+        APP.state.preferredLanguage = preferredLanguage;
+        APP.state.isLoggedIn = true;
+        
+        // 언어 사전 로드
+        await APP.loadLanguageDictionary(preferredLanguage);
+        
+        // 채팅방 입장
+        await APP.enterChat(roomId);
+        
+        // 정기적인 활동 상태 업데이트 시작
+        APP.state.activityInterval = userService.startActivityUpdates();
+    } catch (error) {
+        console.error('로그인 처리 실패:', error);
+        APP.showLoginError('로그인 처리 중 오류가 발생했습니다.');
     }
+};
+
+// 로그아웃 처리
+APP.handleLogout = async function() {
+    try {
+        // 채팅방 퇴장
+        await chatService.leaveRoom();
+        
+        // 활동 상태 업데이트 중지
+        if (APP.state.activityInterval) {
+            clearInterval(APP.state.activityInterval);
+            APP.state.activityInterval = null;
+        }
+        
+        // 로그아웃 수행
+        await userService.logout();
+        
+        // 상태 초기화
+        APP.state.currentUser = null;
+        APP.state.isLoggedIn = false;
+        APP.state.currentRoomId = null;
+        APP.state.currentRoom = null;
+        
+        // 로그인 화면으로 전환
+        APP.showLoginScreen();
+    } catch (error) {
+        console.error('로그아웃 처리 실패:', error);
+        APP.showError('로그아웃 처리 중 오류가 발생했습니다.');
+    }
+};
+
+// 창 종료 시 처리
+APP.handleBeforeUnload = function(event) {
+    if (APP.state.isLoggedIn) {
+        userService.updateActivity();
+    }
+};
+
+// 채팅방 선택 변경 처리
+APP.handleRoomSelectChange = async function() {
+    const roomId = APP.elements.roomSelect.value;
     
-    announcementsContainer.innerHTML = ''; // 이전 공지사항 제거
+    if (!roomId) return;
     
-    const announcementElement = document.createElement('div');
-    announcementElement.classList.add('announcement');
-    announcementElement.dataset.id = message.id;
+    try {
+        // 선택한 채팅방 정보 가져오기
+        const room = await dbService.getChatRoomById(roomId);
+        
+        // 비공개 채팅방이면 접근 코드 필드 표시
+        if (room.is_private) {
+            APP.elements.privateRoomCode.classList.remove('hidden');
+        } else {
+            APP.elements.privateRoomCode.classList.add('hidden');
+            APP.elements.accessCode.value = '';
+        }
+    } catch (error) {
+        console.error('채팅방 정보 조회 실패:', error);
+    }
+};
+
+// 채팅방 입장
+APP.enterChat = async function(roomId) {
+    try {
+        // 채팅방 정보 가져오기
+        const room = await dbService.getChatRoomById(roomId);
+        APP.state.currentRoom = room;
+        APP.state.currentRoomId = roomId;
+        
+        // 채팅방 이름 표시
+        APP.elements.roomName.textContent = room.name;
+        
+        // 채팅방 입장 및 메시지 로드
+        await chatService.joinRoom(roomId);
+        
+        // 사용자 언어 표시
+        APP.updateLanguageDisplay();
+        
+        // 사용자 목록 로드
+        await APP.loadUserList();
+        
+        // 채팅 화면으로 전환
+        APP.showChatScreen();
+        
+        // 메시지 컨테이너 스크롤 최하단으로 이동
+        APP.scrollToBottom();
+    } catch (error) {
+        console.error('채팅방 입장 실패:', error);
+        APP.showError('채팅방 입장에 실패했습니다.');
+    }
+};
+
+// 채팅방 목록 로드
+APP.loadChatRooms = async function() {
+    try {
+        // 활성화된 채팅방만 조회
+        const rooms = await dbService.getChatRooms(true);
+        
+        // 채팅방 선택 옵션 생성
+        let options = '<option value="" disabled selected>채팅방을 선택하세요</option>';
+        
+        rooms.forEach(room => {
+            options += `<option value="${room.id}">${room.name}${room.is_private ? ' 🔒' : ''}</option>`;
+        });
+        
+        // 채팅방 선택 목록 업데이트
+        APP.elements.roomSelect.innerHTML = options;
+    } catch (error) {
+        console.error('채팅방 목록 로드 실패:', error);
+        APP.showLoginError('채팅방 목록을 불러오는데 실패했습니다.');
+    }
+};
+
+// 사용자 목록 로드
+APP.loadUserList = async function() {
+    if (!APP.state.currentRoomId) return;
     
-    announcementElement.innerHTML = `
-      <div class="announcement-icon">
-        <i class="fas fa-bullhorn"></i>
-      </div>
-      <div class="announcement-content">
-        <h3>${window.i18n.translate('announcement.title')}</h3>
-        <div class="announcement-text">${message.message}</div>
-      </div>
-    `;
+    try {
+        // 현재 채팅방의 활성 사용자 조회
+        const users = await userService.getRoomUsers(APP.state.currentRoomId, true);
+        
+        // 사용자 목록 HTML 생성
+        let userListHTML = '';
+        
+        users.forEach(user => {
+            const languageName = translationService.getLanguageName(user.preferred_language);
+            userListHTML += `
+                <li class="${user.id === APP.state.currentUser.id ? 'current-user' : ''}">
+                    <span class="username">${user.username}</span>
+                    <span class="user-language">${languageName}</span>
+                </li>
+            `;
+        });
+        
+        // 사용자 목록 업데이트
+        APP.elements.userList.innerHTML = userListHTML || '<li class="no-users">사용자가 없습니다</li>';
+    } catch (error) {
+        console.error('사용자 목록 로드 실패:', error);
+    }
+};
+
+// 메시지 전송
+APP.sendMessage = async function() {
+    const messageText = APP.elements.messageInput.value.trim();
     
-    announcementsContainer.appendChild(announcementElement);
-    announcementsContainer.classList.remove('hidden');
-  }
-  
-  /**
-   * 메시지 전송
-   */
-  async function sendMessage() {
-    const message = messageInput.value.trim();
+    if (!messageText) return;
     
+    try {
+        // 공지사항 여부 확인
+        const isAnnouncement = messageText.startsWith('/공지 ');
+        const finalText = isAnnouncement ? messageText.substring(4).trim() : messageText;
+        
+        // 메시지 전송
+        if (isAnnouncement) {
+            await chatService.sendAnnouncement(finalText);
+        } else {
+            await chatService.sendMessage(finalText);
+        }
+        
+        // 입력 필드 초기화
+        APP.elements.messageInput.value = '';
+        
+        // 답장 정보 초기화
+        APP.clearReplyPreview();
+    } catch (error) {
+        console.error('메시지 전송 실패:', error);
+        APP.showError('메시지 전송에 실패했습니다.');
+    }
+};
+
+// 메시지 이벤트 처리
+APP.handleMessageEvent = function(eventType, messageData) {
+    switch (eventType) {
+        case 'new':
+            // 새 메시지 추가
+            APP.renderMessage(messageData);
+            APP.scrollToBottom();
+            break;
+            
+        case 'list':
+            // 메시지 목록 렌더링
+            APP.renderMessageList(messageData);
+            APP.scrollToBottom();
+            break;
+            
+        case 'update':
+            // 메시지 업데이트
+            APP.updateMessage(messageData);
+            break;
+    }
+};
+
+// 메시지 목록 렌더링
+APP.renderMessageList = function(messages) {
+    if (!messages || messages.length === 0) return;
+    
+    // 메시지 컨테이너 초기화
+    APP.elements.messageContainer.innerHTML = '';
+    APP.messages.lastMessageTime = null;
+    
+    // 각 메시지 렌더링
+    messages.forEach(message => {
+        APP.renderMessage(message, true);
+    });
+};
+
+// 단일 메시지 렌더링
+APP.renderMessage = function(message, skipScroll = false) {
     if (!message) return;
     
-    try {
-      debug('메시지 전송 중...', message);
-      
-      // 공지사항 여부 확인 (관리자만 가능)
-      const isAnnouncement = state.currentUser.id === ADMIN_ID && 
-                           message.startsWith(window.appConfig.getAppConfig().announcementTag);
-      
-      // 메시지 객체 생성
-      const messageObj = {
-        room_id: state.currentRoom,
-        user_id: state.currentUser.id,
-        username: state.currentUser.username,
-        message: isAnnouncement ? message.substring(window.appConfig.getAppConfig().announcementTag.length) : message,
-        language: state.currentUser.language,
-        created_at: new Date().toISOString(),
-        isannouncement: isAnnouncement
-      };
-      
-      // 답장 정보 추가
-      if (state.replyingToMessage) {
-        messageObj.reply_to = {
-          id: state.replyingToMessage.id,
-          username: state.replyingToMessage.username,
-          message: state.replyingToMessage.message
-        };
-      }
-      
-      // Supabase에 메시지 저장
-      const { data, error } = await supabase
-        .from('messages')
-        .insert(messageObj)
-        .select();
-      
-      if (error) {
-        debug('메시지 저장 오류:', error);
-        debug('오류 메시지:', error.message);
-        debug('오류 세부정보:', error.details);
-        throw error;
-      }
-      
-      debug('메시지 저장 완료:', data);
-      
-      // 내가 보낸 메시지 표시
-      displayMessage(data[0]);
-      
-      // 공지사항이면 공지사항 영역에 추가
-      if (isAnnouncement) {
-        addAnnouncement(data[0]);
-      }
-      
-      // 입력창 초기화
-      messageInput.value = '';
-      
-      // 답장 모드 취소
-      if (state.replyingToMessage) {
-        replyPopover.classList.add('hidden');
-        state.replyingToMessage = null;
-      }
-      
-      // 스크롤을 최하단으로
-      scrollToBottom();
-      
-      // 마지막 메시지 타임스탬프 업데이트
-      state.lastMessageTimestamp = data[0].created_at;
-    } catch (error) {
-      console.error('Error sending message:', error);
-      
-      // 오류 발생 시 로컬에만 저장
-      debug('로컬에 메시지 저장');
-      
-      // 메시지 객체 생성
-      const localMessage = {
-        id: `local_${Date.now()}`,
-        room_id: state.currentRoom,
-        user_id: state.currentUser.id,
-        username: state.currentUser.username,
-        message: message,
-        language: state.currentUser.language,
-        created_at: new Date().toISOString(),
-        isannouncement: false
-      };
-      
-      // 답장 정보 추가
-      if (state.replyingToMessage) {
-        localMessage.reply_to = {
-          id: state.replyingToMessage.id,
-          username: state.replyingToMessage.username,
-          message: state.replyingToMessage.message
-        };
+    // 메시지 시간 표시 여부 결정
+    const messageDate = new Date(message.created_at);
+    const showTime = !APP.messages.lastMessageTime || 
+        (messageDate.getTime() - APP.messages.lastMessageTime.getTime() > 5 * 60 * 1000);
+    
+    if (showTime) {
+        APP.messages.lastMessageTime = messageDate;
         
-        // 답장 모드 취소
-        replyPopover.classList.add('hidden');
-        state.replyingToMessage = null;
-      }
-      
-      // 로컬 메시지 저장
-      const messages = getLocalMessages();
-      messages.push(localMessage);
-      saveLocalMessages(messages);
-      
-      // 메시지 표시
-      displayMessage(localMessage);
-      
-      // 입력창 초기화
-      messageInput.value = '';
-      
-      // 스크롤을 최하단으로
-      scrollToBottom();
-      
-      // 사용자에게 알림
-      showStatus('메시지 전송 중 오류가 발생했습니다. 로컬에만 저장됩니다.', true);
-    }
-  }
-  
-  /**
-   * 텍스트 번역
-   */
-  async function translateText(text, targetLanguage) {
-    // 캐시 키 생성
-    const cacheKey = `${text}_${targetLanguage}`;
-    
-    // 캐시 확인
-    if (state.translationCache[cacheKey]) {
-      debug('캐시에서 번역 사용');
-      return state.translationCache[cacheKey];
+        // 시간 구분선 추가
+        const timeDiv = document.createElement('div');
+        timeDiv.className = 'time-divider';
+        timeDiv.textContent = messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        APP.elements.messageContainer.appendChild(timeDiv);
     }
     
-    try {
-      debug('번역 요청 중...', text.substring(0, 20) + '...', targetLanguage);
-      
-      const response = await fetch(`${window.appConfig.getTranslateEndpoint()}?key=${window.appConfig.getTranslateApiKey()}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          q: text,
-          target: targetLanguage
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (data.data && data.data.translations && data.data.translations.length > 0) {
-        const translatedText = data.data.translations[0].translatedText;
-        
-        // 캐시에 저장
-        state.translationCache[cacheKey] = translatedText;
-        
-        return translatedText;
-      }
-      
-      throw new Error('번역 실패: 응답에 번역 결과가 없습니다.');
-    } catch (error) {
-      debug('번역 오류:', error);
-      return text; // 오류 발생 시 원본 텍스트 반환
-    }
-  }
-  
-  /**
-   * 메시지 번역
-   */
-  async function translateMessage(message, targetLanguage) {
-    if (message.language === targetLanguage) {
-      return {
-        ...message,
-        translatedMessage: message.message
-      };
+    // 메시지 요소 생성
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message';
+    messageDiv.dataset.id = message.id;
+    
+    // 자신의 메시지인지 공지인지에 따라 클래스 추가
+    if (message.user_id === APP.state.currentUser.id) {
+        messageDiv.classList.add('own');
     }
     
-    try {
-      const translatedText = await translateText(message.message, targetLanguage);
-      return {
-        ...message,
-        translatedMessage: translatedText
-      };
-    } catch (error) {
-      console.error('Error translating message:', error);
-      return {
-        ...message,
-        translatedMessage: window.i18n.translate('message.translation_failed')
-      };
-    }
-  }
-  
-  /**
-   * 메시지 표시
-   */
-  function displayMessage(message) {
-    // 이미 표시된 메시지인지 확인 (중복 방지)
-    if (document.querySelector(`.message[data-id="${message.id}"]`)) {
-      return;
+    if (message.isannouncement) {
+        messageDiv.classList.add('announcement');
     }
     
-    debug('메시지 표시:', message);
+    // 메시지 동기화 상태에 따른 클래스 추가
+    if (message.isPending) {
+        messageDiv.classList.add('pending');
+    }
     
-    const messageElement = document.createElement('div');
-    messageElement.classList.add('message');
+    if (message.isSyncing) {
+        messageDiv.classList.add('syncing');
+    }
     
-    // 시스템 메시지인 경우
-    if (message.user_id === 'system') {
-      messageElement.classList.add('system');
-      messageElement.innerHTML = `<div class="message-content">${message.message}</div>`;
-    } else {
-      // 일반 메시지
-      if (message.user_id === state.currentUser.id) {
-        messageElement.classList.add('self');
-      } else if (message.user_id === ADMIN_ID) {
-        messageElement.classList.add('admin');
-      } else {
-        messageElement.classList.add('other');
-      }
-      
-      // 기본 메시지 구조
-      let messageHtml = `<div class="message-bubble">`;
-      
-      // 답장이 있는 경우
-      if (message.reply_to) {
-        messageHtml += `
-          <div class="replied-message">
-            <div class="replied-username">${message.reply_to.username}</div>
-            <div class="replied-content">${message.reply_to.message}</div>
-          </div>
+    if (message.syncFailed) {
+        messageDiv.classList.add('sync-failed');
+    }
+    
+    // 메시지 내용 구성
+    let messageContent = '';
+    
+    // 답장 정보가 있는 경우 추가
+    if (message.reply_to) {
+        messageContent += `
+            <div class="reply-info">
+                <div class="reply-username">${message.reply_to.username}</div>
+                <div class="reply-text">${message.reply_to.message}</div>
+            </div>
         `;
-      }
-      
-      // 메시지 헤더
-      messageHtml += `
-        <div class="message-header">
-          <span class="username">${message.username}`;
-      
-      // 관리자 배지
-      if (message.user_id === ADMIN_ID) {
-        messageHtml += `<span class="admin-badge">${window.i18n.translate('message.admin')}</span>`;
-      }
-      
-      messageHtml += `</span>
-          <span class="timestamp">${formatTimestamp(message.created_at)}</span>
-        </div>
-        <div class="message-content">${message.message}</div>
-      `;
-      
-      // 메시지 액션 버튼 (다른 사람의 메시지에 대한 회신 기능)
-      if (message.user_id !== state.currentUser.id) {
-        messageHtml += `
-          <div class="message-actions">
-            <button class="message-action-button reply-button" title="${window.i18n.translate('button.reply')}">
-              <i class="fas fa-reply"></i>
-            </button>
-          </div>
+    }
+    
+    // 공지사항이 아닌 경우 메시지 헤더 추가
+    if (!message.isannouncement) {
+        messageContent += `
+            <div class="message-header">
+                <span class="message-username">${message.username}</span>
+                <span class="message-time">${APP.messages.timeFormat.format(messageDate)}</span>
+            </div>
         `;
-      }
-      
-      messageHtml += `</div>`;
-      
-      // HTML 설정
-      messageElement.innerHTML = messageHtml;
-      
-      // 회신 버튼 이벤트 설정
-      const replyButton = messageElement.querySelector('.reply-button');
-      if (replyButton) {
+    }
+    
+    // 메시지 텍스트 추가
+    messageContent += `<div class="message-text">${APP.formatMessageText(message.message)}</div>`;
+    
+    // 번역된 메시지인 경우 원본 표시 버튼 추가
+    if (message.translated && message.original_message) {
+        messageContent += `
+            <div class="translation-info">
+                <span class="translation-label">번역됨</span>
+                <button class="show-original" data-original="${encodeURIComponent(message.original_message)}" data-language="${message.language}">원본 보기</button>
+            </div>
+        `;
+    }
+    
+    // 메시지 상태 표시
+    if (message.isPending) {
+        messageContent += '<div class="message-status pending">전송 중...</div>';
+    } else if (message.isSyncing) {
+        messageContent += '<div class="message-status syncing">동기화 중...</div>';
+    } else if (message.syncFailed) {
+        messageContent += '<div class="message-status failed">전송 실패</div>';
+    }
+    
+    // 메시지 작업 버튼 추가 (자신의 메시지가 아닌 경우에만 답장 버튼 표시)
+    if (!message.isannouncement && message.user_id !== APP.state.currentUser.id) {
+        messageContent += `
+            <div class="message-actions">
+                <button class="reply-button" data-id="${message.id}">답장</button>
+            </div>
+        `;
+    }
+    
+    // 메시지 내용 설정
+    messageDiv.innerHTML = messageContent;
+    
+    // 메시지 이벤트 리스너 등록
+    const replyButton = messageDiv.querySelector('.reply-button');
+    if (replyButton) {
         replyButton.addEventListener('click', () => {
-          // 회신 정보 설정
-          state.replyingToMessage = {
-            id: message.id,
-            username: message.username,
-            message: message.message
-          };
-          
-          // 회신 팝오버 표시
-          replyUsername.textContent = message.username;
-          replyContent.textContent = message.message;
-          replyPopover.classList.remove('hidden');
-          
-          // 입력창에 포커스
-          messageInput.focus();
+            APP.setReplyTo(message);
         });
-      }
-      
-      // 스와이프 이벤트 설정 (모바일)
-      let touchStartX = 0;
-      let touchEndX = 0;
-      
-      messageElement.addEventListener('touchstart', (e) => {
-        touchStartX = e.changedTouches[0].screenX;
-      });
-      
-      messageElement.addEventListener('touchend', (e) => {
-        touchEndX = e.changedTouches[0].screenX;
-        handleSwipe();
-      });
-      
-      function handleSwipe() {
-        // 왼쪽으로 스와이프 (다른 사람의 메시지에 대한 회신)
-        if (message.user_id !== state.currentUser.id && touchEndX < touchStartX - 50) {
-          // 회신 정보 설정
-          state.replyingToMessage = {
-            id: message.id,
-            username: message.username,
-            message: message.message
-          };
-          
-          // 회신 팝오버 표시
-          replyUsername.textContent = message.username;
-          replyContent.textContent = message.message;
-          replyPopover.classList.remove('hidden');
-          
-          // 입력창에 포커스
-          messageInput.focus();
-        }
-      }
-      
-      // 번역이 필요한 경우
-      if (message.language !== state.targetLanguage && message.language !== 'system') {
-        translateMessageElement(message, messageElement);
-      }
     }
     
-    // 메시지 ID 저장
-    messageElement.dataset.id = message.id;
-    messageElement.dataset.language = message.language;
-    
-    messagesContainer.appendChild(messageElement);
-  }
-  
-  /**
-   * 메시지 요소 번역
-   */
-  async function translateMessageElement(message, messageElement) {
-    try {
-      // 번역 중임을 표시
-      const messageBubble = messageElement.querySelector('.message-bubble');
-      if (!messageBubble) return;
-      
-      const translatingElement = document.createElement('div');
-      translatingElement.classList.add('translated-message');
-      translatingElement.textContent = window.i18n.translate('message.translated');
-      messageBubble.appendChild(translatingElement);
-      
-      // 번역 요청
-      const translatedMessage = await translateMessage(message, state.targetLanguage);
-      
-      // 번역 결과 표시
-      translatingElement.textContent = translatedMessage.translatedMessage;
-    } catch (error) {
-      console.error('Translation error:', error);
-      
-      // 번역 실패 메시지
-      const translatedElement = messageElement.querySelector('.translated-message');
-      if (translatedElement) {
-        translatedElement.textContent = window.i18n.translate('message.translation_failed');
-      }
+    const showOriginalButton = messageDiv.querySelector('.show-original');
+    if (showOriginalButton) {
+        showOriginalButton.addEventListener('click', function() {
+            const originalText = decodeURIComponent(this.dataset.original);
+            const language = translationService.getLanguageName(this.dataset.language);
+            
+            alert(`원본 메시지 (${language}):\n${originalText}`);
+        });
     }
-  }
-  
-  /**
-   * 언어 변경 시 메시지 번역 상태 업데이트
-   */
-  async function updateMessagesTranslation() {
-    const messageElements = messagesContainer.querySelectorAll('.message:not(.system)');
     
-    messageElements.forEach(async (messageElement) => {
-      const messageLanguage = messageElement.dataset.language;
-      const messageId = messageElement.dataset.id;
-      let translatedElement = messageElement.querySelector('.translated-message');
-      
-      // 번역이 필요한 경우
-      if (messageLanguage !== state.targetLanguage && messageLanguage !== 'system') {
-        if (!translatedElement) {
-          // 메시지 가져오기
-          try {
-            // 메시지 내용 가져오기
-            const contentElement = messageElement.querySelector('.message-content');
-            if (!contentElement) return;
-            
-            const message = {
-              id: messageId,
-              message: contentElement.textContent,
-              language: messageLanguage
-            };
-            
-            const messageBubble = messageElement.querySelector('.message-bubble');
-            if (!messageBubble) return;
-            
-            // 번역 요소 생성
-            translatedElement = document.createElement('div');
-            translatedElement.classList.add('translated-message');
-            translatedElement.textContent = window.i18n.translate('message.translated');
-            messageBubble.appendChild(translatedElement);
-            
-            // 번역 요청
-            const translatedMessage = await translateMessage(message, state.targetLanguage);
-            
-            // 번역 결과 표시
-            translatedElement.textContent = translatedMessage.translatedMessage;
-          } catch (error) {
-            console.error('Error fetching message for translation:', error);
-            
-            if (translatedElement) {
-              translatedElement.textContent = window.i18n.translate('message.translation_failed');
-            }
-          }
+    // 메시지 컨테이너에 추가
+    APP.elements.messageContainer.appendChild(messageDiv);
+    
+    // 스크롤 최하단으로 이동 (옵션에 따라)
+    if (!skipScroll) {
+        APP.scrollToBottom();
+    }
+};
+
+// 메시지 업데이트
+APP.updateMessage = function(message) {
+    if (!message) return;
+    
+    // 메시지 요소 찾기
+    const messageDiv = document.querySelector(`.message[data-id="${message.id}"]`);
+    if (!messageDiv) return;
+    
+    // 상태 클래스 업데이트
+    messageDiv.classList.remove('pending', 'syncing', 'sync-failed');
+    
+    if (message.isPending) {
+        messageDiv.classList.add('pending');
+    }
+    
+    if (message.isSyncing) {
+        messageDiv.classList.add('syncing');
+    }
+    
+    if (message.syncFailed) {
+        messageDiv.classList.add('sync-failed');
+    }
+    
+    // 상태 메시지 업데이트
+    let statusDiv = messageDiv.querySelector('.message-status');
+    
+    if (!statusDiv && (message.isPending || message.isSyncing || message.syncFailed)) {
+        statusDiv = document.createElement('div');
+        statusDiv.className = 'message-status';
+        messageDiv.appendChild(statusDiv);
+    }
+    
+    if (statusDiv) {
+        if (message.isPending) {
+            statusDiv.className = 'message-status pending';
+            statusDiv.textContent = '전송 중...';
+        } else if (message.isSyncing) {
+            statusDiv.className = 'message-status syncing';
+            statusDiv.textContent = '동기화 중...';
+        } else if (message.syncFailed) {
+            statusDiv.className = 'message-status failed';
+            statusDiv.textContent = '전송 실패';
         } else {
-          // 이미 번역 요소가 있는 경우, 다시 번역
-          translatedElement.textContent = window.i18n.translate('message.translated');
-          
-          try {
-            // 메시지 내용 가져오기
-            const contentElement = messageElement.querySelector('.message-content');
-            if (!contentElement) return;
-            
-            const message = {
-              id: messageId,
-              message: contentElement.textContent,
-              language: messageLanguage
-            };
-            
-            // 번역 요청
-            const translatedMessage = await translateMessage(message, state.targetLanguage);
-            
-            // 번역 결과 표시
-            translatedElement.textContent = translatedMessage.translatedMessage;
-          } catch (error) {
-            console.error('Error updating translation:', error);
-            translatedElement.textContent = window.i18n.translate('message.translation_failed');
-          }
+            statusDiv.remove();
         }
-      } else {
-        // 번역이 필요 없는 경우
-        if (translatedElement) {
-          translatedElement.remove();
+    }
+};
+
+// 메시지 텍스트 포맷팅
+APP.formatMessageText = function(text) {
+    if (!text) return '';
+    
+    // HTML 이스케이프
+    text = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    
+    // URL을 링크로 변환
+    text = text.replace(
+        /(https?:\/\/[^\s]+)/g, 
+        '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+    );
+    
+    // 줄바꿈 처리
+    text = text.replace(/\n/g, '<br>');
+    
+    return text;
+};
+
+// 답장 설정
+APP.setReplyTo = function(message) {
+    if (!message) return;
+    
+    // 답장 정보 설정
+    chatService.setReplyTo(message);
+    
+    // 답장 미리보기 표시
+    const previewContent = APP.elements.replyPreview.querySelector('.reply-content');
+    previewContent.textContent = `${message.username}: ${message.message}`;
+    
+    // 답장 미리보기 표시 및 입력 필드 포커스
+    APP.elements.replyPreview.classList.add('active');
+    APP.elements.messageInput.focus();
+    
+    // 취소 버튼 이벤트 리스너 등록
+    const cancelButton = APP.elements.replyPreview.querySelector('.cancel-reply');
+    cancelButton.onclick = APP.clearReplyPreview;
+};
+
+// 답장 미리보기 초기화
+APP.clearReplyPreview = function() {
+    // 답장 정보 초기화
+    chatService.clearReplyTo();
+    
+    // 답장 미리보기 숨기기
+    APP.elements.replyPreview.classList.remove('active');
+};
+
+// 언어 사전 로드
+APP.loadLanguageDictionary = async function(language) {
+    // 기본 언어는 한국어
+    language = language || 'ko';
+    
+    try {
+        // TODO: 실제 환경에서는 서버에서 언어 사전을 로드
+        // 현재는 간단하게 지원하는 언어 이름만 사전에 추가
+        APP.i18n.dictionary = {
+            'ko': {
+                'app.title': 'Global SeatCon 2025',
+                'login.subtitle': '컨퍼런스 채팅',
+                'login.username': '사용자 이름',
+                'login.username.placeholder': '이름을 입력하세요',
+                'login.language': '선호 언어',
+                'login.chatroom': '채팅방 선택',
+                'login.chatroom.loading': '로딩 중...',
+                'login.accessCode': '접근 코드',
+                'login.accessCode.placeholder': '비공개 채팅방 코드 입력',
+                'login.button': '입장하기',
+                'languages.korean': '한국어',
+                'languages.english': '영어',
+                'languages.japanese': '일본어',
+                'languages.chinese': '중국어',
+                'chat.language': '언어',
+                'chat.users': '사용자 목록',
+                'chat.messageInput.placeholder': '메시지를 입력하세요...',
+                'connection.online': '온라인',
+                'connection.offline': '오프라인',
+                'connection.connecting': '연결 중...',
+                'connection.syncing': '동기화 중...',
+                'modal.changeLanguage.title': '언어 변경',
+                'modal.changeLanguage.selectLanguage': '선호 언어 선택',
+                'modal.save': '저장',
+                'modal.cancel': '취소'
+            },
+            'en': {
+                'app.title': 'Global SeatCon 2025',
+                'login.subtitle': 'Conference Chat',
+                'login.username': 'Username',
+                'login.username.placeholder': 'Enter your name',
+                'login.language': 'Preferred Language',
+                'login.chatroom': 'Select Chatroom',
+                'login.chatroom.loading': 'Loading...',
+                'login.accessCode': 'Access Code',
+                'login.accessCode.placeholder': 'Enter private chatroom code',
+                'login.button': 'Enter',
+                'languages.korean': 'Korean',
+                'languages.english': 'English',
+                'languages.japanese': 'Japanese',
+                'languages.chinese': 'Chinese',
+                'chat.language': 'Language',
+                'chat.users': 'User List',
+                'chat.messageInput.placeholder': 'Type your message...',
+                'connection.online': 'Online',
+                'connection.offline': 'Offline',
+                'connection.connecting': 'Connecting...',
+                'connection.syncing': 'Syncing...',
+                'modal.changeLanguage.title': 'Change Language',
+                'modal.changeLanguage.selectLanguage': 'Select Preferred Language',
+                'modal.save': 'Save',
+                'modal.cancel': 'Cancel'
+            },
+            'ja': {
+                'app.title': 'Global SeatCon 2025',
+                'login.subtitle': 'カンファレンスチャット',
+                'login.username': 'ユーザー名',
+                'login.username.placeholder': '名前を入力してください',
+                'login.language': '希望言語',
+                'login.chatroom': 'チャットルーム選択',
+                'login.chatroom.loading': '読み込み中...',
+                'login.accessCode': 'アクセスコード',
+                'login.accessCode.placeholder': 'プライベートルームコードを入力',
+                'login.button': '入場',
+                'languages.korean': '韓国語',
+                'languages.english': '英語',
+                'languages.japanese': '日本語',
+                'languages.chinese': '中国語',
+                'chat.language': '言語',
+                'chat.users': 'ユーザーリスト',
+                'chat.messageInput.placeholder': 'メッセージを入力...',
+                'connection.online': 'オンライン',
+                'connection.offline': 'オフライン',
+                'connection.connecting': '接続中...',
+                'connection.syncing': '同期中...',
+                'modal.changeLanguage.title': '言語変更',
+                'modal.changeLanguage.selectLanguage': '希望言語を選択',
+                'modal.save': '保存',
+                'modal.cancel': 'キャンセル'
+            },
+            'zh': {
+                'app.title': 'Global SeatCon 2025',
+                'login.subtitle': '会议聊天',
+                'login.username': '用户名',
+                'login.username.placeholder': '请输入姓名',
+                'login.language': '首选语言',
+                'login.chatroom': '选择聊天室',
+                'login.chatroom.loading': '加载中...',
+                'login.accessCode': '访问代码',
+                'login.accessCode.placeholder': '输入私人聊天室代码',
+                'login.button': '进入',
+                'languages.korean': '韩语',
+                'languages.english': '英语',
+                'languages.japanese': '日语',
+                'languages.chinese': '中文',
+                'chat.language': '语言',
+                'chat.users': '用户列表',
+                'chat.messageInput.placeholder': '输入消息...',
+                'connection.online': '在线',
+                'connection.offline': '离线',
+                'connection.connecting': '连接中...',
+                'connection.syncing': '同步中...',
+                'modal.changeLanguage.title': '更改语言',
+                'modal.changeLanguage.selectLanguage': '选择首选语言',
+                'modal.save': '保存',
+                'modal.cancel': '取消'
+            }
+        };
+        
+        // 언어 사전 적용
+        APP.applyLanguageDictionary(language);
+        
+        return true;
+    } catch (error) {
+        console.error('언어 사전 로드 실패:', error);
+        return false;
+    }
+};
+
+// 언어 사전 적용
+APP.applyLanguageDictionary = function(language) {
+    // 해당 언어의 사전이 없으면 한국어로 대체
+    const dictionary = APP.i18n.dictionary[language] || APP.i18n.dictionary['ko'];
+    
+    // 모든 i18n 요소에 적용
+    const i18nElements = document.querySelectorAll('[data-i18n]');
+    i18nElements.forEach(element => {
+        const key = element.dataset.i18n;
+        if (dictionary[key]) {
+            element.textContent = dictionary[key];
         }
-      }
     });
-  }
-  
-  /**
-   * 접속자 수 업데이트
-   */
-  async function updateUserCount() {
-    // userCountElement가 없으면 조기 반환
-    if (!userCountElement) {
-      debug('userCountElement를 찾을 수 없습니다');
-      return;
-    }
     
-    try {
-      // 기본값으로 1명 접속으로 표시
-      userCountElement.textContent = '1';
-      
-      // 명시적으로 users 테이블에 대한 쿼리를 시도하지 않고
-      // localStorage에 저장된 값을 사용하거나 하드코딩된 값을 사용
-      const savedConnectedUsers = localStorage.getItem('connected_users_count');
-      if (savedConnectedUsers) {
-        const count = parseInt(savedConnectedUsers, 10);
-        if (!isNaN(count) && count > 0) {
-          userCountElement.textContent = count.toString();
+    // placeholder 속성이 있는 요소에 적용
+    const placeholderElements = document.querySelectorAll('[data-i18n-placeholder]');
+    placeholderElements.forEach(element => {
+        const key = element.dataset.i18nPlaceholder;
+        if (dictionary[key]) {
+            element.placeholder = dictionary[key];
         }
-      }
-    } catch (error) {
-      debug('접속자 수 업데이트 오류:', error);
-      // 오류 시 기본값 표시
-      userCountElement.textContent = '1';
-    }
-  }
-  
-  // 페이지 로드 후 setTimeout으로 접속자 수 업데이트 함수 호출
-  setTimeout(updateUserCount, 1000);
-  
-  // 랜덤하게 접속자 수 변경 (데모 용도)
-  setInterval(() => {
-    if (userCountElement) {
-      // 1~10 사이의 랜덤 값
-      const randomCount = Math.floor(Math.random() * 5) + 3;
-      userCountElement.textContent = randomCount.toString();
-      localStorage.setItem('connected_users_count', randomCount.toString());
-    }
-  }, 15000); // 15초마다 변경
-  
-  /**
-   * 타임스탬프 포맷팅
-   */
-  function formatTimestamp(timestamp) {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }
-  
-  /**
-   * 스크롤을 최하단으로
-   */
-  function scrollToBottom() {
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-  }
-  
-  // 이벤트 핸들러 등록
-  sendButton.addEventListener('click', sendMessage);
-  messageInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  });
-  
-  refreshButton.addEventListener('click', () => {
-    const prevTimestamp = state.lastMessageTimestamp;
-    // 마지막 메시지 타임스탬프를 살짝 과거로 설정하여 더 많은 메시지를 가져오도록 함
-    try {
-      // 타임스탬프를 10분 전으로 설정
-      const tenMinutesAgo = new Date();
-      tenMinutesAgo.setMinutes(tenMinutesAgo.getMinutes() - 10);
-      state.lastMessageTimestamp = tenMinutesAgo.toISOString();
-      
-      // 새 메시지 확인
-      checkNewMessages();
-      
-      showStatus(window.i18n.translate('status.refreshed'));
-    } catch (error) {
-      // 오류 발생 시 원래 타임스탬프 복원
-      state.lastMessageTimestamp = prevTimestamp;
-      showStatus('새로고침 실패', true);
-    }
-  });
-  
-  logoutButton.addEventListener('click', () => {
-    // 세션 정보 삭제
-    localStorage.removeItem('chat_current_user');
+    });
     
-    // 페이지 새로고침
-    window.location.reload();
-  });
-  
-  cancelReplyButton.addEventListener('click', () => {
-    replyPopover.classList.add('hidden');
-    state.replyingToMessage = null;
-  });
-  
-  targetLanguageSelect.addEventListener('change', (e) => {
-    state.targetLanguage = e.target.value;
-    // 언어 설정 저장
-    localStorage.setItem('preferred_language', state.targetLanguage);
-    // 기존 메시지 번역 상태 업데이트
-    updateMessagesTranslation();
-  });
-  
-  // 애플리케이션 초기화
-  initializeApp();
-});
+    // 상태 표시에 적용
+    APP.updateConnectionStatus();
+};
+
+// 언어 모달 열기
+APP.openLanguageModal = function() {
+    // 현재 선택된 언어 설정
+    APP.elements.modalLanguageSelect.value = APP.state.preferredLanguage;
+    
+    // 모달 표시
+    APP.elements.languageModal.classList.remove('hidden');
+};
+
+// 언어 변경 저장
+APP.saveLanguage = async function() {
+    const newLanguage = APP.elements.modalLanguageSelect.value;
+    
+    try {
+        // 로그인 상태인 경우 사용자 정보 업데이트
+        if (APP.state.isLoggedIn) {
+            await userService.changePreferredLanguage(newLanguage);
+        }
+        
+        // 선호 언어 변경
+        APP.state.preferredLanguage = newLanguage;
+        
+        // 언어 사전 로드 및 적용
+        await APP.loadLanguageDictionary(newLanguage);
+        
+        // 언어 표시 업데이트
+        APP.updateLanguageDisplay();
+        
+        // 현재 메시지 번역 갱신
+        if (APP.state.isLoggedIn && APP.state.currentRoomId) {
+            const messages = chatService.getMessages();
+            const translatedMessages = await translationService.translateMessages(
+                messages, 
+                newLanguage
+            );
+            
+            if (translatedMessages.length > 0) {
+                APP.renderMessageList(translatedMessages);
+            }
+        }
+        
+        // 모달 닫기
+        APP.closeModals();
+    } catch (error) {
+        console.error('언어 변경 실패:', error);
+        APP.showError('언어 변경에 실패했습니다.');
+    }
+};
+
+// 모달 닫기
+APP.closeModals = function() {
+    // 모든 모달 숨기기
+    APP.elements.languageModal.classList.add('hidden');
+};
+
+// 언어 표시 업데이트
+APP.updateLanguageDisplay = function() {
+    const languageName = translationService.getLanguageName(APP.state.preferredLanguage);
+    APP.elements.currentLanguage.textContent = languageName;
+};
+
+// 연결 상태 업데이트
+APP.updateConnectionStatus = function() {
+    const isOnline = offlineService.isNetworkOnline();
+    const realtimeStatus = realtimeService.getConnectionStatus();
+    
+    // 연결 상태에 따른 클래스 및 텍스트 설정
+    let statusClass = '';
+    let statusText = '';
+    
+    if (!isOnline) {
+        statusClass = 'offline';
+        statusText = APP.i18n.dictionary[APP.state.preferredLanguage]['connection.offline'] || '오프라인';
+    } else if (realtimeStatus === 'connecting') {
+        statusClass = 'connecting';
+        statusText = APP.i18n.dictionary[APP.state.preferredLanguage]['connection.connecting'] || '연결 중...';
+    } else {
+        statusClass = 'online';
+        statusText = APP.i18n.dictionary[APP.state.preferredLanguage]['connection.online'] || '온라인';
+    }
+    
+    // 로그인 화면 상태 표시
+    APP.elements.connectionIndicator.className = statusClass;
+    APP.elements.connectionText.textContent = statusText;
+    
+    // 채팅 화면 상태 표시
+    APP.elements.chatConnectionIndicator.className = statusClass;
+    APP.elements.chatConnectionText.textContent = statusText;
+    
+    // 동기화 상태 표시
+    const offlineCount = offlineService.getOfflineMessageCount();
+    if (offlineCount > 0 && isOnline) {
+        APP.elements.syncStatus.classList.remove('hidden');
+    } else {
+        APP.elements.syncStatus.classList.add('hidden');
+    }
+};
+
+// 사용자 목록 토글
+APP.toggleUserList = function() {
+    APP.state.isUserListVisible = !APP.state.isUserListVisible;
+    
+    if (APP.state.isUserListVisible) {
+        APP.elements.userListPanel.classList.add('active');
+    } else {
+        APP.elements.userListPanel.classList.remove('active');
+    }
+};
+
+// 스크롤 최하단으로 이동
+APP.scrollToBottom = function() {
+    APP.elements.messageContainer.scrollTop = APP.elements.messageContainer.scrollHeight;
+};
+
+// 로그인 화면 표시
+APP.showLoginScreen = function() {
+    APP.elements.chatContainer.classList.add('hidden');
+    APP.elements.loginContainer.classList.remove('hidden');
+};
+
+// 채팅 화면 표시
+APP.showChatScreen = function() {
+    APP.elements.loginContainer.classList.add('hidden');
+    APP.elements.chatContainer.classList.remove('hidden');
+};
+
+// 로그인 에러 표시
+APP.showLoginError = function(message) {
+    APP.elements.loginError.textContent = message;
+    
+    // 3초 후 에러 메시지 초기화
+    setTimeout(() => {
+        APP.elements.loginError.textContent = '';
+    }, 3000);
+};
+
+// 에러 메시지 표시
+APP.showError = function(message) {
+    alert(message);
+};
+
+// 연결 상태 변경 처리
+APP.handleConnectionChange = function(isOnline) {
+    console.log(`네트워크 상태 변경: ${isOnline ? '온라인' : '오프라인'}`);
+    
+    // 연결 상태 업데이트
+    APP.updateConnectionStatus();
+};
+
+// 페이지 로드 시 애플리케이션 초기화
+document.addEventListener('DOMContentLoaded', APP.init);

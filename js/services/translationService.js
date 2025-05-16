@@ -1,193 +1,203 @@
-// js/services/translationService.js
-(function() {
-  'use strict';
-  
-  /**
-   * 번역 서비스 모듈 - Google Translate API 연동
-   * 
-   * 설명: 이 모듈은 Google Translate API를 사용한 번역 기능을 제공합니다.
-   * API 호출 로직과 오류 처리, 캐싱 메커니즘을 포함합니다.
-   */
-  
-  // 설정 불러오기
-  const config = window.appConfig;
-  
-  // 디버그 로깅
-  function debug(...args) {
-    if (config.isDebugMode()) {
-      console.log('[Translation Service]', ...args);
-    }
-  }
-  
-  // 번역 캐시
-  const translationCache = {};
-  
-  /**
-   * 캐시 키 생성
-   * @param {string} text - 번역할 텍스트
-   * @param {string} targetLanguage - 대상 언어
-   * @returns {string} 캐시 키
-   */
-  function createCacheKey(text, targetLanguage) {
-    return `${text}_${targetLanguage}`;
-  }
-  
-  /**
-   * 번역 캐시 확인
-   * @param {string} text - 번역할 텍스트
-   * @param {string} targetLanguage - 대상 언어
-   * @returns {string|null} 캐시된 번역 또는 null
-   */
-  function getFromCache(text, targetLanguage) {
-    const key = createCacheKey(text, targetLanguage);
-    return translationCache[key] || null;
-  }
-  
-  /**
-   * 번역 결과 캐시에 저장
-   * @param {string} text - 원본 텍스트
-   * @param {string} targetLanguage - 대상 언어
-   * @param {string} translatedText - 번역된 텍스트
-   */
-  function saveToCache(text, targetLanguage, translatedText) {
-    const key = createCacheKey(text, targetLanguage);
-    translationCache[key] = translatedText;
-  }
-  
-  /**
-   * 텍스트 번역
-   * @param {string} text - 번역할 텍스트
-   * @param {string} targetLanguage - 대상 언어
-   * @returns {Promise<string>} 번역된 텍스트
-   */
-  async function translateText(text, targetLanguage) {
-    if (!text || text.trim() === '') {
-      return text;
-    }
+/**
+ * translationService.js
+ * Google Cloud Translation API를 활용한 번역 기능을 담당하는 서비스
+ */
+
+const translationService = (() => {
+    // Google Cloud Translation API 키
+    const API_KEY = 'AIzaSyC8ugZVxiEk26iwvUnIQCzNcTUiYpxkigs';
+    const API_URL = 'https://translation.googleapis.com/language/translate/v2';
     
-    // 캐시 확인
-    const cachedTranslation = getFromCache(text, targetLanguage);
-    if (cachedTranslation) {
-      debug('캐시에서 번역 사용:', text.substring(0, 20) + '...');
-      return cachedTranslation;
-    }
+    // 지원 언어 목록
+    const supportedLanguages = [
+        { code: 'ko', name: '한국어' },
+        { code: 'en', name: '영어' },
+        { code: 'ja', name: '일본어' },
+        { code: 'zh', name: '중국어' }
+    ];
     
-    try {
-      debug('번역 요청 중...', text.substring(0, 20) + '...', targetLanguage);
-      
-      const response = await fetch(`${config.getTranslateEndpoint()}?key=${config.getTranslateApiKey()}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          q: text,
-          target: targetLanguage
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (data.data && data.data.translations && data.data.translations.length > 0) {
-        const translatedText = data.data.translations[0].translatedText;
+    // 번역 캐시 (동일한 텍스트에 대한 반복 요청 방지)
+    const translationCache = new Map();
+    
+    /**
+     * 지원하는 언어 목록 가져오기
+     * @returns {Array} 지원 언어 목록
+     */
+    const getSupportedLanguages = () => {
+        return [...supportedLanguages];
+    };
+    
+    /**
+     * 언어 코드로 언어 이름 가져오기
+     * @param {string} languageCode - 언어 코드
+     * @returns {string} 언어 이름
+     */
+    const getLanguageName = (languageCode) => {
+        const language = supportedLanguages.find(lang => lang.code === languageCode);
+        return language ? language.name : languageCode;
+    };
+    
+    /**
+     * 텍스트 번역
+     * @param {string} text - 번역할 텍스트
+     * @param {string} targetLanguage - 대상 언어 코드
+     * @param {string} sourceLanguage - 원본 언어 코드 (자동 감지면 null)
+     * @returns {Promise<Object>} 번역 결과
+     */
+    const translateText = async (text, targetLanguage, sourceLanguage = null) => {
+        if (!text || text.trim() === '') {
+            return { translatedText: '', detectedLanguage: sourceLanguage || 'en' };
+        }
         
-        // 캐시에 저장
-        saveToCache(text, targetLanguage, translatedText);
+        // 대상 언어가 원본 언어와 같으면 번역하지 않음
+        if (sourceLanguage && sourceLanguage === targetLanguage) {
+            return { translatedText: text, detectedLanguage: sourceLanguage };
+        }
         
-        return translatedText;
-      }
-      
-      throw new Error('번역 실패: 응답에 번역 결과가 없습니다.');
-    } catch (error) {
-      debug('번역 오류:', error);
-      return text; // 오류 발생 시 원본 텍스트 반환
-    }
-  }
-  
-  /**
-   * 메시지 객체 번역
-   * @param {Object} message - 번역할 메시지 객체
-   * @param {string} targetLanguage - 대상 언어
-   * @returns {Promise<Object>} 번역이 추가된 메시지 객체
-   */
-  async function translateMessage(message, targetLanguage) {
-    // 메시지 언어가 대상 언어와 같으면 번역 불필요
-    if (message.language === targetLanguage) {
-      return {
-        ...message,
-        translatedMessage: message.message
-      };
-    }
+        // 캐시 키 생성 (텍스트+대상언어+원본언어)
+        const cacheKey = `${text}_${targetLanguage}_${sourceLanguage || 'auto'}`;
+        
+        // 캐시에 있으면 캐시된 결과 반환
+        if (translationCache.has(cacheKey)) {
+            return translationCache.get(cacheKey);
+        }
+        
+        try {
+            // API 요청 URL 구성
+            let url = `${API_URL}?key=${API_KEY}&target=${targetLanguage}&q=${encodeURIComponent(text)}`;
+            
+            // 원본 언어가 지정되었으면 요청에 추가
+            if (sourceLanguage) {
+                url += `&source=${sourceLanguage}`;
+            }
+            
+            // API 요청 수행
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            // 응답 처리
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`번역 API 오류: ${errorData.error.message}`);
+            }
+            
+            const data = await response.json();
+            
+            // 응답에서 번역 결과 추출
+            const result = {
+                translatedText: data.data.translations[0].translatedText,
+                detectedLanguage: data.data.translations[0].detectedSourceLanguage || sourceLanguage
+            };
+            
+            // 결과를 캐시에 저장
+            translationCache.set(cacheKey, result);
+            
+            return result;
+        } catch (error) {
+            console.error('번역 요청 실패:', error);
+            // 오류 발생 시 원본 텍스트 반환
+            return { translatedText: text, detectedLanguage: sourceLanguage || 'en', error: error.message };
+        }
+    };
     
-    try {
-      // 메시지 내용 번역
-      const translatedText = await translateText(message.message, targetLanguage);
-      
-      return {
-        ...message,
-        translatedMessage: translatedText
-      };
-    } catch (error) {
-      debug('메시지 번역 오류:', error);
-      return {
-        ...message,
-        translatedMessage: '번역 실패'
-      };
-    }
-  }
-  
-  /**
-   * 언어 감지
-   * @param {string} text - 언어를 감지할 텍스트
-   * @returns {Promise<string>} 감지된 언어 코드
-   */
-  async function detectLanguage(text) {
-    if (!text || text.trim() === '') {
-      return 'en'; // 기본값
-    }
+    /**
+     * 메시지 번역
+     * @param {Object} message - 번역할 메시지 객체
+     * @param {string} targetLanguage - 대상 언어 코드
+     * @returns {Promise<Object>} 번역된 메시지
+     */
+    const translateMessage = async (message, targetLanguage) => {
+        if (!message || !message.message) {
+            return message;
+        }
+        
+        // 원본 언어와 대상 언어가 같으면 번역하지 않음
+        if (message.language === targetLanguage) {
+            return { ...message, translated: false };
+        }
+        
+        try {
+            // 메시지 텍스트 번역
+            const { translatedText } = await translateText(
+                message.message, 
+                targetLanguage, 
+                message.language
+            );
+            
+            // 번역 결과 반환
+            return {
+                ...message,
+                original_message: message.message,
+                message: translatedText,
+                translated: true,
+                target_language: targetLanguage
+            };
+        } catch (error) {
+            console.error('메시지 번역 실패:', error);
+            // 오류 발생 시 원본 메시지 반환
+            return { ...message, translated: false };
+        }
+    };
     
-    try {
-      debug('언어 감지 요청 중...', text.substring(0, 20) + '...');
-      
-      const response = await fetch(`${config.getTranslateEndpoint()}/detect?key=${config.getTranslateApiKey()}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          q: text
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (data.data && data.data.detections && data.data.detections.length > 0 && data.data.detections[0].length > 0) {
-        const detectedLanguage = data.data.detections[0][0].language;
-        debug('감지된 언어:', detectedLanguage);
-        return detectedLanguage;
-      }
-      
-      debug('언어 감지 실패, 기본값 사용');
-      return 'en'; // 기본값
-    } catch (error) {
-      debug('언어 감지 오류:', error);
-      return 'en'; // 오류 발생 시 기본값
-    }
-  }
-  
-  /**
-   * 번역 캐시 정리 (메모리 관리)
-   */
-  function clearCache() {
-    debug('번역 캐시 정리');
-    Object.keys(translationCache).length = 0;
-  }
-  
-  // 공개 API
-  window.translationService = {
-    translateText,
-    translateMessage,
-    detectLanguage,
-    clearCache
-  };
+    /**
+     * 메시지 목록 번역
+     * @param {Array} messages - 번역할 메시지 목록
+     * @param {string} targetLanguage - 대상 언어 코드
+     * @returns {Promise<Array>} 번역된 메시지 목록
+     */
+    const translateMessages = async (messages, targetLanguage) => {
+        if (!messages || messages.length === 0) {
+            return [];
+        }
+        
+        try {
+            // 모든 메시지 번역을 병렬로 처리
+            const translatedMessages = await Promise.all(
+                messages.map(message => translateMessage(message, targetLanguage))
+            );
+            
+            return translatedMessages;
+        } catch (error) {
+            console.error('메시지 목록 번역 실패:', error);
+            // 오류 발생 시 원본 메시지 목록 반환
+            return messages;
+        }
+    };
+    
+    /**
+     * 번역 API 연결 상태 확인
+     * @returns {Promise<boolean>} 연결 상태
+     */
+    const testConnection = async () => {
+        try {
+            // 간단한 텍스트로 API 연결 테스트
+            const { translatedText } = await translateText('Hello', 'ko', 'en');
+            return translatedText === '안녕하세요' || translatedText === '안녕' || !!translatedText;
+        } catch (error) {
+            console.error('번역 API 연결 테스트 실패:', error);
+            return false;
+        }
+    };
+    
+    /**
+     * 캐시 비우기
+     */
+    const clearCache = () => {
+        translationCache.clear();
+    };
+    
+    // 공개 API
+    return {
+        getSupportedLanguages,
+        getLanguageName,
+        translateText,
+        translateMessage,
+        translateMessages,
+        testConnection,
+        clearCache
+    };
 })();
