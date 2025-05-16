@@ -12,7 +12,7 @@ const APP = {
         currentUser: null,
         currentRoomId: null,
         currentRoom: null,
-        preferredLanguage: 'ko',
+        preferredLanguage: 'en',
         isUserListVisible: false,
         activityInterval: null,
         servicesReady: false
@@ -121,9 +121,9 @@ APP.init = async function() {
         } else {
             // 서비스가 준비되지 않았을 때는 기본 상태 표시
             if (APP.elements.connectionIndicator) APP.elements.connectionIndicator.className = 'online';
-            if (APP.elements.connectionText) APP.elements.connectionText.textContent = APP.i18n.dictionary[APP.state.preferredLanguage]['connection.online'] || '온라인';
+            if (APP.elements.connectionText) APP.elements.connectionText.textContent = APP.i18n.dictionary[APP.state.preferredLanguage]['connection.online'] || 'Online';
             if (APP.elements.chatConnectionIndicator) APP.elements.chatConnectionIndicator.className = 'online';
-            if (APP.elements.chatConnectionText) APP.elements.chatConnectionText.textContent = APP.i18n.dictionary[APP.state.preferredLanguage]['connection.online'] || '온라인';
+            if (APP.elements.chatConnectionText) APP.elements.chatConnectionText.textContent = APP.i18n.dictionary[APP.state.preferredLanguage]['connection.online'] || 'Online';
         }
         
         // 저장된 사용자 정보 로드
@@ -258,12 +258,12 @@ APP.handleLogin = async function() {
         
         // 입력값 검증
         if (!username) {
-            APP.showLoginError('사용자 이름을 입력해주세요.');
+            APP.showLoginError('Please enter your username.');
             return;
         }
         
         if (!roomId) {
-            APP.showLoginError('채팅방을 선택해주세요.');
+            APP.showLoginError('Please select a chat room.');
             return;
         }
         
@@ -272,7 +272,7 @@ APP.handleLogin = async function() {
         
         // 비공개 채팅방 접근 코드 검증
         if (selectedRoom.is_private && selectedRoom.access_code !== accessCode) {
-            APP.showLoginError('접근 코드가 올바르지 않습니다.');
+            APP.showLoginError('The access code is incorrect.');
             return;
         }
         
@@ -292,7 +292,7 @@ APP.handleLogin = async function() {
         APP.state.activityInterval = userService.startActivityUpdates();
     } catch (error) {
         console.error('로그인 처리 실패:', error);
-        APP.showLoginError('로그인 처리 중 오류가 발생했습니다.');
+        APP.showLoginError('An error occurred during login.');
     }
 };
 
@@ -321,7 +321,7 @@ APP.handleLogout = async function() {
         APP.showLoginScreen();
     } catch (error) {
         console.error('로그아웃 처리 실패:', error);
-        APP.showError('로그아웃 처리 중 오류가 발생했습니다.');
+        APP.showError('An error occurred during logout.');
     }
 };
 
@@ -381,7 +381,7 @@ APP.enterChat = async function(roomId) {
         APP.scrollToBottom();
     } catch (error) {
         console.error('채팅방 입장 실패:', error);
-        APP.showError('채팅방 입장에 실패했습니다.');
+        APP.showError('Failed to enter the chat room.');
     }
 };
 
@@ -390,7 +390,7 @@ APP.loadChatRooms = async function() {
     try {
         // 서비스가 준비되지 않았을 경우 에러 표시
         if (!APP.state.servicesReady) {
-            APP.showLoginError('서비스 준비 중입니다. 잠시 후 다시 시도해주세요.');
+            APP.showLoginError('Services are being prepared. Please try again in a moment.');
             return;
         }
         
@@ -398,7 +398,7 @@ APP.loadChatRooms = async function() {
         const rooms = await dbService.getChatRooms(true);
         
         // 채팅방 선택 옵션 생성
-        let options = '<option value="" disabled selected>채팅방을 선택하세요</option>';
+        let options = '<option value="" disabled selected>Select a chat room</option>';
         
         rooms.forEach(room => {
             options += `<option value="${room.id}">${room.name}${room.is_private ? ' 🔒' : ''}</option>`;
@@ -408,7 +408,7 @@ APP.loadChatRooms = async function() {
         APP.elements.roomSelect.innerHTML = options;
     } catch (error) {
         console.error('채팅방 목록 로드 실패:', error);
-        APP.showLoginError('채팅방 목록을 불러오는데 실패했습니다.');
+        APP.showLoginError('Failed to load the list of chat rooms.');
     }
 };
 
@@ -434,7 +434,7 @@ APP.loadUserList = async function() {
         });
         
         // 사용자 목록 업데이트
-        APP.elements.userList.innerHTML = userListHTML || '<li class="no-users">사용자가 없습니다</li>';
+        APP.elements.userList.innerHTML = userListHTML || '<li class="no-users">No users</li>';
     } catch (error) {
         console.error('사용자 목록 로드 실패:', error);
     }
@@ -465,7 +465,7 @@ APP.sendMessage = async function() {
         APP.clearReplyPreview();
     } catch (error) {
         console.error('메시지 전송 실패:', error);
-        APP.showError('메시지 전송에 실패했습니다.');
+        APP.showError('Failed to send the message.');
     }
 };
 
@@ -581,26 +581,26 @@ APP.renderMessage = function(message, skipScroll = false) {
     if (message.translated && message.original_message) {
         messageContent += `
             <div class="translation-info">
-                <span class="translation-label">번역됨</span>
-                <button class="show-original" data-original="${encodeURIComponent(message.original_message)}" data-language="${message.language}">원본 보기</button>
+                <span class="translation-label">Translated</span>
+                <button class="show-original" data-original="${encodeURIComponent(message.original_message)}" data-language="${message.language}">Show Original</button>
             </div>
         `;
     }
     
     // 메시지 상태 표시
     if (message.isPending) {
-        messageContent += '<div class="message-status pending">전송 중...</div>';
+        messageContent += '<div class="message-status pending">Sending...</div>';
     } else if (message.isSyncing) {
-        messageContent += '<div class="message-status syncing">동기화 중...</div>';
+        messageContent += '<div class="message-status syncing">Syncing...</div>';
     } else if (message.syncFailed) {
-        messageContent += '<div class="message-status failed">전송 실패</div>';
+        messageContent += '<div class="message-status failed">Send Failed</div>';
     }
     
     // 메시지 작업 버튼 추가 (자신의 메시지가 아닌 경우에만 답장 버튼 표시)
     if (!message.isannouncement && message.user_id !== APP.state.currentUser.id) {
         messageContent += `
             <div class="message-actions">
-                <button class="reply-button" data-id="${message.id}">답장</button>
+                <button class="reply-button" data-id="${message.id}">Reply</button>
             </div>
         `;
     }
@@ -622,7 +622,7 @@ APP.renderMessage = function(message, skipScroll = false) {
             const originalText = decodeURIComponent(this.dataset.original);
             const language = translationService.getLanguageName(this.dataset.language);
             
-            alert(`원본 메시지 (${language}):\n${originalText}`);
+            alert(`Original message (${language}):\n${originalText}`);
         });
     }
     
@@ -670,13 +670,13 @@ APP.updateMessage = function(message) {
     if (statusDiv) {
         if (message.isPending) {
             statusDiv.className = 'message-status pending';
-            statusDiv.textContent = '전송 중...';
+            statusDiv.textContent = 'Sending...';
         } else if (message.isSyncing) {
             statusDiv.className = 'message-status syncing';
-            statusDiv.textContent = '동기화 중...';
+            statusDiv.textContent = 'Syncing...';
         } else if (message.syncFailed) {
             statusDiv.className = 'message-status failed';
-            statusDiv.textContent = '전송 실패';
+            statusDiv.textContent = 'Send Failed';
         } else {
             statusDiv.remove();
         }
@@ -738,8 +738,8 @@ APP.clearReplyPreview = function() {
 
 // 언어 사전 로드
 APP.loadLanguageDictionary = async function(language) {
-    // 기본 언어는 한국어
-    language = language || 'ko';
+    // 기본 언어는 영어
+    language = language || 'en';
     
     try {
         // TODO: 실제 환경에서는 서버에서 언어 사전을 로드
@@ -867,8 +867,8 @@ APP.loadLanguageDictionary = async function(language) {
 
 // 언어 사전 적용
 APP.applyLanguageDictionary = function(language) {
-    // 해당 언어의 사전이 없으면 한국어로 대체
-    const dictionary = APP.i18n.dictionary[language] || APP.i18n.dictionary['ko'];
+    // 해당 언어의 사전이 없으면 영어로 대체
+    const dictionary = APP.i18n.dictionary[language] || APP.i18n.dictionary['en'];
     
     // 모든 i18n 요소에 적용
     const i18nElements = document.querySelectorAll('[data-i18n]');
@@ -937,7 +937,7 @@ APP.saveLanguage = async function() {
         APP.closeModals();
     } catch (error) {
         console.error('언어 변경 실패:', error);
-        APP.showError('언어 변경에 실패했습니다.');
+        APP.showError('Failed to change the language.');
     }
 };
 
