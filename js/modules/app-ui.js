@@ -4,8 +4,7 @@
  * UI 관련 기능
  */
 
-// APP 객체가 정의되어 있지 않으면 생성
-const APP = window.APP || {};
+// APP 객체는 이미 window.APP으로 초기화되어 있음
 
 // UI 모듈
 APP.ui = (() => {
@@ -127,6 +126,3 @@ APP.ui = (() => {
         closeModals
     };
 })();
-
-// 글로벌 객체로 노출
-window.APP = APP;

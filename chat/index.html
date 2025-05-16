@@ -154,6 +154,15 @@
     <script src="../js/services/offlineService.js"></script>
 
     <!-- 모듈화된 앱 스크립트 (로드 순서 중요) -->
+    <script>
+        // 전역 APP 객체 정의 (앱의 모든 모듈이 공유할 객체)
+        window.APP = {
+            state: {},
+            elements: {},
+            messages: {},
+            performance: {}
+        };
+    </script>
     <script src="../js/modules/app-core.js"></script>
     <script src="../js/modules/app-ui.js"></script>
     <script src="../js/modules/app-i18n.js"></script>

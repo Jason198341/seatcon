@@ -4,13 +4,12 @@
  * 앱의 핵심 설정 및 초기화 로직
  */
 
-// 전역 APP 객체 정의
-const APP = window.APP || {};
+// APP 객체는 이미 window.APP으로 초기화되어 있음
 
 // 앱 코어 모듈
 APP.core = (() => {
-    // 앱 상태
-    APP.state = {
+    // 앱 상태 초기화 (이미 APP.state 객체가 존재함)
+    // APP.state = {
         initialized: false,
         isLoggedIn: false,
         currentUser: null,
@@ -305,6 +304,3 @@ APP.core = (() => {
         setupEventListeners
     };
 })();
-
-// 글로벌 객체로 노출
-window.APP = APP;
