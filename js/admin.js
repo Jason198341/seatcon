@@ -543,6 +543,9 @@ ADMIN.saveRoom = async function() {
     try {
         const roomId = ADMIN.elements.roomId.value;
         
+        // 저장 버튼 비활성화 (중복 클릭 방지)
+        ADMIN.elements.saveRoom.disabled = true;
+        
         if (roomId) {
             // 기존 채팅방 수정
             await dbService.updateChatRoom(roomId, roomData);
@@ -561,7 +564,10 @@ ADMIN.saveRoom = async function() {
         ADMIN.closeModals();
     } catch (error) {
         console.error('채팅방 저장 실패:', error);
-        alert('채팅방 저장에 실패했습니다.');
+        alert('채팅방 저장에 실패했습니다: ' + (error.message || '알 수 없는 오류'));
+    } finally {
+        // 저장 버튼 다시 활성화
+        ADMIN.elements.saveRoom.disabled = false;
     }
 };
 
@@ -570,6 +576,12 @@ ADMIN.toggleRoomStatus = async function(roomId, isActive) {
     if (!roomId) return;
     
     try {
+        // 상태 변경 버튼 찾기 및 비활성화
+        const toggleButton = document.querySelector(`.toggle-button[data-id="${roomId}"]`);
+        if (toggleButton) {
+            toggleButton.disabled = true;
+        }
+        
         // 채팅방 상태 업데이트
         await dbService.updateChatRoom(roomId, {
             is_active: isActive,
@@ -582,7 +594,13 @@ ADMIN.toggleRoomStatus = async function(roomId, isActive) {
         await ADMIN.loadChatRooms();
     } catch (error) {
         console.error('채팅방 상태 변경 실패:', error);
-        alert('채팅방 상태 변경에 실패했습니다.');
+        alert('채팅방 상태 변경에 실패했습니다: ' + (error.message || '알 수 없는 오류'));
+        
+        // 상태 변경 버튼 다시 활성화
+        const toggleButton = document.querySelector(`.toggle-button[data-id="${roomId}"]`);
+        if (toggleButton) {
+            toggleButton.disabled = false;
+        }
     }
 };
 
@@ -596,6 +614,13 @@ ADMIN.deleteRoom = async function(roomId) {
     }
     
     try {
+        // 삭제 버튼 찾기 및 비활성화
+        const deleteButton = document.querySelector(`.delete-button[data-id="${roomId}"]`);
+        if (deleteButton) {
+            deleteButton.disabled = true;
+            deleteButton.textContent = '삭제 중...';
+        }
+        
         // 채팅방 삭제
         await dbService.deleteChatRoom(roomId);
         
@@ -605,7 +630,14 @@ ADMIN.deleteRoom = async function(roomId) {
         await ADMIN.loadChatRooms();
     } catch (error) {
         console.error('채팅방 삭제 실패:', error);
-        alert('채팅방 삭제에 실패했습니다.');
+        alert('채팅방 삭제에 실패했습니다: ' + (error.message || '알 수 없는 오류'));
+        
+        // 삭제 버튼 다시 활성화
+        const deleteButton = document.querySelector(`.delete-button[data-id="${roomId}"]`);
+        if (deleteButton) {
+            deleteButton.disabled = false;
+            deleteButton.textContent = '✕';
+        }
     }
 };
 

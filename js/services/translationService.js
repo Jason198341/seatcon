@@ -73,6 +73,8 @@ const translationService = (() => {
             // 현재 큐에서 처리할 항목 가져오기 (최대 BATCH_SIZE 개)
             const batchItems = translationQueue.splice(0, BATCH_SIZE);
             
+            console.log(`번역 큐 처리 시작: ${batchItems.length}개 항목`);
+            
             // 각 항목 처리
             const results = await Promise.allSettled(
                 batchItems.map(async (item) => {
@@ -103,6 +105,10 @@ const translationService = (() => {
                         
                         const data = await response.json();
                         
+                        if (!data || !data.data || !data.data.translations || data.data.translations.length === 0) {
+                            throw new Error('번역 결과가 없습니다');
+                        }
+                        
                         // 응답에서 번역 결과 추출
                         const result = {
                             translatedText: data.data.translations[0].translatedText,
@@ -115,8 +121,11 @@ const translationService = (() => {
                         
                         // Promise 해결
                         resolve(result);
+                        
+                        return result;
                     } catch (error) {
                         reject(error);
+                        throw error;
                     }
                 })
             );
@@ -125,8 +134,14 @@ const translationService = (() => {
             const successCount = results.filter(r => r.status === 'fulfilled').length;
             const failCount = results.filter(r => r.status === 'rejected').length;
             
+            console.log(`번역 배치 처리 결과: ${successCount}개 성공, ${failCount}개 실패`);
+            
             if (failCount > 0) {
-                console.warn(`번역 배치 처리 결과: ${successCount}개 성공, ${failCount}개 실패`);
+                const errors = results
+                    .filter(r => r.status === 'rejected')
+                    .map(r => r.reason?.message || '알 수 없는 오류');
+                
+                console.warn('번역 실패 오류:', errors);
             }
         } catch (error) {
             console.error('번역 큐 처리 중 오류:', error);
@@ -136,6 +151,8 @@ const translationService = (() => {
             // 큐에 남은 항목이 있으면 계속 처리
             if (translationQueue.length > 0) {
                 setTimeout(processTranslationQueue, QUEUE_PROCESS_INTERVAL);
+            } else {
+                console.log('번역 큐 처리 완료');
             }
         }
     };
@@ -153,8 +170,8 @@ const translationService = (() => {
             return { translatedText: '', detectedLanguage: sourceLanguage || defaultLanguage };
         }
         
-        // 텍스트가 너무 긴 경우 처리
-        const trimmedText = text.length > 5000 ? text.substring(0, 5000) : text;
+        // 텍스트가 너무 긴 경우 처리 (API 제한 준수)
+        const trimmedText = text.length > 5000 ? text.substring(0, 5000) + '...' : text;
         
         // 대상 언어가 없는 경우 기본값 사용
         targetLanguage = targetLanguage || defaultLanguage;
@@ -164,9 +181,15 @@ const translationService = (() => {
             sourceLanguage = detectLanguage(trimmedText);
         }
         
+        console.log(`번역 요청: ${sourceLanguage || '자동감지'} -> ${targetLanguage}`);
+        
         // 대상 언어가 원본 언어와 같으면 번역하지 않음
         if (sourceLanguage === targetLanguage) {
-            return { translatedText: text, detectedLanguage: sourceLanguage };
+            return { 
+                translatedText: text, 
+                detectedLanguage: sourceLanguage,
+                isSameLanguage: true
+            };
         }
         
         // 캐시 키 생성 (텍스트+대상언어+원본언어)
@@ -174,6 +197,7 @@ const translationService = (() => {
         
         // 캐시에 있으면 캐시된 결과 반환
         if (translationCache.has(cacheKey)) {
+            console.log('캐시된 번역 결과 사용');
             return translationCache.get(cacheKey);
         }
         
@@ -196,7 +220,12 @@ const translationService = (() => {
         } catch (error) {
             console.error('번역 요청 실패:', error);
             // 오류 발생 시 원본 텍스트 반환
-            return { translatedText: text, detectedLanguage: sourceLanguage || defaultLanguage, error: error.message };
+            return { 
+                translatedText: text, 
+                detectedLanguage: sourceLanguage || defaultLanguage, 
+                error: error.message,
+                isError: true
+            };
         }
     };
     
@@ -214,32 +243,52 @@ const translationService = (() => {
         // 대상 언어가 없는 경우 기본값 사용
         targetLanguage = targetLanguage || defaultLanguage;
         
-        // 원본 언어와 대상 언어가 같으면 번역하지 않음
-        if (message.language === targetLanguage) {
-            return { ...message, translated: false };
-        }
-        
         try {
+            // 원본 언어와 대상 언어가 같으면 번역하지 않음
+            if (message.language === targetLanguage) {
+                return { 
+                    ...message, 
+                    translated: false,
+                    isSameLanguage: true
+                };
+            }
+            
+            console.log(`메시지 번역: ${message.language || '자동감지'} -> ${targetLanguage}`);
+            
+            // 메시지 캐시 키 (별도 캐싱을 위한 키)
+            const msgCacheKey = `msg_${message.id}_${targetLanguage}`;
+            
+            // 메시지 번역 캐시 확인
+            if (translationCache.has(msgCacheKey)) {
+                console.log('캐시된 메시지 번역 결과 사용');
+                return translationCache.get(msgCacheKey);
+            }
+            
             // 메시지 텍스트 번역
-            const { translatedText, detectedLanguage } = await translateText(
+            const { translatedText, detectedLanguage, isError, isSameLanguage } = await translateText(
                 message.message, 
                 targetLanguage, 
                 message.language
             );
             
-            // 번역 결과 반환
-            return {
+            // 번역 결과 구성
+            const translatedMessage = {
                 ...message,
                 original_message: message.message,
                 message: translatedText,
-                translated: true,
+                translated: !isError && !isSameLanguage,
                 target_language: targetLanguage,
                 language: message.language || detectedLanguage
             };
+            
+            // 결과 캐싱 (메시지 ID별 캐싱)
+            translationCache.set(msgCacheKey, translatedMessage);
+            
+            return translatedMessage;
         } catch (error) {
             console.error('메시지 번역 실패:', error);
             // 오류 발생 시 원본 메시지 반환
-            return { ...message, translated: false };
+            return { ...message, translated: false, translation_error: true };
         }
     };
     

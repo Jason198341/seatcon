@@ -745,11 +745,33 @@ input:focus, select:focus, textarea:focus {
     margin-bottom: 10px;
 }
 
-/* 반응형 디자인 */
+/* 모바일 최적화 */
 @media (max-width: 768px) {
     /* 기본 요소 */
     body {
         font-size: 16px; /* 기본 글꼴 크기 보장 */
+        -webkit-text-size-adjust: 100%; /* iOS에서 자동 텍스트 크기 조정 방지 */
+        width: 100%;
+        height: 100%;
+        position: fixed;
+        overflow: hidden;
+    }
+    
+    /* App 컨테이너 */
+    .app-container {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+    }
+    
+    /* 로그인 화면 */
+    #login-container {
+        padding: 0.8rem;
+    }
+    
+    .login-form {
+        padding: 1.5rem;
+        max-width: 100%;
     }
     
     /* 메시지 스타일 */
@@ -776,12 +798,21 @@ input:focus, select:focus, textarea:focus {
     }
     
     .language-display {
-        font-size: 0.85rem;
+        font-size: 0.8rem;
+    }
+    
+    .language-display span:first-child {
+        display: none; /* "Language:" 텍스트 숨김 */
     }
     
     .icon-button {
         padding: 0.3rem;
         font-size: 1.1rem;
+    }
+    
+    /* 메시지 컨테이너 */
+    .message-container {
+        padding: 0.8rem;
     }
     
     /* 사용자 목록 패널 */
@@ -810,6 +841,7 @@ input:focus, select:focus, textarea:focus {
     .send-button {
         width: 40px;
         height: 40px;
+        font-size: 1.1rem;
     }
     
     /* 연결 상태 바 */
@@ -822,6 +854,23 @@ input:focus, select:focus, textarea:focus {
     .modal-content {
         width: 95%;
         max-width: 450px;
+    }
+    
+    /* 키보드가 올라올 때 레이아웃 조정 (iOS Safari) */
+    @supports (-webkit-touch-callout: none) {
+        .chat-content {
+            height: calc(100vh - 130px); /* 대략적인 헤더와 입력창 높이 제외 */
+            transition: height 0.3s ease;
+        }
+        
+        #message-input:focus ~ .chat-content {
+            height: calc(100vh - 300px); /* 키보드 높이 예상하여 조정 */
+        }
+    }
+    
+    /* 시간 구분선 최적화 */
+    .time-divider:before, .time-divider:after {
+        width: 20%;
     }
 }
 
