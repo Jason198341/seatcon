@@ -31,7 +31,32 @@ const APP = {
         },
         
         // 현재 적용된 언어 사전
-        dictionary: {}
+        dictionary: {
+            'ko': {
+                'connection.online': '온라인',
+                'connection.offline': '오프라인',
+                'connection.connecting': '연결 중...',
+                'connection.syncing': '동기화 중...'
+            },
+            'en': {
+                'connection.online': 'Online',
+                'connection.offline': 'Offline',
+                'connection.connecting': 'Connecting...',
+                'connection.syncing': 'Syncing...'
+            },
+            'ja': {
+                'connection.online': 'オンライン',
+                'connection.offline': 'オフライン',
+                'connection.connecting': '接続中...',
+                'connection.syncing': '同期中...'
+            },
+            'zh': {
+                'connection.online': '在线',
+                'connection.offline': '离线',
+                'connection.connecting': '连接中...',
+                'connection.syncing': '同步中...'
+            }
+        }
     },
     
     // 메시지 렌더링 설정
@@ -57,6 +82,9 @@ APP.init = async function() {
         // 이벤트 리스너 등록
         APP.setupEventListeners();
         
+        // 언어 사전 로드 (먼저 로드하여 updateConnectionStatus에서 사용 가능하도록)
+        await APP.loadLanguageDictionary(APP.state.preferredLanguage);
+        
         // 연결 상태 표시
         APP.updateConnectionStatus();
         
@@ -67,9 +95,6 @@ APP.init = async function() {
             APP.state.preferredLanguage = savedUser.preferred_language;
             APP.state.isLoggedIn = true;
         }
-        
-        // 언어 사전 로드
-        await APP.loadLanguageDictionary(APP.state.preferredLanguage);
         
         // 채팅방 목록 로드
         await APP.loadChatRooms();
@@ -880,8 +905,23 @@ APP.updateLanguageDisplay = function() {
 
 // 연결 상태 업데이트
 APP.updateConnectionStatus = function() {
-    const isOnline = offlineService.isNetworkOnline();
-    const realtimeStatus = realtimeService.getConnectionStatus();
+    // offlineService와 realtimeService가 준비되지 않았을 수 있음
+    // 기본 상태 설정
+    let isOnline = true;
+    let realtimeStatus = 'online';
+    
+    try {
+        // 서비스가 준비되었는지 확인
+        if (typeof offlineService !== 'undefined' && typeof offlineService.isNetworkOnline === 'function') {
+            isOnline = offlineService.isNetworkOnline();
+        }
+        
+        if (typeof realtimeService !== 'undefined' && typeof realtimeService.getConnectionStatus === 'function') {
+            realtimeStatus = realtimeService.getConnectionStatus();
+        }
+    } catch (error) {
+        console.warn('연결 상태 확인 중 오류 발생:', error);
+    }
     
     // 연결 상태에 따른 클래스 및 텍스트 설정
     let statusClass = '';
@@ -889,29 +929,80 @@ APP.updateConnectionStatus = function() {
     
     if (!isOnline) {
         statusClass = 'offline';
-        statusText = APP.i18n.dictionary[APP.state.preferredLanguage]['connection.offline'] || '오프라인';
+        statusText = '오프라인';
+        
+        // 언어 사전에서 텍스트 가져오기 시도
+        try {
+            if (APP.i18n.dictionary[APP.state.preferredLanguage] &&
+                APP.i18n.dictionary[APP.state.preferredLanguage]['connection.offline']) {
+                statusText = APP.i18n.dictionary[APP.state.preferredLanguage]['connection.offline'];
+            }
+        } catch (e) {
+            console.warn('언어 사전 접근 중 오류 발생:', e);
+        }
     } else if (realtimeStatus === 'connecting') {
         statusClass = 'connecting';
-        statusText = APP.i18n.dictionary[APP.state.preferredLanguage]['connection.connecting'] || '연결 중...';
+        statusText = '연결 중...';
+        
+        // 언어 사전에서 텍스트 가져오기 시도
+        try {
+            if (APP.i18n.dictionary[APP.state.preferredLanguage] &&
+                APP.i18n.dictionary[APP.state.preferredLanguage]['connection.connecting']) {
+                statusText = APP.i18n.dictionary[APP.state.preferredLanguage]['connection.connecting'];
+            }
+        } catch (e) {
+            console.warn('언어 사전 접근 중 오류 발생:', e);
+        }
     } else {
         statusClass = 'online';
-        statusText = APP.i18n.dictionary[APP.state.preferredLanguage]['connection.online'] || '온라인';
+        statusText = '온라인';
+        
+        // 언어 사전에서 텍스트 가져오기 시도
+        try {
+            if (APP.i18n.dictionary[APP.state.preferredLanguage] &&
+                APP.i18n.dictionary[APP.state.preferredLanguage]['connection.online']) {
+                statusText = APP.i18n.dictionary[APP.state.preferredLanguage]['connection.online'];
+            }
+        } catch (e) {
+            console.warn('언어 사전 접근 중 오류 발생:', e);
+        }
     }
     
     // 로그인 화면 상태 표시
-    APP.elements.connectionIndicator.className = statusClass;
-    APP.elements.connectionText.textContent = statusText;
+    if (APP.elements.connectionIndicator) {
+        APP.elements.connectionIndicator.className = statusClass;
+    }
+    
+    if (APP.elements.connectionText) {
+        APP.elements.connectionText.textContent = statusText;
+    }
     
     // 채팅 화면 상태 표시
-    APP.elements.chatConnectionIndicator.className = statusClass;
-    APP.elements.chatConnectionText.textContent = statusText;
+    if (APP.elements.chatConnectionIndicator) {
+        APP.elements.chatConnectionIndicator.className = statusClass;
+    }
+    
+    if (APP.elements.chatConnectionText) {
+        APP.elements.chatConnectionText.textContent = statusText;
+    }
     
     // 동기화 상태 표시
-    const offlineCount = offlineService.getOfflineMessageCount();
-    if (offlineCount > 0 && isOnline) {
-        APP.elements.syncStatus.classList.remove('hidden');
-    } else {
-        APP.elements.syncStatus.classList.add('hidden');
+    if (APP.elements.syncStatus) {
+        let offlineCount = 0;
+        
+        try {
+            if (typeof offlineService !== 'undefined' && typeof offlineService.getOfflineMessageCount === 'function') {
+                offlineCount = offlineService.getOfflineMessageCount();
+            }
+        } catch (error) {
+            console.warn('오프라인 메시지 수 확인 중 오류 발생:', error);
+        }
+        
+        if (offlineCount > 0 && isOnline) {
+            APP.elements.syncStatus.classList.remove('hidden');
+        } else {
+            APP.elements.syncStatus.classList.add('hidden');
+        }
     }
 };
 
