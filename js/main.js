@@ -9,21 +9,32 @@ document.addEventListener('DOMContentLoaded', () => {
   );
   
   // UI 요소
-  const loginContainer = document.getElementById('login-container');
-  const chatContainer = document.getElementById('chat-container');
-  const loginForm = document.getElementById('login-form');
-  const messagesContainer = document.getElementById('messages-container');
-  const messageInput = document.getElementById('message-input');
-  const sendButton = document.getElementById('send-button');
-  const userCountElement = document.getElementById('user-count');
-  const targetLanguageSelect = document.getElementById('target-language');
-  const refreshButton = document.getElementById('refresh-button');
-  const logoutButton = document.getElementById('logout-button');
-  const replyPopover = document.getElementById('reply-popover');
-  const cancelReplyButton = document.getElementById('cancel-reply');
-  const replyUsername = document.getElementById('reply-username');
-  const replyContent = document.getElementById('reply-content');
-  const announcementsContainer = document.getElementById('announcements-container');
+  let loginContainer, chatContainer, loginForm, messagesContainer, messageInput, 
+      sendButton, userCountElement, targetLanguageSelect, refreshButton, 
+      logoutButton, replyPopover, cancelReplyButton, replyUsername, 
+      replyContent, announcementsContainer;
+  
+  // DOM 요소 초기화
+  function initializeUI() {
+    loginContainer = document.getElementById('login-container');
+    chatContainer = document.getElementById('chat-container');
+    loginForm = document.getElementById('login-form');
+    messagesContainer = document.getElementById('messages-container');
+    messageInput = document.getElementById('message-input');
+    sendButton = document.getElementById('send-button');
+    userCountElement = document.getElementById('user-count');
+    targetLanguageSelect = document.getElementById('target-language');
+    refreshButton = document.getElementById('refresh-button');
+    logoutButton = document.getElementById('logout-button');
+    replyPopover = document.getElementById('reply-popover');
+    cancelReplyButton = document.getElementById('cancel-reply');
+    replyUsername = document.getElementById('reply-username');
+    replyContent = document.getElementById('reply-content');
+    announcementsContainer = document.getElementById('announcements-container');
+  }
+  
+  // 초기화 함수 호출
+  initializeUI();
   
   // 애플리케이션 상태
   const state = {
@@ -191,9 +202,6 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // 채팅방 설정
       state.currentRoom = roomId;
-      
-      // 접속자 수 업데이트
-      updateUserCount();
       
       // 타겟 언어 설정
       state.targetLanguage = language;
@@ -1025,6 +1033,12 @@ document.addEventListener('DOMContentLoaded', () => {
    * 접속자 수 업데이트
    */
   async function updateUserCount() {
+    // userCountElement가 없으면 조기 반환
+    if (!userCountElement) {
+      debug('userCountElement를 찾을 수 없습니다');
+      return;
+    }
+    
     try {
       // 간단하게 현재 users 테이블에 있는 사용자 수를 표시
       const { count, error } = await supabase
@@ -1047,6 +1061,9 @@ document.addEventListener('DOMContentLoaded', () => {
       userCountElement.textContent = '1';
     }
   }
+  
+  // 페이지 로드 후 setTimeout으로 접속자 수 업데이트 함수 호출
+  setTimeout(updateUserCount, 1000);
   
   // 주기적으로 접속자 수 업데이트 (30초마다)
   setInterval(updateUserCount, 30000);
