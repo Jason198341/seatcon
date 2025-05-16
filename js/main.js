@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const messagesContainer = document.getElementById('messages-container');
   const messageInput = document.getElementById('message-input');
   const sendButton = document.getElementById('send-button');
-  const roomTitle = document.getElementById('room-title');
+  const userCountElement = document.getElementById('user-count');
   const targetLanguageSelect = document.getElementById('target-language');
   const refreshButton = document.getElementById('refresh-button');
   const logoutButton = document.getElementById('logout-button');
@@ -192,7 +192,9 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // 채팅방 설정
       state.currentRoom = roomId;
-      roomTitle.textContent = `Global SeatCon 2025 - ${roomId}`;
+      
+      // 접속자 수 업데이트
+      updateUserCount();
       
       // 타겟 언어 설정
       state.targetLanguage = language;
@@ -233,7 +235,6 @@ document.addEventListener('DOMContentLoaded', () => {
       localStorage.setItem('preferred_language', language);
       
       state.currentRoom = roomId;
-      roomTitle.textContent = `Global SeatCon 2025 - ${roomId} (로컬 모드)`;
       state.targetLanguage = language;
       targetLanguageSelect.value = language;
       
@@ -1020,6 +1021,41 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+  
+  /**
+   * 접속자 수 업데이트
+   */
+  async function updateUserCount() {
+    try {
+      // 현재 시간 기준 최근 5분 이내에 활동한 사용자를 '접속 중'으로 간주
+      const fiveMinutesAgo = new Date();
+      fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
+      
+      const { data, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('room_id', state.currentRoom)
+        .gt('last_activity', fiveMinutesAgo.toISOString());
+      
+      if (error) {
+        debug('접속자 수 조회 오류:', error);
+        // 기본값 표시
+        userCountElement.textContent = '1';
+        return;
+      }
+      
+      // 최소 접속자 수는 1명 (자기 자신)
+      const count = data ? Math.max(1, data.length) : 1;
+      userCountElement.textContent = count.toString();
+    } catch (error) {
+      debug('접속자 수 업데이트 오류:', error);
+      // 오류 시 기본값 표시
+      userCountElement.textContent = '1';
+    }
+  }
+  
+  // 주기적으로 접속자 수 업데이트 (30초마다)
+  setInterval(updateUserCount, 30000);
   
   /**
    * 타임스탬프 포맷팅
