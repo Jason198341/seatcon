@@ -9,6 +9,89 @@
     <link rel="stylesheet" href="css/styles.css">
     <!-- Supabase 클라이언트 라이브러리 추가 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- 인라인 설정 스크립트 -->
+    <script>
+    // 앱 설정 - 인라인 방식
+    (function() {
+      'use strict';
+      
+      // 개발 환경 여부
+      const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      
+      // 설정 객체
+      const config = {
+        // Supabase 설정
+        supabase: {
+          url: 'https://dolywnpcrutdxuxkozae.supabase.co',
+          key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvbHl3bnBjcnV0ZHh1eGtvemFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2NDEyMDYsImV4cCI6MjA2MjIxNzIwNn0.--UVh_FtCPp23EHzJEejyl9GUX6-6Fao81PlPQDR5G8'
+        },
+        
+        // Google Translate API 설정
+        translate: {
+          key: 'AIzaSyC8ugZVxiEk26iwvUnIQCzNcTUiYpxkigs',
+          endpoint: 'https://translation.googleapis.com/language/translate/v2'
+        },
+        
+        // 애플리케이션 설정
+        app: {
+          mode: 'static',
+          defaultLanguage: 'ko',
+          defaultRoom: 'general',
+          adminId: 'kcmmer1',
+          debug: isDevelopment,
+          pollingInterval: 3000,
+          announcementTag: '/공지 ',
+          maxMessagesInMemory: 100
+        },
+        
+        // 지원 언어
+        supportedLanguages: ['en', 'ko', 'ja', 'zh']
+      };
+      
+      // 전역 설정 객체로 노출
+      window.appConfig = {
+        // Supabase URL 반환
+        getSupabaseUrl: function() {
+          return config.supabase.url;
+        },
+        
+        // Supabase 키 반환
+        getSupabaseKey: function() {
+          return config.supabase.key;
+        },
+        
+        // Google Translate API 키 반환
+        getTranslateApiKey: function() {
+          return config.translate.key;
+        },
+        
+        // Google Translate API 엔드포인트 반환
+        getTranslateEndpoint: function() {
+          return config.translate.endpoint;
+        },
+        
+        // 애플리케이션 설정 반환
+        getAppConfig: function() {
+          return { ...config.app };
+        },
+        
+        // 지원 언어 반환
+        getSupportedLanguages: function() {
+          return [...config.supportedLanguages];
+        },
+        
+        // 디버그 모드 여부 반환
+        isDebugMode: function() {
+          return config.app.debug;
+        },
+        
+        // 관리자 ID 확인
+        isAdmin: function(userId) {
+          return userId === config.app.adminId;
+        }
+      };
+    })();
+    </script>
 </head>
 <body>
     <div class="app-container">
@@ -99,7 +182,6 @@
     </div>
 
     <!-- 스크립트 -->
-    <script src="js/config.js"></script>
     <script src="js/i18n.js"></script>
     <script src="js/services/dbService.js"></script>
     <script src="js/services/translationService.js"></script>
