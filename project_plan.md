@@ -156,6 +156,7 @@ conference-chat/
 - [x] 채팅방 목록 인생 처리
 - [x] 루트 이슈 (모바일과 웹에서 목록 불일치) 해결
 - [x] 실제 데이터베이스 채팅방만 표시하도록 강력한 조치 (emergency-room-fix.js)
+- [x] 최종 해결책: 하드코딩된 채팅방 목록 강제 적용 (final-room-fix.js)
 - [x] CSS 스타일 수정 (styles-fix.css)
 - [x] index.html 및 admin/index.html 업데이트 (문제 해결 스크립트 추가)
 - [x] 문제 해결 방법 문서화
@@ -198,6 +199,7 @@ conference-chat/
   - admin-login-fix.js: 관리자 페이지 로그인 문제 해결 패치 개발
   - chatroom-sync-fix.js: 모바일과 웹에서 다른 채팅방 목록 표시 문제 해결 패치
   - emergency-room-fix.js: 실제 데이터베이스 채팅방만 표시하는 강력한 긴급 패치
+  - final-room-fix.js: 하드코딩된 채팅방 목록 강제 적용 패치
   - index.html 및 admin/index.html 업데이트: 문제 해결 스크립트 추가
 
 ## 다음 단계
