@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Global SeatCon 2025 - 컨퍼런스 채팅</title>
     <link rel="stylesheet" href="css/styles.css">
+    <!-- 스타일 수정 패치 -->
+    <link rel="stylesheet" href="css/styles-fix.css">
     <!-- 현대적인 UI를 위한 Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
     <!-- 아이콘 -->
@@ -106,6 +108,9 @@
             <div class="chat-container">
                 <div id="messages-container" class="messages-container">
                     <!-- 메시지는 자바스크립트로 동적 추가됨 -->
+                    <div class="message system-message">
+                        <p>채팅에 오신 것을 환영합니다!</p>
+                    </div>
                 </div>
                 
                 <div id="users-sidebar" class="users-sidebar hidden">
@@ -163,6 +168,13 @@
     <script src="js/app-users.js"></script>
     <script src="js/app-rooms.js"></script>
     <script src="js/app-core.js"></script>
+    
+    <!-- 문제 해결 스크립트 -->
+    <script src="js/chat-debug.js"></script>
+    <script src="js/message-renderer.js"></script>
+    <script src="js/connection-tester.js"></script>
+    <script src="js/display-message-fix.js"></script>
+    <script src="js/chat-fix.js"></script>
 
     <!-- 서비스 워커 등록 -->
     <script>

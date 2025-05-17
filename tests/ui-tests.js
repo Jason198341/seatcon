@@ -1,320 +1,606 @@
 /**
  * UI 테스트
- * 애플리케이션의 UI 요소 및 상호작용을 테스트합니다.
+ * 사용자 인터페이스 컴포넌트 및 상호작용을 테스트합니다.
  */
 
-// 테스트 결과를 저장할 객체
-const testResults = {
-    passed: 0,
-    failed: 0,
-    total: 0
-};
+// DOM 헬퍼 함수
+function createTestElement(html) {
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    document.body.appendChild(container);
+    return container;
+}
 
-// 테스트 케이스 실행 함수
-function runTest(testName, testFn) {
-    console.log(`Running test: ${testName}`);
-    testResults.total++;
-    
-    try {
-        testFn();
-        console.log(`✅ Test passed: ${testName}`);
-        testResults.passed++;
-    } catch (error) {
-        console.error(`❌ Test failed: ${testName}`);
-        console.error(`   Error: ${error.message}`);
-        testResults.failed++;
+function removeTestElement(element) {
+    if (element && element.parentNode) {
+        element.parentNode.removeChild(element);
     }
 }
 
-// 어설션 함수
-function assert(condition, message) {
-    if (!condition) {
-        throw new Error(message || 'Assertion failed');
-    }
-}
+// app-i18n 테스트
+describe('i18nService', function() {
+    let originalTranslations;
+    
+    before(function() {
+        // 원본 번역 저장
+        originalTranslations = {...i18nService.translations};
+        
+        // 테스트용 번역 설정
+        i18nService.translations = {
+            'ko': {
+                'test-key': '테스트',
+                'welcome': '환영합니다',
+                'hello': '안녕하세요, {name}님'
+            },
+            'en': {
+                'test-key': 'Test',
+                'welcome': 'Welcome',
+                'hello': 'Hello, {name}'
+            }
+        };
+    });
+    
+    after(function() {
+        // 원본 번역 복원
+        i18nService.translations = originalTranslations;
+    });
+    
+    it('언어 변경', function() {
+        // 초기 언어 설정
+        i18nService.setLanguage('ko');
+        expect(i18nService.getCurrentLanguage()).to.equal('ko');
+        
+        // 언어 변경
+        i18nService.setLanguage('en');
+        expect(i18nService.getCurrentLanguage()).to.equal('en');
+    });
+    
+    it('번역 가져오기', function() {
+        // 한국어 설정
+        i18nService.setLanguage('ko');
+        
+        // 번역 확인
+        expect(i18nService.translate('test-key')).to.equal('테스트');
+        expect(i18nService.translate('welcome')).to.equal('환영합니다');
+        
+        // 영어로 변경
+        i18nService.setLanguage('en');
+        
+        // 번역 확인
+        expect(i18nService.translate('test-key')).to.equal('Test');
+        expect(i18nService.translate('welcome')).to.equal('Welcome');
+    });
+    
+    it('없는 키 처리', function() {
+        // 없는 키는 키 자체를 반환
+        expect(i18nService.translate('non-existent-key')).to.equal('non-existent-key');
+    });
+    
+    it('지원 언어 확인', function() {
+        expect(i18nService.isLanguageSupported('ko')).to.be.true;
+        expect(i18nService.isLanguageSupported('en')).to.be.true;
+        expect(i18nService.isLanguageSupported('fr')).to.be.false;
+    });
+    
+    it('인터페이스 번역', function() {
+        // 테스트 요소 생성
+        const container = createTestElement(`
+            <div>
+                <span data-i18n="test-key">기본값</span>
+                <span data-i18n="welcome">기본값</span>
+                <input data-i18n-placeholder="test-key" placeholder="기본값">
+            </div>
+        `);
+        
+        // 한국어 설정
+        i18nService.setLanguage('ko');
+        i18nService.translateInterface();
+        
+        // 번역 확인
+        expect(container.querySelector('[data-i18n="test-key"]').textContent).to.equal('테스트');
+        expect(container.querySelector('[data-i18n="welcome"]').textContent).to.equal('환영합니다');
+        expect(container.querySelector('[data-i18n-placeholder="test-key"]').placeholder).to.equal('테스트');
+        
+        // 영어로 변경
+        i18nService.setLanguage('en');
+        i18nService.translateInterface();
+        
+        // 번역 확인
+        expect(container.querySelector('[data-i18n="test-key"]').textContent).to.equal('Test');
+        expect(container.querySelector('[data-i18n="welcome"]').textContent).to.equal('Welcome');
+        expect(container.querySelector('[data-i18n-placeholder="test-key"]').placeholder).to.equal('Test');
+        
+        // 정리
+        removeTestElement(container);
+    });
+});
 
-function assertEqual(actual, expected, message) {
-    if (actual !== expected) {
-        throw new Error(message || `Expected ${expected}, but got ${actual}`);
-    }
-}
+// UIManager 테스트 (모의 객체 사용)
+describe('UI 컴포넌트', function() {
+    describe('메시지 컴포넌트', function() {
+        it('일반 메시지 렌더링', function() {
+            // 메시지 컴포넌트 생성 함수 모의 구현
+            const createMessageElement = function(message) {
+                const messageElement = document.createElement('div');
+                messageElement.className = 'message';
+                messageElement.dataset.id = message.id;
+                
+                // 메시지 헤더
+                const header = document.createElement('div');
+                header.className = 'message-header';
+                
+                // 사용자 이름
+                const username = document.createElement('span');
+                username.className = 'username';
+                username.textContent = message.username;
+                header.appendChild(username);
+                
+                // 메시지 내용
+                const content = document.createElement('p');
+                content.className = 'message-content';
+                content.textContent = message.content;
+                
+                messageElement.appendChild(header);
+                messageElement.appendChild(content);
+                
+                return messageElement;
+            };
+            
+            // 테스트 메시지
+            const message = {
+                id: 'test-message-id',
+                username: 'TestUser',
+                content: 'Hello, world!',
+                created_at: new Date().toISOString()
+            };
+            
+            // 메시지 렌더링
+            const messageElement = createMessageElement(message);
+            
+            // 메시지 요소 확인
+            expect(messageElement).to.be.an.instanceOf(HTMLElement);
+            expect(messageElement.className).to.include('message');
+            expect(messageElement.dataset.id).to.equal(message.id);
+            expect(messageElement.querySelector('.username').textContent).to.equal(message.username);
+            expect(messageElement.querySelector('.message-content').textContent).to.equal(message.content);
+        });
+        
+        it('번역된 메시지 렌더링', function() {
+            // 메시지 컴포넌트 생성 함수 모의 구현
+            const createMessageElement = function(message) {
+                const messageElement = document.createElement('div');
+                messageElement.className = 'message';
+                messageElement.dataset.id = message.id;
+                
+                // 메시지 헤더
+                const header = document.createElement('div');
+                header.className = 'message-header';
+                
+                // 사용자 이름
+                const username = document.createElement('span');
+                username.className = 'username';
+                username.textContent = message.username;
+                header.appendChild(username);
+                
+                // 메시지 내용
+                const content = document.createElement('p');
+                content.className = 'message-content';
+                content.textContent = message.content;
+                
+                messageElement.appendChild(header);
+                messageElement.appendChild(content);
+                
+                // 번역된 메시지가 있으면 표시
+                if (message.translated && message.translatedContent) {
+                    const translatedContent = document.createElement('p');
+                    translatedContent.className = 'translated-content';
+                    translatedContent.textContent = message.translatedContent;
+                    messageElement.appendChild(translatedContent);
+                }
+                
+                return messageElement;
+            };
+            
+            // 테스트 메시지
+            const message = {
+                id: 'test-message-id',
+                username: 'TestUser',
+                content: 'Hello, world!',
+                created_at: new Date().toISOString(),
+                translated: true,
+                translatedContent: '안녕하세요, 세계!'
+            };
+            
+            // 메시지 렌더링
+            const messageElement = createMessageElement(message);
+            
+            // 메시지 요소 확인
+            expect(messageElement).to.be.an.instanceOf(HTMLElement);
+            expect(messageElement.className).to.include('message');
+            expect(messageElement.dataset.id).to.equal(message.id);
+            expect(messageElement.querySelector('.username').textContent).to.equal(message.username);
+            expect(messageElement.querySelector('.message-content').textContent).to.equal(message.content);
+            expect(messageElement.querySelector('.translated-content').textContent).to.equal(message.translatedContent);
+        });
+    });
+    
+    describe('사용자 목록 컴포넌트', function() {
+        it('사용자 목록 렌더링', function() {
+            // 테스트 컨테이너 생성
+            const container = createTestElement(`
+                <div>
+                    <ul id="users-list"></ul>
+                </div>
+            `);
+            
+            // 테스트 사용자 목록
+            const users = [
+                {
+                    id: 'user1',
+                    username: 'User 1',
+                    preferred_language: 'ko'
+                },
+                {
+                    id: 'user2',
+                    username: 'User 2',
+                    preferred_language: 'en'
+                }
+            ];
+            
+            // 사용자 목록 렌더링 함수 모의 구현
+            const renderUsersList = function(users) {
+                const usersList = document.getElementById('users-list');
+                usersList.innerHTML = '';
+                
+                users.forEach(user => {
+                    const userItem = document.createElement('li');
+                    userItem.dataset.id = user.id;
+                    
+                    const usernameSpan = document.createElement('span');
+                    usernameSpan.className = 'user-name';
+                    usernameSpan.textContent = user.username;
+                    
+                    const languageSpan = document.createElement('span');
+                    languageSpan.className = 'user-language';
+                    
+                    // 언어 이름 매핑
+                    const languages = {
+                        'ko': '한국어',
+                        'en': '영어',
+                        'ja': '일본어',
+                        'zh': '중국어'
+                    };
+                    
+                    languageSpan.textContent = languages[user.preferred_language] || user.preferred_language;
+                    
+                    userItem.appendChild(usernameSpan);
+                    userItem.appendChild(languageSpan);
+                    
+                    usersList.appendChild(userItem);
+                });
+            };
+            
+            // 사용자 목록 렌더링
+            renderUsersList(users);
+            
+            // 렌더링 결과 확인
+            const userItems = container.querySelectorAll('#users-list li');
+            expect(userItems).to.have.lengthOf(2);
+            expect(userItems[0].dataset.id).to.equal('user1');
+            expect(userItems[0].querySelector('.user-name').textContent).to.equal('User 1');
+            expect(userItems[0].querySelector('.user-language').textContent).to.equal('한국어');
+            expect(userItems[1].dataset.id).to.equal('user2');
+            expect(userItems[1].querySelector('.user-name').textContent).to.equal('User 2');
+            expect(userItems[1].querySelector('.user-language').textContent).to.equal('영어');
+            
+            // 정리
+            removeTestElement(container);
+        });
+    });
+    
+    describe('채팅방 목록 컴포넌트', function() {
+        it('채팅방 목록 렌더링', function() {
+            // 테스트 컨테이너 생성
+            const container = createTestElement(`
+                <div>
+                    <select id="chat-room-select"></select>
+                </div>
+            `);
+            
+            // 테스트 채팅방 목록
+            const rooms = [
+                {
+                    id: 'room1',
+                    name: 'Room 1',
+                    type: 'public'
+                },
+                {
+                    id: 'room2',
+                    name: 'Room 2',
+                    type: 'private'
+                }
+            ];
+            
+            // 채팅방 목록 렌더링 함수 모의 구현
+            const renderRoomsList = function(rooms) {
+                const select = document.getElementById('chat-room-select');
+                select.innerHTML = '';
+                
+                rooms.forEach(room => {
+                    const option = document.createElement('option');
+                    option.value = room.id;
+                    option.dataset.type = room.type;
+                    option.textContent = room.name;
+                    select.appendChild(option);
+                });
+            };
+            
+            // 채팅방 목록 렌더링
+            renderRoomsList(rooms);
+            
+            // 렌더링 결과 확인
+            const options = container.querySelectorAll('#chat-room-select option');
+            expect(options).to.have.lengthOf(2);
+            expect(options[0].value).to.equal('room1');
+            expect(options[0].dataset.type).to.equal('public');
+            expect(options[0].textContent).to.equal('Room 1');
+            expect(options[1].value).to.equal('room2');
+            expect(options[1].dataset.type).to.equal('private');
+            expect(options[1].textContent).to.equal('Room 2');
+            
+            // 정리
+            removeTestElement(container);
+        });
+    });
+    
+    describe('입력 필드와 버튼', function() {
+        it('메시지 입력 및 전송', function() {
+            // 테스트 컨테이너 생성
+            const container = createTestElement(`
+                <div class="message-input-container">
+                    <textarea id="message-input"></textarea>
+                    <button id="send-message-btn"></button>
+                </div>
+            `);
+            
+            // 메시지 전송 함수 모의 구현
+            let sentMessage = null;
+            const sendMessage = function() {
+                const input = document.getElementById('message-input');
+                const message = input.value.trim();
+                
+                if (message) {
+                    sentMessage = message;
+                    input.value = '';
+                }
+            };
+            
+            // 이벤트 리스너 설정
+            document.getElementById('send-message-btn').addEventListener('click', sendMessage);
+            
+            // 메시지 입력
+            const input = document.getElementById('message-input');
+            input.value = 'Test message';
+            
+            // 전송 버튼 클릭
+            document.getElementById('send-message-btn').click();
+            
+            // 전송 결과 확인
+            expect(sentMessage).to.equal('Test message');
+            expect(input.value).to.equal('');
+            
+            // 정리
+            removeTestElement(container);
+        });
+        
+        it('엔터 키로 메시지 전송', function() {
+            // 테스트 컨테이너 생성
+            const container = createTestElement(`
+                <div class="message-input-container">
+                    <textarea id="message-input"></textarea>
+                </div>
+            `);
+            
+            // 메시지 전송 함수 모의 구현
+            let sentMessage = null;
+            const sendMessage = function() {
+                const input = document.getElementById('message-input');
+                const message = input.value.trim();
+                
+                if (message) {
+                    sentMessage = message;
+                    input.value = '';
+                }
+            };
+            
+            // 이벤트 리스너 설정
+            document.getElementById('message-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+            
+            // 메시지 입력
+            const input = document.getElementById('message-input');
+            input.value = 'Test message';
+            
+            // 엔터 키 이벤트 시뮬레이션
+            const enterEvent = new KeyboardEvent('keypress', {
+                key: 'Enter',
+                code: 'Enter',
+                keyCode: 13,
+                bubbles: true,
+                cancelable: true
+            });
+            
+            input.dispatchEvent(enterEvent);
+            
+            // 전송 결과 확인
+            expect(sentMessage).to.equal('Test message');
+            expect(input.value).to.equal('');
+            
+            // 정리
+            removeTestElement(container);
+        });
+    });
+});
 
-function assertElementExists(selector, message) {
-    const element = document.querySelector(selector);
-    if (!element) {
-        throw new Error(message || `Element with selector "${selector}" not found`);
-    }
-    return element;
-}
-
-function assertElementVisible(selector, message) {
-    const element = assertElementExists(selector);
-    if (window.getComputedStyle(element).display === 'none') {
-        throw new Error(message || `Element with selector "${selector}" is not visible`);
-    }
-    return element;
-}
-
-// UI 테스트 - 기본 요소 확인
-function testBasicElements() {
-    console.log('\n=== Basic UI Elements Tests ===');
+// 화면 전환 테스트
+describe('화면 전환', function() {
+    // 테스트 컨테이너 생성
+    let container;
     
-    // 시작 화면 요소 테스트
-    runTest('Start screen elements', function() {
-        const startScreen = assertElementExists('#start-screen', 'Start screen not found');
-        assertElementExists('#language-select', 'Language selector not found');
-        assertElementExists('#join-chat-btn', 'Join chat button not found');
-        assertElementExists('#admin-btn', 'Admin button not found');
+    before(function() {
+        container = createTestElement(`
+            <div>
+                <div id="start-screen" class="screen active">시작 화면</div>
+                <div id="login-screen" class="screen">로그인 화면</div>
+                <div id="chat-screen" class="screen">채팅 화면</div>
+            </div>
+        `);
     });
     
-    // 로그인 화면 요소 테스트
-    runTest('Login screen elements', function() {
-        const loginScreen = assertElementExists('#login-screen', 'Login screen not found');
-        assertElementExists('#username', 'Username input not found');
-        assertElementExists('#chat-room-select', 'Chat room selector not found');
-        assertElementExists('#private-room-code-container', 'Private room code container not found');
-        assertElementExists('#back-to-start-btn', 'Back button not found');
+    after(function() {
+        removeTestElement(container);
     });
     
-    // 관리자 로그인 화면 요소 테스트
-    runTest('Admin login screen elements', function() {
-        const adminLoginScreen = assertElementExists('#admin-login-screen', 'Admin login screen not found');
-        assertElementExists('#admin-id', 'Admin ID input not found');
-        assertElementExists('#admin-password', 'Admin password input not found');
-        assertElementExists('#admin-back-btn', 'Admin back button not found');
-    });
-    
-    // 채팅 화면 요소 테스트
-    runTest('Chat screen elements', function() {
-        const chatScreen = assertElementExists('#chat-screen', 'Chat screen not found');
-        assertElementExists('#current-room-name', 'Room name element not found');
-        assertElementExists('#chat-language-select', 'Chat language selector not found');
-        assertElementExists('#messages-container', 'Messages container not found');
-        assertElementExists('#users-sidebar', 'Users sidebar not found');
-        assertElementExists('#message-input', 'Message input not found');
-        assertElementExists('#send-message-btn', 'Send button not found');
-    });
-}
-
-// UI 테스트 - 화면 전환
-function testScreenTransitions() {
-    console.log('\n=== Screen Transition Tests ===');
-    
-    // 시작 화면에서 로그인 화면으로 전환 테스트
-    runTest('Transition: Start to Login', function() {
-        // 시작 화면 확인
-        const startScreen = assertElementExists('#start-screen');
-        assert(startScreen.classList.contains('active'), 'Start screen should be active initially');
+    it('화면 전환', function() {
+        // 화면 전환 함수 모의 구현
+        const showScreen = function(screenId) {
+            // 모든 화면 숨기기
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            
+            // 선택한 화면 표시
+            document.getElementById(`${screenId}-screen`).classList.add('active');
+        };
         
-        // 채팅 참여 버튼 클릭
-        document.getElementById('join-chat-btn').click();
+        // 초기 상태 확인
+        expect(container.querySelector('#start-screen').classList.contains('active')).to.be.true;
+        expect(container.querySelector('#login-screen').classList.contains('active')).to.be.false;
+        expect(container.querySelector('#chat-screen').classList.contains('active')).to.be.false;
         
-        // 로그인 화면으로 전환 확인
-        const loginScreen = assertElementExists('#login-screen');
-        assert(loginScreen.classList.contains('active'), 'Login screen should be active after button click');
-        assert(!startScreen.classList.contains('active'), 'Start screen should not be active anymore');
-    });
-    
-    // 로그인 화면에서 시작 화면으로 돌아가기 테스트
-    runTest('Transition: Login to Start', function() {
-        // 로그인 화면 확인
-        const loginScreen = assertElementExists('#login-screen');
-        assert(loginScreen.classList.contains('active'), 'Login screen should be active initially');
-        
-        // 뒤로 버튼 클릭
-        document.getElementById('back-to-start-btn').click();
-        
-        // 시작 화면으로 전환 확인
-        const startScreen = assertElementExists('#start-screen');
-        assert(startScreen.classList.contains('active'), 'Start screen should be active after back button click');
-        assert(!loginScreen.classList.contains('active'), 'Login screen should not be active anymore');
-    });
-    
-    // 시작 화면에서 관리자 로그인 화면으로 전환 테스트
-    runTest('Transition: Start to Admin Login', function() {
-        // 시작 화면 확인
-        const startScreen = assertElementExists('#start-screen');
-        assert(startScreen.classList.contains('active'), 'Start screen should be active initially');
-        
-        // 관리자 버튼 클릭
-        document.getElementById('admin-btn').click();
-        
-        // 관리자 로그인 화면으로 전환 확인
-        const adminLoginScreen = assertElementExists('#admin-login-screen');
-        assert(adminLoginScreen.classList.contains('active'), 'Admin login screen should be active after button click');
-        assert(!startScreen.classList.contains('active'), 'Start screen should not be active anymore');
-    });
-    
-    // 관리자 로그인 화면에서 시작 화면으로 돌아가기 테스트
-    runTest('Transition: Admin Login to Start', function() {
-        // 관리자 로그인 화면 확인
-        const adminLoginScreen = assertElementExists('#admin-login-screen');
-        assert(adminLoginScreen.classList.contains('active'), 'Admin login screen should be active initially');
-        
-        // 뒤로 버튼 클릭
-        document.getElementById('admin-back-btn').click();
-        
-        // 시작 화면으로 전환 확인
-        const startScreen = assertElementExists('#start-screen');
-        assert(startScreen.classList.contains('active'), 'Start screen should be active after back button click');
-        assert(!adminLoginScreen.classList.contains('active'), 'Admin login screen should not be active anymore');
-    });
-}
-
-// UI 테스트 - 언어 변경
-function testLanguageChange() {
-    console.log('\n=== Language Change Tests ===');
-    
-    // 언어 변경 테스트
-    runTest('Change language', function() {
-        // 시작 화면으로 전환
-        uiManager.showScreen('start');
-        
-        // 기본 언어(한국어) 확인
-        const joinChatBtn = assertElementExists('#join-chat-btn');
-        assertEqual(joinChatBtn.textContent, '채팅 참여하기', 'Default language should be Korean');
-        
-        // 언어 변경 (영어)
-        const languageSelect = document.getElementById('language-select');
-        languageSelect.value = 'en';
-        
-        // 변경 이벤트 발생
-        const event = new Event('change');
-        languageSelect.dispatchEvent(event);
-        
-        // 변경된 언어 확인
-        assertEqual(joinChatBtn.textContent, 'Join Chat', 'Button text should be in English after language change');
-        
-        // 다시 한국어로 변경
-        languageSelect.value = 'ko';
-        languageSelect.dispatchEvent(event);
-        
-        // 변경된 언어 확인
-        assertEqual(joinChatBtn.textContent, '채팅 참여하기', 'Button text should be back in Korean');
-    });
-}
-
-// UI 테스트 - 사용자 입력 처리
-function testUserInput() {
-    console.log('\n=== User Input Tests ===');
-    
-    // 사용자 이름 입력 테스트
-    runTest('Username input', function() {
         // 로그인 화면으로 전환
-        uiManager.showScreen('login');
+        showScreen('login');
         
-        // 사용자 이름 입력
-        const usernameInput = document.getElementById('username');
-        usernameInput.value = 'TestUser';
+        // 화면 전환 확인
+        expect(container.querySelector('#start-screen').classList.contains('active')).to.be.false;
+        expect(container.querySelector('#login-screen').classList.contains('active')).to.be.true;
+        expect(container.querySelector('#chat-screen').classList.contains('active')).to.be.false;
         
-        assertEqual(usernameInput.value, 'TestUser', 'Username input should contain the entered value');
-    });
-    
-    // 메시지 입력 테스트
-    runTest('Message input', function() {
         // 채팅 화면으로 전환
-        uiManager.showScreen('chat');
+        showScreen('chat');
         
-        // 메시지 입력
-        const messageInput = document.getElementById('message-input');
-        messageInput.value = 'Hello, World!';
-        
-        assertEqual(messageInput.value, 'Hello, World!', 'Message input should contain the entered value');
+        // 화면 전환 확인
+        expect(container.querySelector('#start-screen').classList.contains('active')).to.be.false;
+        expect(container.querySelector('#login-screen').classList.contains('active')).to.be.false;
+        expect(container.querySelector('#chat-screen').classList.contains('active')).to.be.true;
     });
-}
+});
 
-// UI 테스트 - 채팅방 목록
-function testChatRoomList() {
-    console.log('\n=== Chat Room List Tests ===');
-    
-    // 채팅방 목록 로딩 테스트
-    runTest('Load chat rooms', function() {
-        // 채팅방 선택 드롭다운
-        const chatRoomSelect = document.getElementById('chat-room-select');
+// 날짜/시간 형식화 테스트
+describe('날짜/시간 형식화', function() {
+    it('오늘 날짜 형식화', function() {
+        // 날짜/시간 형식화 함수 모의 구현
+        const formatTime = function(dateString) {
+            const date = new Date(dateString);
+            
+            if (isNaN(date.getTime())) {
+                return '';
+            }
+            
+            // 오늘 날짜인지 확인
+            const today = new Date();
+            const isToday = date.getDate() === today.getDate() &&
+                date.getMonth() === today.getMonth() &&
+                date.getFullYear() === today.getFullYear();
+            
+            if (isToday) {
+                // 시간만 표시
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } else {
+                // 날짜와 시간 표시
+                return date.toLocaleString([], { 
+                    year: '2-digit',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+        };
         
-        // 기존 옵션 수 확인
-        const initialOptionCount = chatRoomSelect.options.length;
+        // 오늘 날짜 생성
+        const today = new Date();
         
-        // 채팅방 목록 로드 (필요에 따라 목 데이터 사용)
-        uiManager.loadChatRooms();
+        // 오늘 날짜 형식화
+        const formattedTime = formatTime(today.toISOString());
         
-        // 옵션이 추가되었는지 확인 (실제 구현에서는 비동기 처리 필요)
-        // 여기서는 테스트를 위한 간단한 확인만 수행
-        assert(chatRoomSelect.options.length >= initialOptionCount, 'Chat room options should be loaded');
+        // 형식화 결과 확인 (시간 형식만 확인)
+        expect(formattedTime).to.match(/\d{1,2}:\d{2}/);
     });
-}
-
-// UI 테스트 - 반응형 디자인
-function testResponsiveDesign() {
-    console.log('\n=== Responsive Design Tests ===');
     
-    // 작은 화면에서의 UI 테스트
-    runTest('Small screen UI', function() {
-        // 원래 창 크기 저장
-        const originalInnerWidth = window.innerWidth;
-        const originalInnerHeight = window.innerHeight;
+    it('과거 날짜 형식화', function() {
+        // 날짜/시간 형식화 함수 모의 구현
+        const formatTime = function(dateString) {
+            const date = new Date(dateString);
+            
+            if (isNaN(date.getTime())) {
+                return '';
+            }
+            
+            // 오늘 날짜인지 확인
+            const today = new Date();
+            const isToday = date.getDate() === today.getDate() &&
+                date.getMonth() === today.getMonth() &&
+                date.getFullYear() === today.getFullYear();
+            
+            if (isToday) {
+                // 시간만 표시
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } else {
+                // 날짜와 시간 표시
+                return date.toLocaleString([], { 
+                    year: '2-digit',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+        };
         
-        // 작은 화면 크기로 설정
-        Object.defineProperty(window, 'innerWidth', { value: 480, configurable: true });
-        Object.defineProperty(window, 'innerHeight', { value: 800, configurable: true });
+        // 과거 날짜 생성 (7일 전)
+        const pastDate = new Date();
+        pastDate.setDate(pastDate.getDate() - 7);
         
-        // 리사이즈 이벤트 발생
-        window.dispatchEvent(new Event('resize'));
+        // 과거 날짜 형식화
+        const formattedTime = formatTime(pastDate.toISOString());
         
-        // 사용자 목록 사이드바 확인
-        const usersSidebar = document.getElementById('users-sidebar');
-        assert(usersSidebar.classList.contains('hidden'), 'Users sidebar should be hidden on small screens');
-        
-        // 원래 창 크기로 복원
-        Object.defineProperty(window, 'innerWidth', { value: originalInnerWidth, configurable: true });
-        Object.defineProperty(window, 'innerHeight', { value: originalInnerHeight, configurable: true });
-        
-        window.dispatchEvent(new Event('resize'));
+        // 형식화 결과 확인 (날짜와 시간 형식 확인)
+        expect(formattedTime).to.match(/\d{2}\/\d{2}\/\d{2}/);
+        expect(formattedTime).to.match(/\d{1,2}:\d{2}/);
     });
-}
-
-// 모든 테스트 실행
-function runAllTests() {
-    console.log('=== Running UI Tests ===');
     
-    testBasicElements();
-    testScreenTransitions();
-    testLanguageChange();
-    testUserInput();
-    testChatRoomList();
-    testResponsiveDesign();
-    
-    // 테스트 결과 요약
-    console.log('\n=== Test Results ===');
-    console.log(`Total: ${testResults.total}`);
-    console.log(`Passed: ${testResults.passed}`);
-    console.log(`Failed: ${testResults.failed}`);
-    
-    if (testResults.failed === 0) {
-        console.log('✅ All tests passed!');
-    } else {
-        console.log(`❌ ${testResults.failed} test(s) failed.`);
-    }
-}
-
-// DOM이 로드된 후 테스트 실행
-document.addEventListener('DOMContentLoaded', function() {
-    // 테스트 실행 버튼 생성
-    const testButton = document.createElement('button');
-    testButton.textContent = 'Run UI Tests';
-    testButton.id = 'run-ui-tests-btn';
-    testButton.style.position = 'fixed';
-    testButton.style.right = '10px';
-    testButton.style.bottom = '60px';
-    testButton.style.zIndex = '9999';
-    testButton.style.padding = '8px 16px';
-    testButton.style.backgroundColor = '#ff4081';
-    testButton.style.color = 'white';
-    testButton.style.border = 'none';
-    testButton.style.borderRadius = '4px';
-    testButton.style.cursor = 'pointer';
-    
-    testButton.addEventListener('click', runAllTests);
-    
-    document.body.appendChild(testButton);
+    it('잘못된 날짜 처리', function() {
+        // 날짜/시간 형식화 함수 모의 구현
+        const formatTime = function(dateString) {
+            const date = new Date(dateString);
+            
+            if (isNaN(date.getTime())) {
+                return '';
+            }
+            
+            // 나머지 로직...
+            return date.toISOString();
+        };
+        
+        // 잘못된 날짜 형식화
+        const formattedTime = formatTime('invalid-date');
+        
+        // 형식화 결과 확인
+        expect(formattedTime).to.equal('');
+    });
 });

@@ -1,283 +1,352 @@
 /**
  * 서비스 모듈 테스트
- * 기본적인 서비스 모듈 기능 테스트를 수행합니다.
+ * dbService, realtimeService, translationService, userService, chatService, offlineService 등을
+ * 테스트합니다.
  */
 
-// 테스트 결과를 저장할 객체
-const testResults = {
-    passed: 0,
-    failed: 0,
-    total: 0
-};
-
-// 테스트 케이스 실행 함수
-function runTest(testName, testFn) {
-    console.log(`Running test: ${testName}`);
-    testResults.total++;
+// dbService 테스트
+describe('dbService', function() {
+    this.timeout(10000); // 타임아웃 설정
     
-    try {
-        testFn();
-        console.log(`✅ Test passed: ${testName}`);
-        testResults.passed++;
-    } catch (error) {
-        console.error(`❌ Test failed: ${testName}`);
-        console.error(`   Error: ${error.message}`);
-        testResults.failed++;
-    }
-}
-
-// 어설션 함수
-function assert(condition, message) {
-    if (!condition) {
-        throw new Error(message || 'Assertion failed');
-    }
-}
-
-function assertEqual(actual, expected, message) {
-    if (actual !== expected) {
-        throw new Error(message || `Expected ${expected}, but got ${actual}`);
-    }
-}
-
-// 모의 객체 생성 함수
-function createMockSupabase() {
-    return {
-        from: function(table) {
-            return {
-                select: function() { return this; },
-                insert: function() { return this; },
-                update: function() { return this; },
-                delete: function() { return this; },
-                eq: function() { return this; },
-                single: function() { return this; },
-                order: function() { return this; },
-                limit: function() { return this; },
-                then: function(callback) {
-                    callback({ data: [], error: null });
-                    return this;
-                }
-            };
-        },
-        channel: function() {
-            return {
-                on: function() { return this; },
-                subscribe: function() { return this; }
-            };
-        },
-        removeChannel: function() {}
-    };
-}
-
-// 데이터베이스 서비스 테스트
-function testDBService() {
-    console.log('\n=== DBService Tests ===');
+    it('초기화 성공', async function() {
+        const result = await dbService.initialize();
+        expect(result).to.be.true;
+        expect(dbService.initialized).to.be.true;
+    });
     
-    // 초기화 테스트
-    runTest('DBService.initialize', function() {
-        const originalSupabase = window.supabase;
+    it('채팅방 목록 가져오기', async function() {
+        const rooms = await dbService.getChatRooms();
+        expect(rooms).to.be.an('array');
+    });
+    
+    it('특정 채팅방 가져오기', async function() {
+        // 목록에서 첫 번째 채팅방 가져오기
+        const rooms = await dbService.getChatRooms();
+        if (rooms.length === 0) {
+            this.skip();
+        }
         
-        // 모의 supabase 객체 설정
-        window.supabase = {
-            createClient: function() {
-                return createMockSupabase();
-            }
+        const roomId = rooms[0].id;
+        const room = await dbService.getChatRoom(roomId);
+        
+        expect(room).to.be.an('object');
+        expect(room.id).to.equal(roomId);
+    });
+    
+    it('채팅방 접근 가능 여부 확인', async function() {
+        // 목록에서 첫 번째 채팅방 가져오기
+        const rooms = await dbService.getChatRooms();
+        if (rooms.length === 0) {
+            this.skip();
+        }
+        
+        const roomId = rooms[0].id;
+        const result = await dbService.validateRoomAccess(roomId);
+        
+        expect(result).to.be.an('object');
+        expect(result).to.have.property('success');
+    });
+});
+
+// translationService 테스트
+describe('translationService', function() {
+    this.timeout(10000); // 타임아웃 설정
+    
+    before(function() {
+        // 캐시 초기화
+        translationService.clearCache();
+    });
+    
+    it('한국어 → 영어 번역', async function() {
+        const text = '안녕하세요';
+        const result = await translationService.translateText(text, 'en', 'ko');
+        
+        expect(result).to.be.an('object');
+        expect(result.success).to.be.true;
+        expect(result.translation).to.be.a('string');
+        expect(result.translation.toLowerCase()).to.include('hello');
+    });
+    
+    it('영어 → 한국어 번역', async function() {
+        const text = 'Hello, world!';
+        const result = await translationService.translateText(text, 'ko', 'en');
+        
+        expect(result).to.be.an('object');
+        expect(result.success).to.be.true;
+        expect(result.translation).to.be.a('string');
+        expect(result.translation).to.include('안녕');
+    });
+    
+    it('언어 감지', async function() {
+        const text = 'こんにちは';
+        const result = await translationService.translateText(text, 'en');
+        
+        expect(result).to.be.an('object');
+        expect(result.success).to.be.true;
+        expect(result.detectedLanguage).to.equal('ja');
+    });
+    
+    it('번역 캐싱 작동', async function() {
+        const text = 'テスト';
+        
+        // 첫 번째 번역 (캐싱)
+        const result1 = await translationService.translateText(text, 'en');
+        
+        // 캐시 확인
+        const cacheKey = `${text}|en|auto`;
+        expect(translationService.cache).to.have.property(cacheKey);
+        
+        // 두 번째 번역 (캐시 사용)
+        const result2 = await translationService.translateText(text, 'en');
+        
+        expect(result1.translation).to.equal(result2.translation);
+    });
+    
+    it('빈 텍스트 처리', async function() {
+        const text = '';
+        const result = await translationService.translateText(text, 'en');
+        
+        expect(result).to.be.an('object');
+        expect(result.success).to.be.false;
+        expect(result.translation).to.equal('');
+    });
+    
+    it('지원 언어 확인', function() {
+        expect(translationService.isLanguageSupported('ko')).to.be.true;
+        expect(translationService.isLanguageSupported('en')).to.be.true;
+        expect(translationService.isLanguageSupported('ja')).to.be.true;
+        expect(translationService.isLanguageSupported('zh')).to.be.true;
+        expect(translationService.isLanguageSupported('fr')).to.be.false;
+    });
+});
+
+// userService 테스트
+describe('userService', function() {
+    this.timeout(5000);
+    
+    before(function() {
+        // 사용자 정보 초기화
+        userService.clearUserFromLocalStorage();
+    });
+    
+    after(function() {
+        // 테스트 후 정리
+        userService.clearUserFromLocalStorage();
+    });
+    
+    it('초기화 성공', function() {
+        const result = userService.initialize();
+        expect(result).to.be.true;
+    });
+    
+    it('사용자 정보 저장 및 불러오기', function() {
+        // 사용자 정보 설정
+        userService.currentUser = {
+            id: 'test-user-id',
+            room_id: 'test-room-id',
+            username: 'TestUser',
+            preferred_language: 'ko'
         };
         
-        assert(dbService !== undefined, 'dbService should be defined');
-        assert(typeof dbService.initialize === 'function', 'initialize method should exist');
+        // LocalStorage에 저장
+        userService.saveUserToLocalStorage();
         
-        // 원래 객체 복원
-        window.supabase = originalSupabase;
+        // 현재 사용자 초기화
+        userService.currentUser = null;
+        
+        // LocalStorage에서 불러오기
+        userService.loadUserFromLocalStorage();
+        
+        // 사용자 정보 확인
+        expect(userService.currentUser).to.be.an('object');
+        expect(userService.currentUser.id).to.equal('test-user-id');
+        expect(userService.currentUser.username).to.equal('TestUser');
     });
     
-    // 채팅방 가져오기 테스트
-    runTest('DBService.getChatRooms', function() {
-        assert(typeof dbService.getChatRooms === 'function', 'getChatRooms method should exist');
+    it('사용자 로그인 상태 확인', function() {
+        // 사용자 정보 설정
+        userService.currentUser = {
+            id: 'test-user-id',
+            room_id: 'test-room-id',
+            username: 'TestUser',
+            preferred_language: 'ko'
+        };
+        
+        // 로그인 상태 확인
+        expect(userService.isLoggedIn()).to.be.true;
+        
+        // 사용자 정보 초기화
+        userService.currentUser = null;
+        
+        // 로그인 상태 확인
+        expect(userService.isLoggedIn()).to.be.false;
     });
     
-    // 사용자 추가 테스트
-    runTest('DBService.addUserToRoom', function() {
-        assert(typeof dbService.addUserToRoom === 'function', 'addUserToRoom method should exist');
+    it('사용자 정보 삭제', function() {
+        // 사용자 정보 설정
+        userService.currentUser = {
+            id: 'test-user-id',
+            room_id: 'test-room-id',
+            username: 'TestUser',
+            preferred_language: 'ko'
+        };
+        userService.saveUserToLocalStorage();
+        
+        // 사용자 정보 삭제
+        userService.clearUserFromLocalStorage();
+        
+        // 삭제 확인
+        expect(userService.currentUser).to.be.null;
+        expect(localStorage.getItem('currentUser')).to.be.null;
     });
-    
-    // 메시지 전송 테스트
-    runTest('DBService.sendMessage', function() {
-        assert(typeof dbService.sendMessage === 'function', 'sendMessage method should exist');
-    });
-}
+});
 
-// 번역 서비스 테스트
-function testTranslationService() {
-    console.log('\n=== TranslationService Tests ===');
-    
-    // 번역 테스트
-    runTest('TranslationService.translateText', function() {
-        assert(translationService !== undefined, 'translationService should be defined');
-        assert(typeof translationService.translateText === 'function', 'translateText method should exist');
+// offlineService 테스트
+describe('offlineService', function() {
+    before(function() {
+        // 대기 중인 메시지 초기화
+        offlineService.clearPendingMessages();
     });
     
-    // 언어 감지 테스트
-    runTest('TranslationService.detectLanguage', function() {
-        assert(typeof translationService.detectLanguage === 'function', 'detectLanguage method should exist');
+    after(function() {
+        // 테스트 후 정리
+        offlineService.clearPendingMessages();
     });
     
-    // 언어 지원 확인 테스트
-    runTest('TranslationService.isLanguageSupported', function() {
-        assert(typeof translationService.isLanguageSupported === 'function', 'isLanguageSupported method should exist');
-        assert(translationService.isLanguageSupported('ko'), 'Korean should be supported');
-        assert(translationService.isLanguageSupported('en'), 'English should be supported');
-        assert(translationService.isLanguageSupported('ja'), 'Japanese should be supported');
-        assert(translationService.isLanguageSupported('zh'), 'Chinese should be supported');
-        assert(!translationService.isLanguageSupported('fr'), 'French should not be supported');
+    it('초기화 성공', function() {
+        const result = offlineService.initialize();
+        expect(result).to.be.true;
     });
     
-    // 캐시 관리 테스트
-    runTest('TranslationService.cache management', function() {
-        assert(typeof translationService.saveCache === 'function', 'saveCache method should exist');
-        assert(typeof translationService.loadCache === 'function', 'loadCache method should exist');
-        assert(typeof translationService.clearCache === 'function', 'clearCache method should exist');
+    it('오프라인 메시지 저장 및 로드', function() {
+        // 메시지 저장
+        const message = {
+            room_id: 'test-room-id',
+            user_id: 'test-user-id',
+            username: 'TestUser',
+            content: 'Test message',
+            language: 'en'
+        };
+        
+        offlineService.saveOfflineMessage(message);
+        
+        // 저장된 메시지 수 확인
+        expect(offlineService.getPendingMessageCount()).to.equal(1);
+        
+        // 대기 중인 메시지 로드
+        offlineService.loadPendingMessages();
+        
+        // 로드된 메시지 확인
+        expect(offlineService.pendingMessages).to.be.an('array');
+        expect(offlineService.pendingMessages).to.have.lengthOf(1);
+        expect(offlineService.pendingMessages[0].content).to.equal('Test message');
     });
-}
+    
+    it('대기 중인 메시지 삭제', function() {
+        // 메시지 저장
+        const message = {
+            room_id: 'test-room-id',
+            user_id: 'test-user-id',
+            username: 'TestUser',
+            content: 'Test message',
+            language: 'en'
+        };
+        
+        offlineService.saveOfflineMessage(message);
+        
+        // 대기 중인 메시지 수 확인
+        expect(offlineService.getPendingMessageCount()).to.be.at.least(1);
+        
+        // 대기 중인 메시지 삭제
+        offlineService.clearPendingMessages();
+        
+        // 삭제 확인
+        expect(offlineService.pendingMessages).to.be.an('array');
+        expect(offlineService.pendingMessages).to.have.lengthOf(0);
+    });
+    
+    it('네트워크 상태 감지', function() {
+        // 현재 온라인 상태 확인
+        expect(offlineService.isConnected()).to.equal(navigator.onLine);
+        
+        // 연결 상태 변경 콜백 설정
+        let connectionState = null;
+        offlineService.setConnectionStatusCallback(status => {
+            connectionState = status;
+        });
+        
+        // 온라인 이벤트 시뮬레이션
+        const onlineEvent = new Event('online');
+        window.dispatchEvent(onlineEvent);
+        
+        // 콜백 호출 확인
+        expect(connectionState).to.be.true;
+        
+        // 오프라인 이벤트 시뮬레이션
+        const offlineEvent = new Event('offline');
+        window.dispatchEvent(offlineEvent);
+        
+        // 콜백 호출 확인
+        expect(connectionState).to.be.false;
+    });
+});
 
-// 사용자 서비스 테스트
-function testUserService() {
-    console.log('\n=== UserService Tests ===');
+// realtimeService 테스트
+describe('realtimeService', function() {
+    this.timeout(10000); // 타임아웃 설정
     
-    // 사용자 생성 테스트
-    runTest('UserService.createUser', function() {
-        assert(userService !== undefined, 'userService should be defined');
-        assert(typeof userService.createUser === 'function', 'createUser method should exist');
+    it('초기화 성공', async function() {
+        const result = await realtimeService.initialize();
+        expect(result).to.be.true;
+        expect(realtimeService.initialized).to.be.true;
     });
     
-    // 현재 사용자 관리 테스트
-    runTest('UserService.getCurrentUser', function() {
-        assert(typeof userService.getCurrentUser === 'function', 'getCurrentUser method should exist');
-        assert(typeof userService.setCurrentUser === 'function', 'setCurrentUser method should exist');
+    it('연결 상태 콜백 설정', function() {
+        let connectionState = null;
+        
+        // 콜백 설정
+        realtimeService.setConnectionStatusCallback(status => {
+            connectionState = status;
+        });
+        
+        // 강제로 콜백 호출
+        if (realtimeService.onConnectionStatusChange) {
+            realtimeService.onConnectionStatusChange(true);
+        }
+        
+        // 콜백 호출 확인
+        expect(connectionState).to.be.true;
     });
     
-    // 사용자 목록 관리 테스트
-    runTest('UserService.getUserList', function() {
-        assert(typeof userService.getUserList === 'function', 'getUserList method should exist');
-        assert(typeof userService.refreshUserList === 'function', 'refreshUserList method should exist');
+    // 실제 구독 테스트는 실제 채팅방 ID가 필요하므로 건너뜀
+    it('채팅방 구독 및 해제', function() {
+        this.skip(); // 실제 환경에서는 구현
     });
-}
+});
 
-// 채팅 서비스 테스트
-function testChatService() {
-    console.log('\n=== ChatService Tests ===');
+// chatService 테스트
+describe('chatService', function() {
+    this.timeout(10000); // 타임아웃 설정
     
-    // 채팅방 설정 테스트
-    runTest('ChatService.setRoom', function() {
-        assert(chatService !== undefined, 'chatService should be defined');
-        assert(typeof chatService.setRoom === 'function', 'setRoom method should exist');
+    // 실제 채팅방 설정 테스트는 실제 채팅방 ID가 필요하므로 건너뜀
+    it('채팅방 설정', function() {
+        this.skip(); // 실제 환경에서는 구현
     });
     
-    // 메시지 전송 테스트
-    runTest('ChatService.sendMessage', function() {
-        assert(typeof chatService.sendMessage === 'function', 'sendMessage method should exist');
+    it('메시지 번역', async function() {
+        // 메시지 객체 생성
+        const message = {
+            id: 'test-message-id',
+            content: 'Hello, world!',
+            language: 'en'
+        };
+        
+        // 번역
+        const translatedMessage = await chatService.translateMessage(message, 'ko');
+        
+        // 번역 결과 확인
+        expect(translatedMessage).to.be.an('object');
+        expect(translatedMessage.translated).to.be.true;
+        expect(translatedMessage.translatedContent).to.be.a('string');
     });
-    
-    // 메시지 번역 테스트
-    runTest('ChatService.translateMessage', function() {
-        assert(typeof chatService.translateMessage === 'function', 'translateMessage method should exist');
-    });
-    
-    // 메시지 관리 테스트
-    runTest('ChatService.getMessages', function() {
-        assert(typeof chatService.getMessages === 'function', 'getMessages method should exist');
-        assert(typeof chatService.loadRecentMessages === 'function', 'loadRecentMessages method should exist');
-    });
-}
-
-// 오프라인 서비스 테스트
-function testOfflineService() {
-    console.log('\n=== OfflineService Tests ===');
-    
-    // 초기화 테스트
-    runTest('OfflineService.initialize', function() {
-        assert(offlineService !== undefined, 'offlineService should be defined');
-        assert(typeof offlineService.initialize === 'function', 'initialize method should exist');
-    });
-    
-    // 연결 상태 테스트
-    runTest('OfflineService.isConnected', function() {
-        assert(typeof offlineService.isConnected === 'function', 'isConnected method should exist');
-        assert(typeof offlineService.setConnectionStatusCallback === 'function', 'setConnectionStatusCallback method should exist');
-    });
-    
-    // 오프라인 메시지 관리 테스트
-    runTest('OfflineService.saveOfflineMessage', function() {
-        assert(typeof offlineService.saveOfflineMessage === 'function', 'saveOfflineMessage method should exist');
-        assert(typeof offlineService.syncOfflineMessages === 'function', 'syncOfflineMessages method should exist');
-        assert(typeof offlineService.getPendingMessages === 'function', 'getPendingMessages method should exist');
-    });
-}
-
-// 다국어 처리 모듈 테스트
-function testI18nService() {
-    console.log('\n=== I18nService Tests ===');
-    
-    // 초기화 테스트
-    runTest('I18nService.initialize', function() {
-        assert(i18nService !== undefined, 'i18nService should be defined');
-        assert(typeof i18nService.initialize === 'function', 'initialize method should exist');
-    });
-    
-    // 언어 설정 테스트
-    runTest('I18nService.setLanguage', function() {
-        assert(typeof i18nService.setLanguage === 'function', 'setLanguage method should exist');
-        assert(typeof i18nService.getCurrentLanguage === 'function', 'getCurrentLanguage method should exist');
-    });
-    
-    // 번역 테스트
-    runTest('I18nService.translate', function() {
-        assert(typeof i18nService.translate === 'function', 'translate method should exist');
-        assert(typeof i18nService.translateInterface === 'function', 'translateInterface method should exist');
-    });
-}
-
-// 모든 테스트 실행
-function runAllTests() {
-    console.log('=== Running Tests ===');
-    
-    testDBService();
-    testTranslationService();
-    testUserService();
-    testChatService();
-    testOfflineService();
-    testI18nService();
-    
-    // 테스트 결과 요약
-    console.log('\n=== Test Results ===');
-    console.log(`Total: ${testResults.total}`);
-    console.log(`Passed: ${testResults.passed}`);
-    console.log(`Failed: ${testResults.failed}`);
-    
-    if (testResults.failed === 0) {
-        console.log('✅ All tests passed!');
-    } else {
-        console.log(`❌ ${testResults.failed} test(s) failed.`);
-    }
-}
-
-// DOM이 로드된 후 테스트 실행
-document.addEventListener('DOMContentLoaded', function() {
-    // 테스트 실행 버튼 생성
-    const testButton = document.createElement('button');
-    testButton.textContent = 'Run Tests';
-    testButton.id = 'run-tests-btn';
-    testButton.style.position = 'fixed';
-    testButton.style.right = '10px';
-    testButton.style.bottom = '10px';
-    testButton.style.zIndex = '9999';
-    testButton.style.padding = '8px 16px';
-    testButton.style.backgroundColor = '#3f51b5';
-    testButton.style.color = 'white';
-    testButton.style.border = 'none';
-    testButton.style.borderRadius = '4px';
-    testButton.style.cursor = 'pointer';
-    
-    testButton.addEventListener('click', runAllTests);
-    
-    document.body.appendChild(testButton);
 });
