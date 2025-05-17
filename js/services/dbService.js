@@ -489,85 +489,23 @@ const dbService = (() => {
      * @returns {Promise<boolean>} 인증 성공 여부
      */
     const authenticateAdmin = async (adminId, password) => {
-        try {
-            // CONFIG 객체 확인
-            if (!window.CONFIG) {
-                console.error('CONFIG 객체가 정의되지 않았습니다.');
-                // 하드코딩된 값으로 인증 시도
-                const isValid = (adminId === 'kcmmer' && password === 'rnrud9881@@HH');
-                
-                // 디버그 로그
-                console.log('하드코딩된 값으로 인증 결과:', isValid);
-                
-                if (isValid) {
-                    // 인증 성공 시 세션 쿠키에 관리자 상태 저장 (로컬 스토리지는 보안에 취약)
-                    // 임시 방편으로 로컬 스토리지에 관리자 정보 저장
-                    // 실제 프로덕션 환경에서는 더 안전한 방식 사용 필요
-                    localStorage.setItem('admin_session', JSON.stringify({
-                        id: adminId,
-                        role: 'admin',
-                        timestamp: new Date().getTime()
-                    }));
-                }
-                
-                return isValid;
-            }
-            
-            // config.js에서 관리자 계정 정보 가져오기
-            const correctId = window.CONFIG.ADMIN_ID;
-            const correctPassword = window.CONFIG.ADMIN_PASSWORD;
-            
-            // 디버그 로그
-            console.log('관리자 인증 시도:', adminId);
-            console.log('CONFIG의 관리자 ID:', correctId);
-            console.log('CONFIG의 비밀번호 길이:', correctPassword ? correctPassword.length : 0);
-            
-            const isValid = (adminId === correctId && password === correctPassword);
-            
-            if (isValid) {
-                try {
-                    // 인증 성공 시 세션 쿠키에 관리자 상태 저장 (로컬 스토리지는 보안에 취약)
-                    const client = initializeClient();
-                    
-                    // 임시 방편으로 로컬 스토리지에 관리자 정보 저장
-                    // 실제 프로덕션 환경에서는 더 안전한 방식 사용 필요
-                    localStorage.setItem('admin_session', JSON.stringify({
-                        id: adminId,
-                        role: 'admin',
-                        timestamp: new Date().getTime()
-                    }));
-                    
-                    // 사용자 테이블에 관리자 정보 저장 (존재하지 않는 경우)
-                    const { data, error } = await client
-                        .from('users')
-                        .upsert({
-                            id: `admin_${adminId}`,
-                            username: 'Admin',
-                            preferred_language: 'ko',
-                            role: 'admin',
-                            last_activity: new Date().toISOString()
-                        })
-                        .select();
-                    
-                    if (error) {
-                        console.warn('관리자 사용자 정보 저장 실패:', error);
-                        // 인증은 계속 유효함
-                    }
-                    
-                    return true;
-                } catch (error) {
-                    console.error('관리자 세션 설정 중 오류:', error);
-                    return true; // 오류가 발생해도 인증은 성공한 것으로 처리
-                }
-            }
-            
-            console.warn('관리자 인증 실패');
-            return false;
-        } catch (error) {
-            console.error('관리자 인증 중 오류 발생:', error);
-            // 오류 발생 시 인증 실패로 처리
-            return false;
+        console.log('관리자 인증 함수 호출:', adminId);
+        
+        // 간단하게 하드코딩한 값으로 직접 비교
+        const isValid = (adminId === 'kcmmer' && password === 'rnrud9881@@HH');
+        
+        console.log('인증 결과:', isValid);
+        
+        if (isValid) {
+            // 인증 성공 시 관리자 정보 저장
+            localStorage.setItem('admin_session', JSON.stringify({
+                id: adminId,
+                role: 'admin',
+                timestamp: new Date().getTime()
+            }));
         }
+        
+        return isValid;
     };
 
     /**
