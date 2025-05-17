@@ -1,174 +1,230 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
-    <meta name="format-detection" content="telephone=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <title>Global SeatCon 2025 Conference Chat</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f5f5f5;
-            color: #333;
-        }
-        .container {
-            text-align: center;
-            background-color: white;
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            max-width: 80%;
-            width: 600px;
-        }
-        h1 {
-            color: #3f51b5;
-            margin-bottom: 0.5rem;
-        }
-        .subtitle {
-            color: #757575;
-            margin-bottom: 2rem;
-        }
-        .links {
-            display: flex;
-            justify-content: space-around;
-            margin-top: 2rem;
-        }
-        .button {
-            display: inline-block;
-            padding: 1rem 2rem;
-            background-color: #3f51b5;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-            font-weight: bold;
-            transition: background-color 0.3s;
-        }
-        .button:hover {
-            background-color: #303f9f;
-        }
-        .admin-btn {
-            background-color: #f50057;
-        }
-        .admin-btn:hover {
-            background-color: #c51162;
-        }
-        .footer {
-            margin-top: 3rem;
-            font-size: 0.9rem;
-            color: #757575;
-        }
-        .language-selector {
-            margin-top: 1.5rem;
-        }
-        .language-selector select {
-            padding: 0.5rem;
-            border-radius: 4px;
-            border: 1px solid #ccc;
-            background-color: white;
-            font-size: 0.9rem;
-        }
-    </style>
-    <!-- 환경 설정 스크립트 -->
-    <script src="js/env-config.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global SeatCon 2025 - 컨퍼런스 채팅</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <!-- 현대적인 UI를 위한 Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- 아이콘 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- PWA 지원 -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3f51b5">
+    <link rel="apple-touch-icon" href="assets/icon-192x192.png">
 </head>
 <body>
-    <div class="container">
-        <h1>Global SeatCon 2025</h1>
-        <div class="subtitle">Conference Chat Application</div>
-        
-        <p>
-            Real-time multilingual chat application for Global SeatCon 2025 conference.<br>
-            Supports Korean, English, Japanese, and Chinese interfaces with automatic translation.
-        </p>
-        
-        <div class="language-selector">
-            <select id="main-language-select" onchange="changeLanguage(this.value)">
-                <option value="en" selected>English</option>
-                <option value="ko">한국어</option>
-                <option value="ja">日本語</option>
-                <option value="zh">中文</option>
-            </select>
+    <div class="app-container">
+        <!-- 시작 화면 -->
+        <div id="start-screen" class="screen active">
+            <div class="logo-container">
+                <h1>Global SeatCon 2025</h1>
+                <p class="tagline">다국어 실시간 컨퍼런스 채팅</p>
+            </div>
+            <div class="language-selector">
+                <label for="language-select" data-i18n="language-select">언어 선택:</label>
+                <select id="language-select">
+                    <option value="ko">한국어</option>
+                    <option value="en">English</option>
+                    <option value="ja">日本語</option>
+                    <option value="zh">中文</option>
+                </select>
+            </div>
+            <div class="main-buttons">
+                <button id="join-chat-btn" class="btn primary-btn" data-i18n="join-chat">채팅 참여하기</button>
+                <button id="admin-btn" class="btn secondary-btn" data-i18n="admin-panel">관리자 페이지</button>
+            </div>
         </div>
-        
-        <div class="links">
-            <a href="chat/" class="button" id="join-button">Join Chat</a>
-            <a href="admin.html" class="button admin-btn" id="admin-button">Admin Page</a>
+
+        <!-- 로그인 화면 -->
+        <div id="login-screen" class="screen">
+            <h2 data-i18n="enter-chat">채팅 입장</h2>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="username" data-i18n="username">사용자 이름</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="chat-room-select" data-i18n="select-room">채팅방 선택</label>
+                    <select id="chat-room-select">
+                        <!-- 채팅방 목록은 자바스크립트로 로드됨 -->
+                        <option value="" disabled selected data-i18n="loading-rooms">채팅방 로딩 중...</option>
+                    </select>
+                </div>
+                <div id="private-room-code-container" class="form-group hidden">
+                    <label for="room-code" data-i18n="room-code">입장 코드</label>
+                    <input type="text" id="room-code">
+                </div>
+                <button type="submit" class="btn primary-btn" data-i18n="enter">입장</button>
+                <button type="button" id="back-to-start-btn" class="btn secondary-btn" data-i18n="back">뒤로</button>
+            </form>
         </div>
-        
-        <div class="footer">
-            <p>© 2025 Global SeatCon Conference. All rights reserved.</p>
+
+        <!-- 관리자 로그인 화면 -->
+        <div id="admin-login-screen" class="screen">
+            <h2 data-i18n="admin-login">관리자 로그인</h2>
+            <form id="admin-login-form">
+                <div class="form-group">
+                    <label for="admin-id" data-i18n="admin-id">관리자 ID</label>
+                    <input type="text" id="admin-id" required>
+                </div>
+                <div class="form-group">
+                    <label for="admin-password" data-i18n="admin-password">비밀번호</label>
+                    <input type="password" id="admin-password" required>
+                </div>
+                <button type="submit" class="btn primary-btn" data-i18n="login">로그인</button>
+                <button type="button" id="admin-back-btn" class="btn secondary-btn" data-i18n="back">뒤로</button>
+            </form>
+        </div>
+
+        <!-- 채팅 화면 -->
+        <div id="chat-screen" class="screen">
+            <div class="chat-header">
+                <div class="room-info">
+                    <h3 id="current-room-name">채팅방 이름</h3>
+                    <span id="online-users-count">0명 접속 중</span>
+                </div>
+                <div class="header-actions">
+                    <div class="language-selector">
+                        <select id="chat-language-select">
+                            <option value="ko">한국어</option>
+                            <option value="en">English</option>
+                            <option value="ja">日本語</option>
+                            <option value="zh">中文</option>
+                        </select>
+                    </div>
+                    <button id="toggle-users-btn" class="btn icon-btn">
+                        <i class="fas fa-users"></i>
+                    </button>
+                    <button id="leave-chat-btn" class="btn icon-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="chat-container">
+                <div id="messages-container" class="messages-container">
+                    <!-- 메시지는 자바스크립트로 동적 추가됨 -->
+                </div>
+                
+                <div id="users-sidebar" class="users-sidebar hidden">
+                    <h4 data-i18n="online-users">접속자 목록</h4>
+                    <ul id="users-list">
+                        <!-- 사용자 목록은 자바스크립트로 동적 추가됨 -->
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="chat-footer">
+                <div id="reply-container" class="reply-container hidden">
+                    <div id="reply-preview"></div>
+                    <button id="cancel-reply-btn" class="btn icon-btn">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="connection-status" class="connection-status online">
+                    <span id="status-text" data-i18n="online">온라인</span>
+                </div>
+                <div class="message-input-container">
+                    <textarea id="message-input" placeholder="메시지를 입력하세요..." data-i18n-placeholder="enter-message"></textarea>
+                    <button id="send-message-btn" class="btn primary-btn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
+    <!-- 오프라인 모드 알림 -->
+    <div id="offline-toast" class="toast hidden">
+        <i class="fas fa-wifi-slash"></i>
+        <span data-i18n="offline-mode">오프라인 모드로 전환되었습니다.</span>
+    </div>
+
+    <!-- 업데이트 알림 -->
+    <div id="update-toast" class="toast hidden">
+        <i class="fas fa-sync"></i>
+        <span data-i18n="update-available">새 버전이 있습니다.</span>
+        <button id="update-btn" class="btn small-btn" data-i18n="update">업데이트</button>
+    </div>
+
+    <!-- 스크립트 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+    <script src="js/services/dbService.js"></script>
+    <script src="js/services/realtimeService.js"></script>
+    <script src="js/services/translationService.js"></script>
+    <script src="js/services/userService.js"></script>
+    <script src="js/services/chatService.js"></script>
+    <script src="js/services/offlineService.js"></script>
+    <script src="js/app-i18n.js"></script>
+    <script src="js/app-ui.js"></script>
+    <script src="js/app-chat.js"></script>
+    <script src="js/app-users.js"></script>
+    <script src="js/app-rooms.js"></script>
+    <script src="js/app-core.js"></script>
+
+    <!-- 서비스 워커 등록 -->
     <script>
-        // 언어별 텍스트
-        const translations = {
-            'en': {
-                'title': 'Global SeatCon 2025 Conference Chat',
-                'subtitle': 'Conference Chat Application',
-                'description': 'Real-time multilingual chat application for Global SeatCon 2025 conference.<br>Supports Korean, English, Japanese, and Chinese interfaces with automatic translation.',
-                'join': 'Join Chat',
-                'admin': 'Admin Page'
-            },
-            'ko': {
-                'title': 'Global SeatCon 2025 컨퍼런스 채팅',
-                'subtitle': '컨퍼런스 채팅 애플리케이션',
-                'description': 'Global SeatCon 2025 컨퍼런스를 위한 실시간 다국어 채팅 애플리케이션입니다.<br>한국어, 영어, 일본어, 중국어 인터페이스 및 자동 번역 기능을 지원합니다.',
-                'join': '채팅 참여하기',
-                'admin': '관리자 페이지'
-            },
-            'ja': {
-                'title': 'Global SeatCon 2025 カンファレンスチャット',
-                'subtitle': 'カンファレンスチャットアプリケーション',
-                'description': 'Global SeatCon 2025 カンファレンス用のリアルタイム多言語チャットアプリケーションです。<br>韓国語、英語、日本語、中国語のインターフェースと自動翻訳機能をサポートしています。',
-                'join': 'チャットに参加',
-                'admin': '管理者ページ'
-            },
-            'zh': {
-                'title': 'Global SeatCon 2025 会议聊天',
-                'subtitle': '会议聊天应用程序',
-                'description': 'Global SeatCon 2025 会议的实时多语言聊天应用程序。<br>支持韩语、英语、日语和中文界面以及自动翻译功能。',
-                'join': '加入聊天',
-                'admin': '管理员页面'
-            }
-        };
-        
-        // 언어 변경 함수
-        function changeLanguage(language) {
-            // 언어 선택 저장
-            localStorage.setItem('preferredLanguage', language);
-            
-            // 페이지 제목 변경
-            document.title = translations[language].title;
-            
-            // 서브타이틀 변경
-            document.querySelector('.subtitle').textContent = translations[language].subtitle;
-            
-            // 설명 텍스트 변경
-            document.querySelector('p').innerHTML = translations[language].description;
-            
-            // 버튼 텍스트 변경
-            document.getElementById('join-button').textContent = translations[language].join;
-            document.getElementById('admin-button').textContent = translations[language].admin;
-            
-            // HTML 언어 속성 변경
-            document.documentElement.lang = language;
+        // 서비스 워커 지원 확인
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(function(registration) {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                        
+                        // 새 서비스 워커 대기 중인지 확인
+                        if (registration.waiting) {
+                            showUpdateToast();
+                        }
+                        
+                        // 서비스 워커 업데이트 확인
+                        registration.addEventListener('updatefound', function() {
+                            const newWorker = registration.installing;
+                            
+                            newWorker.addEventListener('statechange', function() {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    showUpdateToast();
+                                }
+                            });
+                        });
+                    })
+                    .catch(function(error) {
+                        console.error('ServiceWorker registration failed: ', error);
+                    });
+                
+                // 업데이트 버튼 이벤트 리스너
+                document.getElementById('update-btn').addEventListener('click', function() {
+                    navigator.serviceWorker.getRegistration().then(function(reg) {
+                        if (reg.waiting) {
+                            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                        }
+                    });
+                    
+                    // 페이지 새로고침
+                    window.location.reload();
+                });
+                
+                // 오프라인 상태 감지
+                window.addEventListener('online', function() {
+                    document.getElementById('offline-toast').classList.add('hidden');
+                });
+                
+                window.addEventListener('offline', function() {
+                    document.getElementById('offline-toast').classList.remove('hidden');
+                    
+                    // 3초 후 알림 숨기기
+                    setTimeout(function() {
+                        document.getElementById('offline-toast').classList.add('hidden');
+                    }, 3000);
+                });
+            });
         }
         
-        // 페이지 로드 시 저장된 언어 설정 적용
-        document.addEventListener('DOMContentLoaded', function() {
-            const savedLanguage = localStorage.getItem('preferredLanguage') || 'en';
-            document.getElementById('main-language-select').value = savedLanguage;
-            changeLanguage(savedLanguage);
-        });
+        // 업데이트 알림 표시
+        function showUpdateToast() {
+            document.getElementById('update-toast').classList.remove('hidden');
+        }
     </script>
 </body>
 </html>

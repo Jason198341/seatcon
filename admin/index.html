@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global SeatCon 2025 - 관리자 페이지</title>
+    <link rel="stylesheet" href="../css/admin-styles.css">
+    <!-- 현대적인 UI를 위한 Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- 아이콘 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="admin-container">
+        <aside class="sidebar">
+            <div class="logo-container">
+                <h1>SeatCon 2025</h1>
+                <p>관리자 페이지</p>
+            </div>
+            <nav class="admin-nav">
+                <ul>
+                    <li><a href="#" class="nav-link active" data-tab="dashboard"><i class="fas fa-tachometer-alt"></i> 대시보드</a></li>
+                    <li><a href="#" class="nav-link" data-tab="chat-rooms"><i class="fas fa-comments"></i> 채팅방 관리</a></li>
+                    <li><a href="#" class="nav-link" data-tab="users"><i class="fas fa-users"></i> 사용자 관리</a></li>
+                    <li><a href="#" class="nav-link" data-tab="system"><i class="fas fa-server"></i> 시스템 상태</a></li>
+                </ul>
+            </nav>
+            <div class="admin-info">
+                <div class="admin-avatar">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <div class="admin-details">
+                    <p id="admin-name">관리자</p>
+                    <a href="#" id="logout-btn">로그아웃</a>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="main-content">
+            <!-- 대시보드 탭 -->
+            <section id="dashboard" class="tab-content active">
+                <h2>대시보드</h2>
+                
+                <div class="stats-container">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>활성 사용자</h3>
+                            <p id="active-users-count">0</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>총 메시지</h3>
+                            <p id="total-messages-count">0</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-language"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>번역 요청</h3>
+                            <p id="translation-count">0</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-door-open"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>활성 채팅방</h3>
+                            <p id="active-rooms-count">0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="charts-container">
+                    <div class="chart-card">
+                        <h3>시간별 활동</h3>
+                        <canvas id="activity-chart"></canvas>
+                    </div>
+                    
+                    <div class="chart-card">
+                        <h3>언어별 사용량</h3>
+                        <canvas id="language-chart"></canvas>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- 채팅방 관리 탭 -->
+            <section id="chat-rooms" class="tab-content">
+                <h2>채팅방 관리</h2>
+                
+                <div class="actions-bar">
+                    <button id="add-room-btn" class="btn primary-btn">
+                        <i class="fas fa-plus"></i> 새 채팅방 추가
+                    </button>
+                </div>
+                
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>이름</th>
+                                <th>설명</th>
+                                <th>상태</th>
+                                <th>유형</th>
+                                <th>생성일</th>
+                                <th>참가자 수</th>
+                                <th>작업</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rooms-table-body">
+                            <!-- 채팅방 목록은 자바스크립트로 동적 추가됨 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- 채팅방 추가/수정 모달 -->
+                <div id="room-modal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3 id="room-modal-title">새 채팅방 추가</h3>
+                            <button class="close-modal-btn">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="room-form">
+                                <input type="hidden" id="room-id">
+                                <div class="form-group">
+                                    <label for="room-name">채팅방 이름</label>
+                                    <input type="text" id="room-name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="room-description">설명</label>
+                                    <textarea id="room-description"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="room-type">유형</label>
+                                    <select id="room-type">
+                                        <option value="public">공개</option>
+                                        <option value="private">비공개</option>
+                                    </select>
+                                </div>
+                                <div id="access-code-container" class="form-group hidden">
+                                    <label for="room-access-code">접근 코드</label>
+                                    <input type="text" id="room-access-code">
+                                </div>
+                                <div class="form-group">
+                                    <label for="room-max-users">최대 사용자 수</label>
+                                    <input type="number" id="room-max-users" min="1" value="100">
+                                </div>
+                                <div class="form-group">
+                                    <label for="room-status">상태</label>
+                                    <select id="room-status">
+                                        <option value="active">활성화</option>
+                                        <option value="inactive">비활성화</option>
+                                    </select>
+                                </div>
+                                <div class="modal-actions">
+                                    <button type="submit" class="btn primary-btn" id="save-room-btn">저장</button>
+                                    <button type="button" class="btn secondary-btn cancel-modal-btn">취소</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- 사용자 관리 탭 -->
+            <section id="users" class="tab-content">
+                <h2>사용자 관리</h2>
+                
+                <div class="actions-bar">
+                    <div class="search-container">
+                        <input type="text" id="user-search" placeholder="사용자 검색...">
+                        <button class="btn search-btn">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>이름</th>
+                                <th>선호 언어</th>
+                                <th>최근 활동</th>
+                                <th>채팅방</th>
+                                <th>권한</th>
+                                <th>작업</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table-body">
+                            <!-- 사용자 목록은 자바스크립트로 동적 추가됨 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- 사용자 수정 모달 -->
+                <div id="user-modal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3 id="user-modal-title">사용자 정보 수정</h3>
+                            <button class="close-modal-btn">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="user-form">
+                                <input type="hidden" id="user-id">
+                                <div class="form-group">
+                                    <label for="user-name">사용자 이름</label>
+                                    <input type="text" id="user-name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="user-role">권한</label>
+                                    <select id="user-role">
+                                        <option value="user">일반 사용자</option>
+                                        <option value="admin">관리자</option>
+                                    </select>
+                                </div>
+                                <div class="modal-actions">
+                                    <button type="submit" class="btn primary-btn" id="save-user-btn">저장</button>
+                                    <button type="button" class="btn secondary-btn cancel-modal-btn">취소</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- 시스템 상태 탭 -->
+            <section id="system" class="tab-content">
+                <h2>시스템 상태</h2>
+                
+                <div class="status-cards">
+                    <div class="status-card">
+                        <h3>서비스 상태</h3>
+                        <div class="status-item">
+                            <span class="status-label">Supabase 연결</span>
+                            <span id="supabase-status" class="status-indicator online">온라인</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Translation API</span>
+                            <span id="translation-api-status" class="status-indicator online">온라인</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Realtime 서비스</span>
+                            <span id="realtime-status" class="status-indicator online">온라인</span>
+                        </div>
+                    </div>
+                    
+                    <div class="status-card">
+                        <h3>성능 모니터링</h3>
+                        <div class="chart-container">
+                            <canvas id="performance-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="log-container">
+                    <h3>오류 로그</h3>
+                    <div id="error-logs" class="logs">
+                        <!-- 오류 로그는 자바스크립트로 동적 추가됨 -->
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 스크립트 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="../js/services/dbService.js"></script>
+    <script src="../js/services/realtimeService.js"></script>
+    <script src="../js/services/translationService.js"></script>
+    <script src="../js/admin/admin-core.js"></script>
+    <script src="../js/admin/admin-dashboard.js"></script>
+    <script src="../js/admin/admin-rooms.js"></script>
+    <script src="../js/admin/admin-users.js"></script>
+    <script src="../js/admin/admin-system.js"></script>
+</body>
+</html>

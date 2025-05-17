@@ -1,286 +1,197 @@
 /**
- * offlineService.js
- * 오프라인 모드를 지원하는 서비스
+ * 오프라인 모드 서비스
+ * 네트워크 연결 감지 및 오프라인 모드에서의 메시지 저장과 동기화를 담당합니다.
  */
 
-const offlineService = (() => {
-    // 오프라인 메시지 저장 키
-    const OFFLINE_MESSAGES_KEY = 'conference_chat_offline_messages';
-    
-    // 오프라인 상태 및 이벤트 콜백
-    let isOnline = window.navigator.onLine;
-    let connectionCallbacks = [];
-    
+class OfflineService {
+    constructor() {
+        this.isOnline = navigator.onLine;
+        this.offlineMessages = [];
+        this.onConnectionStatusChange = null;
+        
+        // 네트워크 상태 변경 이벤트 리스너 등록
+        window.addEventListener('online', this.handleOnline.bind(this));
+        window.addEventListener('offline', this.handleOffline.bind(this));
+    }
+
     /**
-     * 서비스 초기화
+     * 초기화
      */
-    const initialize = () => {
-        // 온라인/오프라인 이벤트 리스너 등록
-        window.addEventListener('online', _handleOnline);
-        window.addEventListener('offline', _handleOffline);
+    initialize() {
+        this.loadOfflineMessages();
+    }
+
+    /**
+     * 온라인 상태로 전환 시 처리
+     * @private
+     */
+    handleOnline() {
+        console.log('Network connection restored');
+        this.isOnline = true;
         
-        // 초기 상태 확인
-        isOnline = window.navigator.onLine;
+        // 오프라인 메시지 동기화
+        this.syncOfflineMessages();
         
-        console.log(`오프라인 서비스 초기화 완료 (현재 상태: ${isOnline ? '온라인' : '오프라인'})`);
-    };
-    
+        // 콜백 호출
+        if (this.onConnectionStatusChange) {
+            this.onConnectionStatusChange(true);
+        }
+    }
+
+    /**
+     * 오프라인 상태로 전환 시 처리
+     * @private
+     */
+    handleOffline() {
+        console.log('Network connection lost');
+        this.isOnline = false;
+        
+        // 콜백 호출
+        if (this.onConnectionStatusChange) {
+            this.onConnectionStatusChange(false);
+        }
+    }
+
+    /**
+     * 현재 연결 상태 확인
+     * @returns {boolean} 온라인 여부
+     */
+    isConnected() {
+        return this.isOnline;
+    }
+
+    /**
+     * 연결 상태 변경 콜백 설정
+     * @param {Function} callback 연결 상태 변경 시 호출될 콜백 함수
+     */
+    setConnectionStatusCallback(callback) {
+        this.onConnectionStatusChange = callback;
+    }
+
     /**
      * 오프라인 메시지 저장
-     * @param {Object} message - 저장할 메시지
-     * @returns {boolean} 저장 성공 여부
+     * @param {Object} message 저장할 메시지
      */
-    const saveOfflineMessage = (message) => {
-        if (!message || !message.chatroom_id) {
-            return false;
+    saveOfflineMessage(message) {
+        this.offlineMessages.push({
+            ...message,
+            pendingId: `pending_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            timestamp: Date.now()
+        });
+        
+        this.saveOfflineMessagesToLocalStorage();
+    }
+
+    /**
+     * 오프라인 메시지를 LocalStorage에 저장
+     * @private
+     */
+    saveOfflineMessagesToLocalStorage() {
+        try {
+            localStorage.setItem('offlineMessages', JSON.stringify(this.offlineMessages));
+        } catch (error) {
+            console.error('Error saving offline messages to localStorage:', error);
+        }
+    }
+
+    /**
+     * LocalStorage에서 오프라인 메시지 불러오기
+     * @private
+     */
+    loadOfflineMessages() {
+        try {
+            const savedMessages = localStorage.getItem('offlineMessages');
+            if (savedMessages) {
+                this.offlineMessages = JSON.parse(savedMessages);
+            }
+        } catch (error) {
+            console.error('Error loading offline messages from localStorage:', error);
+            this.offlineMessages = [];
+        }
+    }
+
+    /**
+     * 오프라인 메시지 동기화
+     * @returns {Promise<{success: number, failed: number}>} 동기화 결과
+     */
+    async syncOfflineMessages() {
+        if (!this.isOnline || this.offlineMessages.length === 0) {
+            return { success: 0, failed: 0 };
         }
         
-        try {
-            // 기존 오프라인 메시지 로드
-            const offlineMessages = _loadOfflineMessages();
-            
-            // 메시지 추가
-            offlineMessages.push(message);
-            
-            // 저장
-            localStorage.setItem(OFFLINE_MESSAGES_KEY, JSON.stringify(offlineMessages));
-            
-            return true;
-        } catch (error) {
-            console.error('오프라인 메시지 저장 실패:', error);
-            return false;
+        let successCount = 0;
+        let failedCount = 0;
+        
+        const currentUser = userService.getCurrentUser();
+        if (!currentUser) {
+            return { success: 0, failed: this.offlineMessages.length };
         }
-    };
-    
+        
+        // 각 오프라인 메시지를 순차적으로 전송
+        for (let i = 0; i < this.offlineMessages.length; i++) {
+            const offlineMessage = this.offlineMessages[i];
+            
+            try {
+                // 메시지 전송
+                const result = await dbService.sendMessage(
+                    offlineMessage.room_id,
+                    currentUser.id,
+                    currentUser.username,
+                    offlineMessage.content,
+                    offlineMessage.language,
+                    offlineMessage.reply_to,
+                    offlineMessage.is_announcement
+                );
+                
+                if (result.success) {
+                    successCount++;
+                } else {
+                    failedCount++;
+                }
+            } catch (error) {
+                console.error('Error syncing offline message:', error);
+                failedCount++;
+            }
+        }
+        
+        // 성공적으로 동기화된 메시지 제거
+        if (successCount > 0) {
+            this.offlineMessages = this.offlineMessages.slice(successCount);
+            this.saveOfflineMessagesToLocalStorage();
+        }
+        
+        return { success: successCount, failed: failedCount };
+    }
+
     /**
-     * 특정 채팅방의 오프라인 메시지 가져오기
-     * @param {string} roomId - 채팅방 ID
+     * 대기 중인 오프라인 메시지 가져오기
      * @returns {Array} 오프라인 메시지 목록
      */
-    const getOfflineMessages = (roomId) => {
-        if (!roomId) {
-            return [];
-        }
-        
-        try {
-            // 기존 오프라인 메시지 로드
-            const offlineMessages = _loadOfflineMessages();
-            
-            // 특정 채팅방의 메시지만 필터링
-            return offlineMessages.filter(message => message.chatroom_id === roomId);
-        } catch (error) {
-            console.error('오프라인 메시지 조회 실패:', error);
-            return [];
-        }
-    };
-    
+    getPendingMessages() {
+        return this.offlineMessages;
+    }
+
     /**
-     * 오프라인 메시지 제거
-     * @param {string} messageId - 제거할 메시지 ID
-     * @returns {boolean} 제거 성공 여부
-     */
-    const removeOfflineMessage = (messageId) => {
-        if (!messageId) {
-            return false;
-        }
-        
-        try {
-            // 기존 오프라인 메시지 로드
-            const offlineMessages = _loadOfflineMessages();
-            
-            // 특정 메시지 제거
-            const filteredMessages = offlineMessages.filter(message => message.id !== messageId);
-            
-            // 제거된 메시지가 없으면 false 반환
-            if (filteredMessages.length === offlineMessages.length) {
-                return false;
-            }
-            
-            // 저장
-            localStorage.setItem(OFFLINE_MESSAGES_KEY, JSON.stringify(filteredMessages));
-            
-            return true;
-        } catch (error) {
-            console.error('오프라인 메시지 제거 실패:', error);
-            return false;
-        }
-    };
-    
-    /**
-     * 모든 오프라인 메시지 제거
-     * @returns {boolean} 제거 성공 여부
-     */
-    const clearOfflineMessages = () => {
-        try {
-            localStorage.removeItem(OFFLINE_MESSAGES_KEY);
-            return true;
-        } catch (error) {
-            console.error('오프라인 메시지 전체 제거 실패:', error);
-            return false;
-        }
-    };
-    
-    /**
-     * 현재 오프라인 메시지 수 조회
+     * 대기 중인 오프라인 메시지 수 가져오기
      * @returns {number} 오프라인 메시지 수
      */
-    const getOfflineMessageCount = () => {
-        try {
-            const offlineMessages = _loadOfflineMessages();
-            return offlineMessages.length;
-        } catch (error) {
-            console.error('오프라인 메시지 수 조회 실패:', error);
-            return 0;
-        }
-    };
-    
+    getPendingMessageCount() {
+        return this.offlineMessages.length;
+    }
+
     /**
-     * 현재 네트워크 상태 가져오기
-     * @returns {boolean} 온라인 상태 여부
+     * 대기 중인 오프라인 메시지 초기화
      */
-    const isNetworkOnline = () => {
-        return isOnline;
-    };
-    
-    /**
-     * 연결 상태 변경 이벤트에 콜백 등록
-     * @param {Function} callback - 연결 상태 변경 시 호출할 콜백 함수
-     */
-    const onConnectionChange = (callback) => {
-        if (typeof callback === 'function') {
-            connectionCallbacks.push(callback);
-        }
-    };
-    
-    /**
-     * 로컬 스토리지에 데이터 저장
-     * @param {string} key - 저장 키
-     * @param {*} data - 저장할 데이터
-     * @returns {boolean} 저장 성공 여부
-     */
-    const saveToLocalStorage = (key, data) => {
-        if (!key) {
-            return false;
-        }
-        
-        try {
-            localStorage.setItem(key, JSON.stringify(data));
-            return true;
-        } catch (error) {
-            console.error(`로컬 스토리지 저장 실패 (키: ${key}):`, error);
-            return false;
-        }
-    };
-    
-    /**
-     * 로컬 스토리지에서 데이터 로드
-     * @param {string} key - 로드할 키
-     * @param {*} defaultValue - 기본값
-     * @returns {*} 로드된 데이터
-     */
-    const loadFromLocalStorage = (key, defaultValue = null) => {
-        if (!key) {
-            return defaultValue;
-        }
-        
-        try {
-            const data = localStorage.getItem(key);
-            return data ? JSON.parse(data) : defaultValue;
-        } catch (error) {
-            console.error(`로컬 스토리지 로드 실패 (키: ${key}):`, error);
-            return defaultValue;
-        }
-    };
-    
-    /**
-     * 로컬 스토리지에서 데이터 제거
-     * @param {string} key - 제거할 키
-     * @returns {boolean} 제거 성공 여부
-     */
-    const removeFromLocalStorage = (key) => {
-        if (!key) {
-            return false;
-        }
-        
-        try {
-            localStorage.removeItem(key);
-            return true;
-        } catch (error) {
-            console.error(`로컬 스토리지 항목 제거 실패 (키: ${key}):`, error);
-            return false;
-        }
-    };
-    
-    /**
-     * 내부: 오프라인 메시지 로드
-     * @returns {Array} 오프라인 메시지 목록
-     * @private
-     */
-    const _loadOfflineMessages = () => {
-        try {
-            const data = localStorage.getItem(OFFLINE_MESSAGES_KEY);
-            return data ? JSON.parse(data) : [];
-        } catch (error) {
-            console.error('오프라인 메시지 로드 실패:', error);
-            return [];
-        }
-    };
-    
-    /**
-     * 내부: 온라인 전환 처리
-     * @param {Event} event - 이벤트 객체
-     * @private
-     */
-    const _handleOnline = (event) => {
-        console.log('네트워크 연결 복구');
-        isOnline = true;
-        
-        // 콜백 호출
-        _notifyConnectionChanged(true);
-    };
-    
-    /**
-     * 내부: 오프라인 전환 처리
-     * @param {Event} event - 이벤트 객체
-     * @private
-     */
-    const _handleOffline = (event) => {
-        console.log('네트워크 연결 끊김');
-        isOnline = false;
-        
-        // 콜백 호출
-        _notifyConnectionChanged(false);
-    };
-    
-    /**
-     * 내부: 연결 상태 변경 콜백 호출
-     * @param {boolean} online - 온라인 상태 여부
-     * @private
-     */
-    const _notifyConnectionChanged = (online) => {
-        connectionCallbacks.forEach(callback => {
-            try {
-                callback(online);
-            } catch (error) {
-                console.error('연결 상태 변경 콜백 실행 중 오류 발생:', error);
-            }
-        });
-    };
-    
-    // 서비스 초기화
-    initialize();
-    
-    // 공개 API
-    return {
-        saveOfflineMessage,
-        getOfflineMessages,
-        removeOfflineMessage,
-        clearOfflineMessages,
-        getOfflineMessageCount,
-        isNetworkOnline,
-        onConnectionChange,
-        saveToLocalStorage,
-        loadFromLocalStorage,
-        removeFromLocalStorage
-    };
-})();
+    clearPendingMessages() {
+        this.offlineMessages = [];
+        this.saveOfflineMessagesToLocalStorage();
+    }
+}
+
+// 싱글톤 인스턴스 생성
+const offlineService = new OfflineService();
+
+// 초기화
+document.addEventListener('DOMContentLoaded', () => {
+    offlineService.initialize();
+});

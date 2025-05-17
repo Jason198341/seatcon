@@ -1,735 +1,281 @@
 /**
- * dbService.js
- * Supabase 데이터베이스 연결 및 데이터 처리를 담당하는 서비스
+ * Supabase 데이터베이스 서비스
+ * Supabase 클라이언트를 초기화하고 데이터베이스 관련 작업을 처리합니다.
  */
 
-// Supabase 클라이언트 인스턴스 생성
-const dbService = (() => {
-    let supabase;
-    
-    /**
-     * Supabase 클라이언트 초기화
-     * @returns {Object} Supabase 클라이언트 인스턴스
-     */
-    const initializeClient = () => {
-        if (!supabase) {
-            try {
-                // config.js에서 API 키 가져오기
-                if (!window.CONFIG || !window.CONFIG.SUPABASE_URL || !window.CONFIG.SUPABASE_KEY) {
-                    console.error('CONFIG 객체 또는 Supabase 설정이 없습니다');
-                    // 백업 설정 사용
-                    const SUPABASE_URL = 'https://dolywnpcrutdxuxkozae.supabase.co';
-                    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvbHl3bnBjcnV0ZHh1eGtvemFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2NDEyMDYsImV4cCI6MjA2MjIxNzIwNn0.--UVh_FtCPp23EHzJEejyl9GUX6-6Fao81PlPQDR5G8';
-                    
-                    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                } else {
-                    const SUPABASE_URL = window.CONFIG.SUPABASE_URL;
-                    const SUPABASE_KEY = window.CONFIG.SUPABASE_KEY;
-                    
-                    // 헤더 옵션 추가
-                    const options = {
-                        auth: {
-                            persistSession: true,
-                            autoRefreshToken: true,
-                            detectSessionInUrl: true
-                        },
-                        global: {
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Accept': 'application/json'
-                            }
-                        },
-                        realtime: {
-                            params: {
-                                eventsPerSecond: 10
-                            }
-                        }
-                    };
-                    
-                    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, options);
-                }
-                
-                console.log('Supabase 클라이언트 초기화 완료');
-            } catch (error) {
-                console.error('Supabase 클라이언트 초기화 실패:', error);
-                throw new Error('데이터베이스 연결에 실패했습니다');
-            }
-        }
-        return supabase;
-    };
+// 현재 사용 중인 Supabase URL과 Key
+const SUPABASE_URL = 'https://dolywnpcrutdxuxkozae.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvbHl3bnBjcnV0ZHh1eGtvemFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2NDEyMDYsImV4cCI6MjA2MjIxNzIwNn0.--UVh_FtCPp23EHzJEejyl9GUX6-6Fao81PlPQDR5G8';
+
+// 예비용 Supabase URL과 Key
+const BACKUP_SUPABASE_URL = 'https://veudhigojdukbqfgjeyh.supabase.co';
+const BACKUP_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZldWRoaWdvamR1a2JxZmdqZXloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzODgwNjIsImV4cCI6MjA2MDk2NDA2Mn0.Vh0TUArZacAuRiLeoxml26u9GJxSOrziUhC3vURJVao';
+
+class DBService {
+    constructor() {
+        this.supabase = null;
+        this.initialized = false;
+        this.onConnectionStatusChange = null;
+    }
 
     /**
-     * 연결 상태 확인
-     * @returns {Promise<boolean>} 연결 상태
+     * Supabase 클라이언트를 초기화합니다.
+     * @returns {Promise<boolean>} 초기화 성공 여부
      */
-    const testConnection = async () => {
+    async initialize() {
         try {
-            const client = initializeClient();
-            const { data, error } = await client.from('chatrooms').select('id').limit(1);
+            // Supabase 클라이언트 초기화
+            this.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+            // 연결 테스트
+            const { data, error } = await this.supabase.from('chatrooms').select('count', { count: 'exact', head: true });
             
             if (error) {
-                throw error;
+                console.error('Primary Supabase connection failed, trying backup:', error);
+                // 백업 연결 시도
+                this.supabase = supabase.createClient(BACKUP_SUPABASE_URL, BACKUP_SUPABASE_KEY);
+                const backupTest = await this.supabase.from('chatrooms').select('count', { count: 'exact', head: true });
+                
+                if (backupTest.error) {
+                    console.error('Backup Supabase connection also failed:', backupTest.error);
+                    this.initialized = false;
+                    if (this.onConnectionStatusChange) {
+                        this.onConnectionStatusChange(false);
+                    }
+                    return false;
+                }
             }
             
+            this.initialized = true;
+            if (this.onConnectionStatusChange) {
+                this.onConnectionStatusChange(true);
+            }
             return true;
         } catch (error) {
-            console.error('데이터베이스 연결 테스트 실패:', error);
+            console.error('Error initializing Supabase:', error);
+            this.initialized = false;
+            if (this.onConnectionStatusChange) {
+                this.onConnectionStatusChange(false);
+            }
             return false;
         }
-    };
+    }
 
     /**
-     * 채팅방 목록 가져오기
-     * @param {boolean} activeOnly - 활성화된 채팅방만 가져올지 여부
+     * 초기화 상태 확인 및 필요시 초기화 실행
+     * @returns {Promise<boolean>} 초기화 상태
+     */
+    async ensureInitialized() {
+        if (!this.initialized) {
+            return await this.initialize();
+        }
+        return true;
+    }
+
+    /**
+     * 모든 채팅방 목록을 가져옵니다.
+     * @param {boolean} activeOnly 활성화된 채팅방만 가져올지 여부
      * @returns {Promise<Array>} 채팅방 목록
      */
-    const getChatRooms = async (activeOnly = false) => {
+    async getChatRooms(activeOnly = false) {
+        await this.ensureInitialized();
+        
         try {
-            const client = initializeClient();
-
-            // 가능한 추가 헤더
-            const headers = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'apikey': window.CONFIG ? window.CONFIG.SUPABASE_KEY : '',
-                'Authorization': `Bearer ${window.CONFIG ? window.CONFIG.SUPABASE_KEY : ''}`
-            };
-
-            // 직접 API 호출을 통한 조회 시도 (supabase 클라이언트 문제 회피)
-            const supabaseUrl = window.CONFIG ? window.CONFIG.SUPABASE_URL : 'https://dolywnpcrutdxuxkozae.supabase.co';
-            const response = await fetch(`${supabaseUrl}/rest/v1/chatrooms?select=*&order=sort_order.asc${activeOnly ? '&is_active=eq.true' : ''}`, {
-                method: 'GET',
-                headers: headers
-            });
-
-            if (!response.ok) {
-                throw new Error(`API 오류: ${response.status} ${response.statusText}`);
+            let query = this.supabase.from('chatrooms').select('*');
+            
+            if (activeOnly) {
+                query = query.eq('status', 'active');
             }
-
-            const data = await response.json();
+            
+            const { data, error } = await query.order('created_at');
+            
+            if (error) {
+                throw error;
+            }
+            
             return data || [];
         } catch (error) {
-            console.error('채팅방 목록 조회 실패:', error);
-            
-            // 오류 내용 자세히 기록
-            if (error.response) {
-                console.error('Response:', error.response);
-            }
-            
-            // 백업 방법: 로컬 저장소에서 이전에 저장한 채팅방 정보가 있는지 확인
-            try {
-                const savedRooms = localStorage.getItem('chatrooms');
-                if (savedRooms) {
-                    return JSON.parse(savedRooms);
-                }
-            } catch (e) {
-                console.warn('저장된 채팅방 가져오기 실패:', e);
-            }
-            
-            // 백업용 채팅방 데이터
-            return [
-                {
-                    id: 'general',
-                    name: '일반 채팅',
-                    description: '모든 참가자를 위한 공개 채팅방',
-                    is_private: false,
-                    is_active: true,
-                    max_users: 100,
-                    sort_order: 0,
-                    created_at: new Date().toISOString(),
-                    created_by: 'system'
-                },
-                {
-                    id: 'korean',
-                    name: '한국어 채팅',
-                    description: '한국어 사용자를 위한 채팅방',
-                    is_private: false,
-                    is_active: true,
-                    max_users: 50,
-                    sort_order: 1,
-                    created_at: new Date().toISOString(),
-                    created_by: 'system'
-                },
-                {
-                    id: 'english',
-                    name: 'English Chat',
-                    description: 'Chat room for English speaking users',
-                    is_private: false,
-                    is_active: true,
-                    max_users: 50,
-                    sort_order: 2,
-                    created_at: new Date().toISOString(),
-                    created_by: 'system'
-                },
-                {
-                    id: 'vip',
-                    name: 'VIP 라운지',
-                    description: 'VIP 전용 비공개 채팅방',
-                    is_private: true,
-                    is_active: true,
-                    max_users: 20,
-                    sort_order: 3,
-                    created_at: new Date().toISOString(),
-                    created_by: 'system',
-                    access_code: 'vip2025'
-                }
-            ];
+            console.error('Error fetching chat rooms:', error);
+            return [];
         }
-    };
+    }
 
     /**
-     * 채팅방 상세 정보 가져오기
-     * @param {string} roomId - 채팅방 ID
-     * @returns {Promise<Object>} 채팅방 정보
+     * 특정 채팅방 정보를 가져옵니다.
+     * @param {string} roomId 채팅방 ID
+     * @returns {Promise<Object|null>} 채팅방 정보
      */
-    const getChatRoomById = async (roomId) => {
+    async getChatRoom(roomId) {
+        await this.ensureInitialized();
+        
         try {
-            // 직접 REST API 사용
-            const headers = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'apikey': window.CONFIG ? window.CONFIG.SUPABASE_KEY : '',
-                'Authorization': `Bearer ${window.CONFIG ? window.CONFIG.SUPABASE_KEY : ''}`
-            };
-
-            const supabaseUrl = window.CONFIG ? window.CONFIG.SUPABASE_URL : 'https://dolywnpcrutdxuxkozae.supabase.co';
-            const response = await fetch(`${supabaseUrl}/rest/v1/chatrooms?id=eq.${roomId}&limit=1`, {
-                method: 'GET',
-                headers: headers
-            });
-
-            if (!response.ok) {
-                console.error(`채팅방 조회 API 오류: ${response.status} ${response.statusText}`);
-                throw new Error(`채팅방 조회 API 오류: ${response.status}`);
-            }
-
-            // API에서 배열로 응답하므로 첫 번째 항목 처리
-            const data = await response.json();
-            if (data && data.length > 0) {
-                // 성공적으로 채팅방을 가져왔을 때 로컬 저장소에 백업
-                try {
-                    // 기존 채팅방 목록 가져오기 및 추가/업데이트
-                    const savedRooms = localStorage.getItem('chatrooms');
-                    const rooms = savedRooms ? JSON.parse(savedRooms) : [];
-                    
-                    // 현재 채팅방이 목록에 있는지 확인
-                    const exists = rooms.findIndex(room => room.id === data[0].id) >= 0;
-                    
-                    if (!exists) {
-                        rooms.push(data[0]);
-                        localStorage.setItem('chatrooms', JSON.stringify(rooms));
-                    }
-                } catch (e) {
-                    console.warn('채팅방 백업 실패:', e);
-                }
-                
-                return data[0];
-            }
-            
-            // 응답은 성공했지만 채팅방이 없는 경우
-            throw new Error('채팅방을 찾을 수 없습니다');
-            
-        } catch (error) {
-            console.error(`채팅방 상세 정보 조회 실패 (ID: ${roomId}):`, error);
-            
-            // 로컬 저장소에서 해당 채팅방 찾기 시도
-            try {
-                const savedRooms = localStorage.getItem('chatrooms');
-                if (savedRooms) {
-                    const rooms = JSON.parse(savedRooms);
-                    const room = rooms.find(r => r.id === roomId);
-                    if (room) {
-                        return room;
-                    }
-                }
-            } catch (e) {
-                console.warn('저장된 채팅방 정보 가져오기 실패:', e);
-            }
-            
-            // roomId에 따라 기본 채팅방 반환
-            if (roomId === 'general' || !roomId) {
-                return {
-                    id: 'general',
-                    name: '일반 채팅',
-                    description: '모든 참가자를 위한 공개 채팅방',
-                    is_private: false,
-                    is_active: true,
-                    max_users: 100,
-                    sort_order: 0,
-                    created_at: new Date().toISOString(),
-                    created_by: 'system'
-                };
-            } else if (roomId === 'korean') {
-                return {
-                    id: 'korean',
-                    name: '한국어 채팅',
-                    description: '한국어 사용자를 위한 채팅방',
-                    is_private: false,
-                    is_active: true,
-                    max_users: 50,
-                    sort_order: 1,
-                    created_at: new Date().toISOString(),
-                    created_by: 'system'
-                };
-            } else if (roomId === 'english') {
-                return {
-                    id: 'english',
-                    name: 'English Chat',
-                    description: 'Chat room for English speaking users',
-                    is_private: false,
-                    is_active: true,
-                    max_users: 50,
-                    sort_order: 2,
-                    created_at: new Date().toISOString(),
-                    created_by: 'system'
-                };
-            } else if (roomId === 'vip') {
-                return {
-                    id: 'vip',
-                    name: 'VIP 라운지',
-                    description: 'VIP 전용 비공개 채팅방',
-                    is_private: true,
-                    is_active: true,
-                    max_users: 20,
-                    sort_order: 3,
-                    created_at: new Date().toISOString(),
-                    created_by: 'system',
-                    access_code: 'vip2025'
-                };
-            } else {
-                // 임의의 roomId에 대한 기본 채팅방
-                return {
-                    id: roomId,
-                    name: 'Chat Room',
-                    description: 'Conference chat room',
-                    is_private: false,
-                    is_active: true,
-                    max_users: 100,
-                    sort_order: 0,
-                    created_at: new Date().toISOString(),
-                    created_by: 'system'
-                };
-            }
-        }
-    };
-
-    /**
-     * 채팅방 생성
-     * @param {Object} roomData - 채팅방 데이터
-     * @returns {Promise<Object>} 생성된 채팅방 정보
-     */
-    const createChatRoom = async (roomData) => {
-        try {
-            const client = initializeClient();
-            
-            // 관리자 세션 설정 (임시 방편)
-            // 실제 프로덕션 환경에서는 제대로 된 인증 시스템을 사용해야 함
-            const adminId = window.CONFIG ? window.CONFIG.ADMIN_ID : 'kcmmer';
-            
-            // 임시 방편: RLS 정책 우회를 위한 특별 헤더 추가
-            const { data, error } = await client
+            const { data, error } = await this.supabase
                 .from('chatrooms')
-                .insert([{
-                    ...roomData,
-                    // 생성자 ID가 없는 경우 기본값 설정
-                    created_by: roomData.created_by || adminId
-                }])
-                .select()
-                .single();
-            
-            if (error) {
-                console.error('채팅방 생성 오류 상세:', error);
-                
-                // Bypass RLS 문제를 위한 직접 SQL 실행 (임시 방편)
-                // 이 방식은 실제 프로덕션 환경에서는 권장되지 않음
-                if (error.code === '42501') { // 권한 오류
-                    try {
-                        // 직접 SQL 실행 시도
-                        // 주의: 이 방식은 보안 위험이 있으므로 실제 프로덕션에서 사용하지 말 것
-                        const insertResult = await client.rpc('admin_create_chatroom', {
-                            room_name: roomData.name,
-                            room_description: roomData.description || '',
-                            room_max_users: roomData.max_users || 100,
-                            room_sort_order: roomData.sort_order || 0,
-                            room_is_active: roomData.is_active !== undefined ? roomData.is_active : true,
-                            room_is_private: roomData.is_private !== undefined ? roomData.is_private : false,
-                            room_access_code: roomData.access_code || null,
-                            room_created_by: roomData.created_by || adminId
-                        });
-                        
-                        if (insertResult.error) {
-                            throw insertResult.error;
-                        }
-                        
-                        return insertResult.data;
-                    } catch (rpcError) {
-                        console.error('관리자 RPC 호출 실패:', rpcError);
-                        throw new Error('채팅방 생성 권한이 없습니다. 관리자에게 문의하세요.');
-                    }
-                }
-                
-                throw error;
-            }
-            
-            return data;
-        } catch (error) {
-            console.error('채팅방 생성 실패:', error);
-            throw new Error('채팅방 생성에 실패했습니다');
-        }
-    };
-
-    /**
-     * 채팅방 수정
-     * @param {string} roomId - 채팅방 ID
-     * @param {Object} roomData - 업데이트할 채팅방 데이터
-     * @returns {Promise<Object>} 수정된 채팅방 정보
-     */
-    const updateChatRoom = async (roomId, roomData) => {
-        try {
-            const client = initializeClient();
-            
-            // 일반적인 방식으로 업데이트 시도
-            const { data, error } = await client
-                .from('chatrooms')
-                .update(roomData)
+                .select('*')
                 .eq('id', roomId)
-                .select()
                 .single();
             
             if (error) {
-                console.error(`채팅방 수정 오류 (ID: ${roomId}):`, error);
-                
-                // Bypass RLS 문제를 위한 직접 SQL 실행 (임시 방편)
-                if (error.code === '42501') { // 권한 오류
-                    try {
-                        // 직접 SQL 실행 시도
-                        const updateResult = await client.rpc('admin_update_chatroom', {
-                            room_id: roomId,
-                            room_name: roomData.name,
-                            room_description: roomData.description || '',
-                            room_max_users: roomData.max_users || 100,
-                            room_sort_order: roomData.sort_order || 0,
-                            room_is_active: roomData.is_active !== undefined ? roomData.is_active : true,
-                            room_is_private: roomData.is_private !== undefined ? roomData.is_private : false,
-                            room_access_code: roomData.access_code || null
-                        });
-                        
-                        if (updateResult.error) {
-                            throw updateResult.error;
-                        }
-                        
-                        return updateResult.data;
-                    } catch (rpcError) {
-                        console.error('관리자 RPC 호출 실패:', rpcError);
-                        throw new Error('채팅방 수정 권한이 없습니다. 관리자에게 문의하세요.');
-                    }
-                }
-                
                 throw error;
             }
             
             return data;
         } catch (error) {
-            console.error(`채팅방 수정 실패 (ID: ${roomId}):`, error);
-            throw new Error('채팅방 수정에 실패했습니다');
+            console.error(`Error fetching chat room ${roomId}:`, error);
+            return null;
         }
-    };
+    }
 
     /**
-     * 채팅방 삭제
-     * @param {string} roomId - 채팅방 ID
-     * @returns {Promise<boolean>} 삭제 성공 여부
+     * 채팅방 접근 가능 여부와 접근 코드 검증
+     * @param {string} roomId 채팅방 ID
+     * @param {string} accessCode 접근 코드 (비공개 채팅방인 경우)
+     * @returns {Promise<{success: boolean, message: string}>} 접근 결과
      */
-    const deleteChatRoom = async (roomId) => {
+    async validateRoomAccess(roomId, accessCode = null) {
+        await this.ensureInitialized();
+        
         try {
-            const client = initializeClient();
+            const room = await this.getChatRoom(roomId);
             
-            // 일반적인 방식으로 삭제 시도
-            const { error } = await client
-                .from('chatrooms')
-                .delete()
-                .eq('id', roomId);
+            if (!room) {
+                return { success: false, message: 'room-not-found' };
+            }
+            
+            if (room.status !== 'active') {
+                return { success: false, message: 'room-closed' };
+            }
+            
+            // 현재 접속자 수 확인
+            const { count, error: countError } = await this.supabase
+                .from('users')
+                .select('*', { count: 'exact', head: true })
+                .eq('room_id', roomId);
+            
+            if (countError) {
+                throw countError;
+            }
+            
+            if (count >= room.max_users) {
+                return { success: false, message: 'room-full' };
+            }
+            
+            // 비공개 채팅방 접근 코드 검증
+            if (room.type === 'private') {
+                if (!accessCode || accessCode !== room.access_code) {
+                    return { success: false, message: 'incorrect-code' };
+                }
+            }
+            
+            return { success: true, message: 'access-granted' };
+        } catch (error) {
+            console.error(`Error validating room access for ${roomId}:`, error);
+            return { success: false, message: 'validation-error' };
+        }
+    }
+
+    /**
+     * 채팅방에 새 사용자 추가
+     * @param {string} roomId 채팅방 ID
+     * @param {string} username 사용자 이름
+     * @param {string} preferredLanguage 선호 언어
+     * @returns {Promise<{success: boolean, userId: string|null}>} 추가 결과
+     */
+    async addUserToRoom(roomId, username, preferredLanguage) {
+        await this.ensureInitialized();
+        
+        try {
+            const { data, error } = await this.supabase
+                .from('users')
+                .insert({
+                    room_id: roomId,
+                    username: username,
+                    preferred_language: preferredLanguage,
+                    last_active: new Date().toISOString()
+                })
+                .select()
+                .single();
             
             if (error) {
-                console.error(`채팅방 삭제 오류 (ID: ${roomId}):`, error);
-                
-                // Bypass RLS 문제를 위한 직접 SQL 실행 (임시 방편)
-                if (error.code === '42501') { // 권한 오류
-                    try {
-                        // 직접 SQL 실행 시도
-                        const deleteResult = await client.rpc('admin_delete_chatroom', {
-                            room_id: roomId
-                        });
-                        
-                        if (deleteResult.error) {
-                            throw deleteResult.error;
-                        }
-                        
-                        return true;
-                    } catch (rpcError) {
-                        console.error('관리자 RPC 호출 실패:', rpcError);
-                        throw new Error('채팅방 삭제 권한이 없습니다. 관리자에게 문의하세요.');
-                    }
-                }
-                
+                throw error;
+            }
+            
+            return { success: true, userId: data.id };
+        } catch (error) {
+            console.error('Error adding user to room:', error);
+            return { success: false, userId: null };
+        }
+    }
+
+    /**
+     * 사용자 정보 업데이트
+     * @param {string} userId 사용자 ID
+     * @param {Object} updates 업데이트할 정보
+     * @returns {Promise<boolean>} 업데이트 성공 여부
+     */
+    async updateUser(userId, updates) {
+        await this.ensureInitialized();
+        
+        try {
+            const { error } = await this.supabase
+                .from('users')
+                .update({
+                    ...updates,
+                    last_active: new Date().toISOString()
+                })
+                .eq('id', userId);
+            
+            if (error) {
                 throw error;
             }
             
             return true;
         } catch (error) {
-            console.error(`채팅방 삭제 실패 (ID: ${roomId}):`, error);
-            throw new Error('채팅방 삭제에 실패했습니다');
+            console.error(`Error updating user ${userId}:`, error);
+            return false;
         }
-    };
+    }
 
     /**
-     * 관리자 인증
-     * @param {string} adminId - 관리자 ID
-     * @param {string} password - 비밀번호
-     * @returns {Promise<boolean>} 인증 성공 여부
+     * 채팅방에서 사용자 삭제 (퇴장)
+     * @param {string} userId 사용자 ID
+     * @returns {Promise<boolean>} 삭제 성공 여부
      */
-    const authenticateAdmin = async (adminId, password) => {
-        console.log('관리자 인증 함수 호출:', adminId);
+    async removeUser(userId) {
+        await this.ensureInitialized();
         
-        // 간단하게 하드코딩한 값으로 직접 비교
-        const isValid = (adminId === 'kcmmer' && password === 'rnrud9881@@HH');
-        
-        console.log('인증 결과:', isValid);
-        
-        if (isValid) {
-            // 인증 성공 시 관리자 정보 저장
-            localStorage.setItem('admin_session', JSON.stringify({
-                id: adminId,
-                role: 'admin',
-                timestamp: new Date().getTime()
-            }));
-        }
-        
-        return isValid;
-    };
-
-    /**
-     * 메시지 가져오기
-     * @param {string} roomId - 채팅방 ID
-     * @param {number} limit - 가져올 메시지 수 (기본값 30)
-     * @param {number} offset - 오프셋 (기본값 0)
-     * @returns {Promise<Array>} 메시지 목록
-     */
-    const getMessages = async (roomId, limit = 100, offset = 0) => {
         try {
-            const client = initializeClient();
-            const { data, error } = await client
-                .from('messages')
-                .select('*')
-                .eq('chatroom_id', roomId)
-                .order('created_at', { ascending: false })
-                .range(offset, offset + limit - 1);
-            
-            if (error) {
-                throw error;
-            }
-            
-            // 시간 순서대로 정렬하여 반환
-            return (data || []).reverse();
-        } catch (error) {
-            console.error(`메시지 목록 조회 실패 (채팅방 ID: ${roomId}):`, error);
-            throw new Error('메시지 목록을 불러오는데 실패했습니다');
-        }
-    };
-
-    /**
-     * 메시지 작성 (전송)
-     * @param {Object} messageData - 메시지 데이터
-     * @returns {Promise<Object>} 저장된 메시지 정보
-     */
-    const sendMessage = async (messageData) => {
-        try {
-            const client = initializeClient();
-            const { data, error } = await client
-                .from('messages')
-                .insert([messageData])
-                .select()
-                .single();
-            
-            if (error) {
-                throw error;
-            }
-            
-            return data;
-        } catch (error) {
-            console.error('메시지 전송 실패:', error);
-            throw new Error('메시지 전송에 실패했습니다');
-        }
-    };
-
-    /**
-     * 사용자 정보 저장/업데이트
-     * @param {Object} userData - 사용자 데이터
-     * @returns {Promise<Object>} 사용자 정보
-     */
-    const saveUser = async (userData) => {
-        try {
-            const client = initializeClient();
-            
-            // 사용자 ID 정제 (중요 - 406 오류 수정)
-            let userId = userData.id;
-            // 사용자 ID 길이 제한 (30자 이내로)
-            if (userId.length > 30) {
-                userId = userId.substring(0, 30);
-            }
-            
-            // 영문자, 숫자, 하이픈만 허용하도록 정제
-            userId = userId.replace(/[^a-zA-Z0-9-_]/g, '');
-            
-            // 사용자 존재 여부 확인
-            const { data: existingUser, error: checkError } = await client
+            const { error } = await this.supabase
                 .from('users')
-                .select('*')
-                .eq('id', userId)
-                .maybeSingle();
-            
-            if (checkError) {
-                console.warn(`사용자 확인 중 오류 발생 (ID: ${userId}):`, checkError);
-            }
-            
-            let result;
-            
-            if (existingUser) {
-                // 기존 사용자 업데이트
-                const updateData = {
-                    username: userData.username,
-                    preferred_language: userData.preferred_language,
-                    last_activity: new Date().toISOString()
-                };
-                
-                // room_id가 있는 경우에만 추가
-                if (userData.room_id !== undefined) {
-                    updateData.room_id = userData.room_id;
-                }
-                
-                const { data, error } = await client
-                    .from('users')
-                    .update(updateData)
-                    .eq('id', userId)
-                    .select()
-                    .single();
-                
-                if (error) {
-                    console.error('Update user error:', error);
-                    throw error;
-                }
-                result = data;
-            } else {
-                // 새 사용자 생성
-                const insertData = {
-                    id: userId,
-                    username: userData.username,
-                    preferred_language: userData.preferred_language || 'en',
-                    role: userData.role || 'user',
-                    last_activity: new Date().toISOString()
-                };
-                
-                // room_id가 있는 경우에만 추가
-                if (userData.room_id) {
-                    insertData.room_id = userData.room_id;
-                }
-                
-                const { data, error } = await client
-                    .from('users')
-                    .insert([insertData])
-                    .select()
-                    .single();
-                
-                if (error) {
-                    console.error('Insert user error:', error);
-                    throw error;
-                }
-                result = data;
-            }
-            
-            return result;
-        } catch (error) {
-            console.error(`사용자 정보 저장 실패 (ID: ${userData.id}):`, error);
-            // 오류 상세 정보 추가
-            if (error.message) {
-                throw new Error(`사용자 정보 저장 실패: ${error.message}`);
-            } else {
-                throw new Error('사용자 정보 저장에 실패했습니다');
-            }
-        }
-    };
-
-    /**
-     * 사용자 목록 가져오기
-     * @param {Object} options - 검색 옵션
-     * @returns {Promise<Array>} 사용자 목록
-     */
-    const getUsers = async (options = {}) => {
-        try {
-            const client = initializeClient();
-            let query = client.from('users').select('id,username,preferred_language,room_id,role,last_activity');
-            
-            // 특정 채팅방 사용자만 조회
-            if (options.roomId) {
-                query = query.eq('room_id', options.roomId);
-            }
-            
-            // 특정 사용자 ID로 조회
-            if (options.userId) {
-                query = query.eq('id', options.userId);
-            }
-            
-            // 활성 사용자만 조회 (최근 5분 이내 활동)
-            if (options.activeOnly) {
-                const fiveMinutesAgo = new Date();
-                fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
-                query = query.gt('last_activity', fiveMinutesAgo.toISOString());
-            }
-            
-            // 사용자명으로 검색
-            if (options.searchTerm) {
-                query = query.ilike('username', `%${options.searchTerm}%`);
-            }
-            
-            // 정렬 및 페이징
-            query = query.order('last_activity', { ascending: false });
-            
-            if (options.limit) {
-                query = query.limit(options.limit);
-            }
-            
-            const { data, error } = await query;
+                .delete()
+                .eq('id', userId);
             
             if (error) {
                 throw error;
             }
             
-            return data || [];
+            return true;
         } catch (error) {
-            console.error('사용자 목록 조회 실패:', error);
-            throw new Error('사용자 목록을 불러오는데 실패했습니다');
+            console.error(`Error removing user ${userId}:`, error);
+            return false;
         }
-    };
+    }
 
     /**
      * 사용자 활동 시간 업데이트
-     * @param {string} userId - 사용자 ID
+     * @param {string} userId 사용자 ID
      * @returns {Promise<boolean>} 업데이트 성공 여부
      */
-    const updateUserActivity = async (userId) => {
+    async updateUserActivity(userId) {
+        await this.ensureInitialized();
+        
         try {
-            const client = initializeClient();
-            // 사용자 ID 정제 (중요)
-            let cleanUserId = userId;
-            if (cleanUserId.length > 30) {
-                cleanUserId = cleanUserId.substring(0, 30);
-            }
-            cleanUserId = cleanUserId.replace(/[^a-zA-Z0-9-_]/g, '');
-            
-            const { error } = await client
+            const { error } = await this.supabase
                 .from('users')
-                .update({ last_activity: new Date().toISOString() })
-                .eq('id', cleanUserId);
+                .update({
+                    last_active: new Date().toISOString()
+                })
+                .eq('id', userId);
             
             if (error) {
                 throw error;
@@ -737,103 +283,218 @@ const dbService = (() => {
             
             return true;
         } catch (error) {
-            console.error(`사용자 활동 시간 업데이트 실패 (ID: ${userId}):`, error);
+            console.error(`Error updating user activity for ${userId}:`, error);
             return false;
         }
-    };
+    }
 
     /**
-     * 통계 정보 가져오기
-     * @returns {Promise<Object>} 통계 정보
+     * 채팅방 내 사용자 목록 가져오기
+     * @param {string} roomId 채팅방 ID
+     * @returns {Promise<Array>} 사용자 목록
      */
-    const getStatistics = async () => {
+    async getRoomUsers(roomId) {
+        await this.ensureInitialized();
+        
         try {
-            const client = initializeClient();
-            
-            // 총 사용자 수
-            const { data: users, error: usersError } = await client
+            const { data, error } = await this.supabase
                 .from('users')
-                .select('id');
+                .select('*')
+                .eq('room_id', roomId);
             
-            if (usersError) throw usersError;
+            if (error) {
+                throw error;
+            }
             
-            // 활성 사용자 수 (최근 5분 이내 활동)
-            const fiveMinutesAgo = new Date();
-            fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
-            const { data: activeUsers, error: activeUsersError } = await client
-                .from('users')
-                .select('id')
-                .gt('last_activity', fiveMinutesAgo.toISOString());
-            
-            if (activeUsersError) throw activeUsersError;
-            
-            // 총 채팅방 수
-            const { data: rooms, error: roomsError } = await client
-                .from('chatrooms')
-                .select('id');
-            
-            if (roomsError) throw roomsError;
-            
-            // 활성 채팅방 수
-            const { data: activeRooms, error: activeRoomsError } = await client
-                .from('chatrooms')
-                .select('id')
-                .eq('is_active', true);
-            
-            if (activeRoomsError) throw activeRoomsError;
-            
-            // 총 메시지 수
-            const { data: messages, error: messagesError } = await client
-                .from('messages')
-                .select('id');
-            
-            if (messagesError) throw messagesError;
-            
-            // 오늘 메시지 수
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const { data: todayMessages, error: todayMessagesError } = await client
-                .from('messages')
-                .select('id')
-                .gt('created_at', today.toISOString());
-            
-            if (todayMessagesError) throw todayMessagesError;
-            
-            return {
-                users: {
-                    total: users.length,
-                    active: activeUsers.length
-                },
-                rooms: {
-                    total: rooms.length,
-                    active: activeRooms.length
-                },
-                messages: {
-                    total: messages.length,
-                    today: todayMessages.length
-                }
-            };
+            return data || [];
         } catch (error) {
-            console.error('통계 정보 조회 실패:', error);
-            throw new Error('통계 정보를 불러오는데 실패했습니다');
+            console.error(`Error fetching users for room ${roomId}:`, error);
+            return [];
         }
-    };
+    }
 
-    // 공개 API
-    return {
-        initializeClient,
-        testConnection,
-        getChatRooms,
-        getChatRoomById,
-        createChatRoom,
-        updateChatRoom,
-        deleteChatRoom,
-        getMessages,
-        sendMessage,
-        saveUser,
-        getUsers,
-        updateUserActivity,
-        authenticateAdmin,
-        getStatistics
-    };
-})();
+    /**
+     * 메시지 전송
+     * @param {string} roomId 채팅방 ID
+     * @param {string} userId 사용자 ID
+     * @param {string} username 사용자 이름
+     * @param {string} content 메시지 내용
+     * @param {string} language 메시지 언어
+     * @param {string|null} replyToId 답장 대상 메시지 ID
+     * @param {boolean} isAnnouncement 공지사항 여부
+     * @returns {Promise<{success: boolean, messageId: string|null}>} 전송 결과
+     */
+    async sendMessage(roomId, userId, username, content, language, replyToId = null, isAnnouncement = false) {
+        await this.ensureInitialized();
+        
+        try {
+            const { data, error } = await this.supabase
+                .from('messages')
+                .insert({
+                    room_id: roomId,
+                    user_id: userId,
+                    username: username,
+                    content: content,
+                    language: language,
+                    reply_to: replyToId,
+                    is_announcement: isAnnouncement
+                })
+                .select()
+                .single();
+            
+            if (error) {
+                throw error;
+            }
+            
+            return { success: true, messageId: data.id };
+        } catch (error) {
+            console.error('Error sending message:', error);
+            return { success: false, messageId: null };
+        }
+    }
+
+    /**
+     * 메시지 번역 결과 저장
+     * @param {string} messageId 메시지 ID
+     * @param {string} language 번역 언어
+     * @param {string} translation 번역 내용
+     * @returns {Promise<boolean>} 저장 성공 여부
+     */
+    async saveTranslation(messageId, language, translation) {
+        await this.ensureInitialized();
+        
+        try {
+            const { error } = await this.supabase
+                .from('translations')
+                .insert({
+                    message_id: messageId,
+                    language: language,
+                    translation: translation
+                });
+            
+            if (error) {
+                throw error;
+            }
+            
+            return true;
+        } catch (error) {
+            console.error(`Error saving translation for message ${messageId}:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * 메시지 번역 가져오기
+     * @param {string} messageId 메시지 ID
+     * @param {string} language 번역 언어
+     * @returns {Promise<string|null>} 번역 내용
+     */
+    async getTranslation(messageId, language) {
+        await this.ensureInitialized();
+        
+        try {
+            const { data, error } = await this.supabase
+                .from('translations')
+                .select('translation')
+                .eq('message_id', messageId)
+                .eq('language', language)
+                .single();
+            
+            if (error) {
+                return null;
+            }
+            
+            return data.translation;
+        } catch (error) {
+            console.error(`Error fetching translation for message ${messageId}:`, error);
+            return null;
+        }
+    }
+
+    /**
+     * 최근 메시지 가져오기
+     * @param {string} roomId 채팅방 ID
+     * @param {number} limit 최대 메시지 수
+     * @returns {Promise<Array>} 메시지 목록
+     */
+    async getRecentMessages(roomId, limit = 50) {
+        await this.ensureInitialized();
+        
+        try {
+            const { data, error } = await this.supabase
+                .from('messages')
+                .select('*')
+                .eq('room_id', roomId)
+                .order('created_at', { ascending: false })
+                .limit(limit);
+            
+            if (error) {
+                throw error;
+            }
+            
+            return (data || []).reverse();
+        } catch (error) {
+            console.error(`Error fetching recent messages for room ${roomId}:`, error);
+            return [];
+        }
+    }
+
+    /**
+     * 특정 메시지 가져오기
+     * @param {string} messageId 메시지 ID
+     * @returns {Promise<Object|null>} 메시지 정보
+     */
+    async getMessage(messageId) {
+        await this.ensureInitialized();
+        
+        try {
+            const { data, error } = await this.supabase
+                .from('messages')
+                .select('*')
+                .eq('id', messageId)
+                .single();
+            
+            if (error) {
+                throw error;
+            }
+            
+            return data;
+        } catch (error) {
+            console.error(`Error fetching message ${messageId}:`, error);
+            return null;
+        }
+    }
+
+    /**
+     * 관리자 인증
+     * @param {string} adminId 관리자 ID
+     * @param {string} password 비밀번호
+     * @returns {Promise<{success: boolean, adminId: string|null}>} 인증 결과
+     */
+    async authenticateAdmin(adminId, password) {
+        await this.ensureInitialized();
+        
+        try {
+            // 실제 애플리케이션에서는 보안을 위한 인증 방식을 구현해야 합니다
+            // 여기서는 간단한 예시로만 구현
+            const { data, error } = await this.supabase
+                .from('admins')
+                .select('*')
+                .eq('admin_id', adminId)
+                .eq('password', password)  // 실제로는 해시된 비밀번호 비교가 필요
+                .single();
+            
+            if (error) {
+                return { success: false, adminId: null };
+            }
+            
+            return { success: true, adminId: data.id };
+        } catch (error) {
+            console.error('Error authenticating admin:', error);
+            return { success: false, adminId: null };
+        }
+    }
+}
+
+// 싱글톤 인스턴스 생성
+const dbService = new DBService();
