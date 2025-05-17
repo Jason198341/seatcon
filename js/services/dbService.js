@@ -24,6 +24,8 @@ class DBService {
      */
     async initialize() {
         try {
+            console.log('Initializing Supabase connection...');
+            
             // Supabase 클라이언트 초기화
             this.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -46,6 +48,7 @@ class DBService {
                 }
             }
             
+            console.log('Supabase connection initialized successfully');
             this.initialized = true;
             if (this.onConnectionStatusChange) {
                 this.onConnectionStatusChange(true);
@@ -81,6 +84,8 @@ class DBService {
         await this.ensureInitialized();
         
         try {
+            console.log('Fetching chat rooms, activeOnly:', activeOnly);
+            
             let query = this.supabase.from('chatrooms').select('*');
             
             if (activeOnly) {
@@ -90,9 +95,11 @@ class DBService {
             const { data, error } = await query.order('created_at');
             
             if (error) {
+                console.error('Error in getChatRooms:', error);
                 throw error;
             }
             
+            console.log('Fetched chat rooms:', data ? data.length : 0);
             return data || [];
         } catch (error) {
             console.error('Error fetching chat rooms:', error);
@@ -109,6 +116,8 @@ class DBService {
         await this.ensureInitialized();
         
         try {
+            console.log('Fetching chat room:', roomId);
+            
             const { data, error } = await this.supabase
                 .from('chatrooms')
                 .select('*')
@@ -116,9 +125,11 @@ class DBService {
                 .single();
             
             if (error) {
+                console.error('Error in getChatRoom:', error);
                 throw error;
             }
             
+            console.log('Fetched chat room:', data);
             return data;
         } catch (error) {
             console.error(`Error fetching chat room ${roomId}:`, error);
@@ -136,6 +147,8 @@ class DBService {
         await this.ensureInitialized();
         
         try {
+            console.log('Validating room access:', roomId, 'accessCode:', accessCode ? '******' : 'none');
+            
             const room = await this.getChatRoom(roomId);
             
             if (!room) {
@@ -153,8 +166,11 @@ class DBService {
                 .eq('room_id', roomId);
             
             if (countError) {
+                console.error('Error getting user count:', countError);
                 throw countError;
             }
+            
+            console.log('Current user count in room:', count, 'max:', room.max_users);
             
             if (count >= room.max_users) {
                 return { success: false, message: 'room-full' };
@@ -185,21 +201,30 @@ class DBService {
         await this.ensureInitialized();
         
         try {
+            console.log("Adding user to room:", { roomId, username, preferredLanguage });
+            
+            const userData = {
+                room_id: roomId,
+                username: username,
+                preferred_language: preferredLanguage,
+                last_active: new Date().toISOString()
+            };
+            
+            console.log("User data to insert:", userData);
+            
             const { data, error } = await this.supabase
                 .from('users')
-                .insert({
-                    room_id: roomId,
-                    username: username,
-                    preferred_language: preferredLanguage,
-                    last_active: new Date().toISOString()
-                })
+                .insert(userData)
                 .select()
                 .single();
             
             if (error) {
-                throw error;
+                console.error('Error adding user to room:', error);
+                console.log('Error details:', JSON.stringify(error));
+                return { success: false, userId: null };
             }
             
+            console.log("User added successfully:", data);
             return { success: true, userId: data.id };
         } catch (error) {
             console.error('Error adding user to room:', error);
@@ -217,6 +242,8 @@ class DBService {
         await this.ensureInitialized();
         
         try {
+            console.log('Updating user:', userId, 'with updates:', updates);
+            
             const { error } = await this.supabase
                 .from('users')
                 .update({
@@ -226,9 +253,11 @@ class DBService {
                 .eq('id', userId);
             
             if (error) {
+                console.error('Error in updateUser:', error);
                 throw error;
             }
             
+            console.log('User updated successfully');
             return true;
         } catch (error) {
             console.error(`Error updating user ${userId}:`, error);
@@ -245,15 +274,19 @@ class DBService {
         await this.ensureInitialized();
         
         try {
+            console.log('Removing user:', userId);
+            
             const { error } = await this.supabase
                 .from('users')
                 .delete()
                 .eq('id', userId);
             
             if (error) {
+                console.error('Error in removeUser:', error);
                 throw error;
             }
             
+            console.log('User removed successfully');
             return true;
         } catch (error) {
             console.error(`Error removing user ${userId}:`, error);
@@ -278,6 +311,7 @@ class DBService {
                 .eq('id', userId);
             
             if (error) {
+                console.error('Error in updateUserActivity:', error);
                 throw error;
             }
             
@@ -297,15 +331,19 @@ class DBService {
         await this.ensureInitialized();
         
         try {
+            console.log('Fetching users for room:', roomId);
+            
             const { data, error } = await this.supabase
                 .from('users')
                 .select('*')
                 .eq('room_id', roomId);
             
             if (error) {
+                console.error('Error in getRoomUsers:', error);
                 throw error;
             }
             
+            console.log('Fetched users count:', data ? data.length : 0);
             return data || [];
         } catch (error) {
             console.error(`Error fetching users for room ${roomId}:`, error);
@@ -328,6 +366,16 @@ class DBService {
         await this.ensureInitialized();
         
         try {
+            console.log('Sending message:', {
+                roomId,
+                userId,
+                username,
+                content: content.substring(0, 30) + (content.length > 30 ? '...' : ''),
+                language,
+                replyToId,
+                isAnnouncement
+            });
+            
             const { data, error } = await this.supabase
                 .from('messages')
                 .insert({
@@ -343,9 +391,11 @@ class DBService {
                 .single();
             
             if (error) {
+                console.error('Error in sendMessage:', error);
                 throw error;
             }
             
+            console.log('Message sent successfully:', data.id);
             return { success: true, messageId: data.id };
         } catch (error) {
             console.error('Error sending message:', error);
@@ -364,6 +414,8 @@ class DBService {
         await this.ensureInitialized();
         
         try {
+            console.log('Saving translation for message:', messageId, 'to language:', language);
+            
             const { error } = await this.supabase
                 .from('translations')
                 .insert({
@@ -373,9 +425,11 @@ class DBService {
                 });
             
             if (error) {
+                console.error('Error in saveTranslation:', error);
                 throw error;
             }
             
+            console.log('Translation saved successfully');
             return true;
         } catch (error) {
             console.error(`Error saving translation for message ${messageId}:`, error);
@@ -393,6 +447,8 @@ class DBService {
         await this.ensureInitialized();
         
         try {
+            console.log('Fetching translation for message:', messageId, 'language:', language);
+            
             const { data, error } = await this.supabase
                 .from('translations')
                 .select('translation')
@@ -401,9 +457,11 @@ class DBService {
                 .single();
             
             if (error) {
+                console.log('Translation not found');
                 return null;
             }
             
+            console.log('Translation fetched successfully');
             return data.translation;
         } catch (error) {
             console.error(`Error fetching translation for message ${messageId}:`, error);
@@ -421,6 +479,8 @@ class DBService {
         await this.ensureInitialized();
         
         try {
+            console.log('Fetching recent messages for room:', roomId, 'limit:', limit);
+            
             const { data, error } = await this.supabase
                 .from('messages')
                 .select('*')
@@ -429,9 +489,11 @@ class DBService {
                 .limit(limit);
             
             if (error) {
+                console.error('Error in getRecentMessages:', error);
                 throw error;
             }
             
+            console.log('Fetched messages count:', data ? data.length : 0);
             return (data || []).reverse();
         } catch (error) {
             console.error(`Error fetching recent messages for room ${roomId}:`, error);
@@ -448,6 +510,8 @@ class DBService {
         await this.ensureInitialized();
         
         try {
+            console.log('Fetching message:', messageId);
+            
             const { data, error } = await this.supabase
                 .from('messages')
                 .select('*')
@@ -455,9 +519,11 @@ class DBService {
                 .single();
             
             if (error) {
+                console.error('Error in getMessage:', error);
                 throw error;
             }
             
+            console.log('Message fetched successfully');
             return data;
         } catch (error) {
             console.error(`Error fetching message ${messageId}:`, error);
@@ -475,8 +541,8 @@ class DBService {
         await this.ensureInitialized();
         
         try {
-            // 실제 애플리케이션에서는 보안을 위한 인증 방식을 구현해야 합니다
-            // 여기서는 간단한 예시로만 구현
+            console.log('Authenticating admin:', adminId);
+            
             const { data, error } = await this.supabase
                 .from('admins')
                 .select('*')
@@ -485,9 +551,11 @@ class DBService {
                 .single();
             
             if (error) {
+                console.error('Error in authenticateAdmin:', error);
                 return { success: false, adminId: null };
             }
             
+            console.log('Admin authenticated successfully');
             return { success: true, adminId: data.id };
         } catch (error) {
             console.error('Error authenticating admin:', error);
