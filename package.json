@@ -1,34 +1,57 @@
 {
   "name": "conference-chat",
   "version": "1.0.0",
-  "description": "Global SeatCon 2025 Conference Chat Application",
+  "description": "Global SeatCon 2025 컨퍼런스를 위한 다국어 실시간 자동 번역 채팅 애플리케이션",
   "main": "index.html",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "http-server . -p 3000 -c-1",
+    "start": "http-server -p 8080 -c-1",
+    "lint": "eslint js/**/*.js",
+    "test": "jest",
+    "build": "webpack --mode production",
     "deploy": "gh-pages -d ."
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/conference-chat.git"
+    "url": "git+https://github.com/username/conference-chat.git"
   },
   "keywords": [
     "conference",
     "chat",
+    "realtime",
     "translation",
-    "multilingual"
+    "pwa"
   ],
   "author": "Your Name",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/yourusername/conference-chat/issues"
+    "url": "https://github.com/username/conference-chat/issues"
   },
-  "homepage": "https://github.com/yourusername/conference-chat#readme",
+  "homepage": "https://github.com/username/conference-chat#readme",
   "dependencies": {
     "@supabase/supabase-js": "^2.39.3"
   },
   "devDependencies": {
-    "gh-pages": "^6.0.0",
-    "http-server": "^14.1.1"
-  }
+    "@babel/core": "^7.18.13",
+    "@babel/preset-env": "^7.18.10",
+    "babel-loader": "^8.2.5",
+    "copy-webpack-plugin": "^11.0.0",
+    "eslint": "^8.23.0",
+    "gh-pages": "^4.0.0",
+    "html-webpack-plugin": "^5.5.0",
+    "http-server": "^14.1.1",
+    "jest": "^29.0.1",
+    "webpack": "^5.74.0",
+    "webpack-cli": "^4.10.0",
+    "webpack-dev-server": "^4.10.0",
+    "workbox-webpack-plugin": "^6.5.4"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  },
+  "browserslist": [
+    ">0.2%",
+    "not dead",
+    "not op_mini all"
+  ]
 }

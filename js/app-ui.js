@@ -1,352 +1,118 @@
 /**
  * UI 관련 모듈
- * 애플리케이션의 UI 요소 및 이벤트를 관리합니다.
+ * 애플리케이션의 UI 컴포넌트 및 상호작용을 관리합니다.
  */
 
 class UIManager {
     constructor() {
-        this.screens = {
-            start: document.getElementById('start-screen'),
-            login: document.getElementById('login-screen'),
-            adminLogin: document.getElementById('admin-login-screen'),
-            chat: document.getElementById('chat-screen')
-        };
-        
-        this.elements = {
-            // 시작 화면
-            joinChatBtn: document.getElementById('join-chat-btn'),
-            adminBtn: document.getElementById('admin-btn'),
-            languageSelect: document.getElementById('language-select'),
-            
-            // 로그인 화면
-            loginForm: document.getElementById('login-form'),
-            username: document.getElementById('username'),
-            chatRoomSelect: document.getElementById('chat-room-select'),
-            privateRoomCodeContainer: document.getElementById('private-room-code-container'),
-            roomCode: document.getElementById('room-code'),
-            backToStartBtn: document.getElementById('back-to-start-btn'),
-            
-            // 관리자 로그인 화면
-            adminLoginForm: document.getElementById('admin-login-form'),
-            adminId: document.getElementById('admin-id'),
-            adminPassword: document.getElementById('admin-password'),
-            adminBackBtn: document.getElementById('admin-back-btn'),
-            
-            // 채팅 화면
-            currentRoomName: document.getElementById('current-room-name'),
-            onlineUsersCount: document.getElementById('online-users-count'),
-            chatLanguageSelect: document.getElementById('chat-language-select'),
-            toggleUsersBtn: document.getElementById('toggle-users-btn'),
-            leaveChatBtn: document.getElementById('leave-chat-btn'),
-            messagesContainer: document.getElementById('messages-container'),
-            usersSidebar: document.getElementById('users-sidebar'),
-            usersList: document.getElementById('users-list'),
-            replyContainer: document.getElementById('reply-container'),
-            replyPreview: document.getElementById('reply-preview'),
-            cancelReplyBtn: document.getElementById('cancel-reply-btn'),
-            connectionStatus: document.getElementById('connection-status'),
-            statusText: document.getElementById('status-text'),
-            messageInput: document.getElementById('message-input'),
-            sendMessageBtn: document.getElementById('send-message-btn')
-        };
-        
-        this.currentReplyTo = null;
-        
-        // 이벤트 리스너 등록
-        this.attachEventListeners();
+        this.activeScreen = 'start'; // 초기 화면
+        this.replyTo = null; // 답장 대상 메시지
     }
 
     /**
-     * 이벤트 리스너 등록
-     * @private
+     * 초기화: 이벤트 리스너 등록
      */
-    attachEventListeners() {
-        // 시작 화면 이벤트
-        this.elements.joinChatBtn.addEventListener('click', () => this.showScreen('login'));
-        this.elements.adminBtn.addEventListener('click', () => this.showScreen('adminLogin'));
-        this.elements.languageSelect.addEventListener('change', e => this.handleLanguageChange(e.target.value));
+    initialize() {
+        console.log('Initializing UI manager...');
         
-        // 로그인 화면 이벤트
-        this.elements.loginForm.addEventListener('submit', e => this.handleLoginFormSubmit(e));
-        this.elements.chatRoomSelect.addEventListener('change', e => this.handleChatRoomChange(e.target.value));
-        this.elements.backToStartBtn.addEventListener('click', () => this.showScreen('start'));
+        // 화면 전환 버튼
+        document.getElementById('join-chat-btn').addEventListener('click', () => {
+            this.showScreen('login');
+        });
         
-        // 관리자 로그인 화면 이벤트
-        this.elements.adminLoginForm.addEventListener('submit', e => this.handleAdminLoginFormSubmit(e));
-        this.elements.adminBackBtn.addEventListener('click', () => this.showScreen('start'));
+        document.getElementById('admin-btn').addEventListener('click', () => {
+            this.showScreen('admin-login');
+        });
         
-        // 채팅 화면 이벤트
-        this.elements.chatLanguageSelect.addEventListener('change', e => this.handleChatLanguageChange(e.target.value));
-        this.elements.toggleUsersBtn.addEventListener('click', () => this.toggleUsersSidebar());
-        this.elements.leaveChatBtn.addEventListener('click', () => this.handleLeaveChat());
-        this.elements.cancelReplyBtn.addEventListener('click', () => this.cancelReply());
+        document.getElementById('back-to-start-btn').addEventListener('click', () => {
+            this.showScreen('start');
+        });
         
-        this.elements.messageInput.addEventListener('keydown', e => {
+        document.getElementById('admin-back-btn').addEventListener('click', () => {
+            this.showScreen('start');
+        });
+        
+        document.getElementById('leave-chat-btn').addEventListener('click', () => {
+            this.handleLeaveChat();
+        });
+        
+        // 로그인 폼 제출
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleLogin();
+        });
+        
+        // 관리자 로그인 폼 제출
+        document.getElementById('admin-login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleAdminLogin();
+        });
+        
+        // 메시지 전송
+        document.getElementById('send-message-btn').addEventListener('click', () => {
+            this.handleSendMessage();
+        });
+        
+        // 메시지 입력 엔터 키 처리
+        document.getElementById('message-input').addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 this.handleSendMessage();
             }
         });
         
-        this.elements.sendMessageBtn.addEventListener('click', () => this.handleSendMessage());
+        // 언어 선택 변경
+        document.getElementById('language-select').addEventListener('change', (e) => {
+            i18nService.setLanguage(e.target.value);
+        });
         
-        // 연결 상태 이벤트
-        realtimeService.setConnectionStatusCallback(this.updateConnectionStatus.bind(this));
-        offlineService.setConnectionStatusCallback(this.updateConnectionStatus.bind(this));
+        document.getElementById('chat-language-select').addEventListener('change', (e) => {
+            i18nService.setLanguage(e.target.value);
+            this.refreshMessages();
+        });
+        
+        // 사용자 목록 토글
+        document.getElementById('toggle-users-btn').addEventListener('click', () => {
+            this.toggleUsersSidebar();
+        });
+        
+        // 답장 취소
+        document.getElementById('cancel-reply-btn').addEventListener('click', () => {
+            this.cancelReply();
+        });
+        
+        // 채팅방 유형 변경 시 접근 코드 필드 표시/숨김
+        document.getElementById('chat-room-select').addEventListener('change', (e) => {
+            this.handleRoomTypeChange(e.target.value);
+        });
+        
+        console.log('UI manager initialized');
+        return true;
     }
 
     /**
      * 화면 전환
-     * @param {string} screenName 화면 이름
+     * @param {string} screenId 화면 ID ('start', 'login', 'admin-login', 'chat')
      */
-    showScreen(screenName) {
+    showScreen(screenId) {
+        console.log('Showing screen:', screenId);
+        
         // 모든 화면 숨기기
-        Object.values(this.screens).forEach(screen => {
+        document.querySelectorAll('.screen').forEach(screen => {
             screen.classList.remove('active');
         });
         
-        // 요청한 화면 표시
-        if (this.screens[screenName]) {
-            this.screens[screenName].classList.add('active');
-        }
-    }
-
-    /**
-     * 언어 변경 처리
-     * @param {string} language 언어 코드
-     */
-    handleLanguageChange(language) {
-        i18nService.setLanguage(language);
-    }
-
-    /**
-     * 채팅방 변경 처리
-     * @param {string} roomId 채팅방 ID
-     */
-    async handleChatRoomChange(roomId) {
-        // 선택한 채팅방 정보 가져오기
-        const room = await dbService.getChatRoom(roomId);
+        // 선택한 화면 표시
+        document.getElementById(`${screenId}-screen`).classList.add('active');
         
-        // 비공개 채팅방이면 코드 입력 필드 표시
-        if (room && room.type === 'private') {
-            this.elements.privateRoomCodeContainer.classList.remove('hidden');
-        } else {
-            this.elements.privateRoomCodeContainer.classList.add('hidden');
-        }
-    }
-
-    /**
-     * 로그인 폼 제출 처리
-     * @param {Event} event 이벤트 객체
-     */
-    async handleLoginFormSubmit(event) {
-        event.preventDefault();
+        this.activeScreen = screenId;
         
-        const username = this.elements.username.value.trim();
-        const roomId = this.elements.chatRoomSelect.value;
-        const roomCode = this.elements.roomCode.value.trim();
-        const language = i18nService.getCurrentLanguage();
-        
-        if (!username || !roomId) {
-            return;
-        }
-        
-        // 채팅방 접근 검증
-        const accessResult = await dbService.validateRoomAccess(roomId, roomCode);
-        
-        if (!accessResult.success) {
-            alert(i18nService.translate(accessResult.message));
-            return;
-        }
-        
-        // 사용자 생성 및 입장
-        const userResult = await userService.createUser(roomId, username, language);
-        
-        if (!userResult.success) {
-            alert(i18nService.translate('error-joining'));
-            return;
-        }
-        
-        // 채팅방 설정
-        const chatResult = await chatService.setRoom(roomId);
-        
-        if (!chatResult) {
-            alert(i18nService.translate('error-connecting'));
-            return;
-        }
-        
-        // 채팅방 정보 설정
-        const room = await dbService.getChatRoom(roomId);
-        this.elements.currentRoomName.textContent = room ? room.name : '';
-        
-        // 사용자 목록 새로고침
-        await this.refreshUserList();
-        
-        // 채팅 화면으로 전환
-        this.showScreen('chat');
-    }
-
-    /**
-     * 관리자 로그인 폼 제출 처리
-     * @param {Event} event 이벤트 객체
-     */
-    async handleAdminLoginFormSubmit(event) {
-        event.preventDefault();
-        
-        const adminId = this.elements.adminId.value.trim();
-        const password = this.elements.adminPassword.value;
-        
-        if (!adminId || !password) {
-            return;
-        }
-        
-        // 관리자 인증
-        const result = await dbService.authenticateAdmin(adminId, password);
-        
-        if (!result.success) {
-            alert(i18nService.translate('invalid-credentials'));
-            return;
-        }
-        
-        // 관리자 페이지로 이동
-        window.location.href = 'admin/index.html';
-    }
-
-    /**
-     * 채팅 언어 변경 처리
-     * @param {string} language 언어 코드
-     */
-    async handleChatLanguageChange(language) {
-        // 언어 변경
-        i18nService.setLanguage(language);
-        
-        // 현재 사용자 선호 언어 업데이트
-        await userService.updatePreferredLanguage(language);
-        
-        // 메시지 번역 새로고침
-        this.refreshMessageTranslations();
-    }
-
-    /**
-     * 사용자 목록 토글
-     */
-    toggleUsersSidebar() {
-        this.elements.usersSidebar.classList.toggle('hidden');
-    }
-
-    /**
-     * 채팅방 퇴장 처리
-     */
-    async handleLeaveChat() {
-        // 채팅방 퇴장
-        await userService.leaveRoom();
-        
-        // 채팅 서비스 정리
-        chatService.leaveRoom();
-        
-        // 시작 화면으로 돌아가기
-        this.showScreen('start');
-    }
-
-    /**
-     * 메시지 전송 처리
-     */
-    async handleSendMessage() {
-        const content = this.elements.messageInput.value.trim();
-        
-        if (!content) {
-            return;
-        }
-        
-        const language = i18nService.getCurrentLanguage();
-        
-        // 오프라인 상태면 로컬에 저장
-        if (!offlineService.isConnected()) {
-            const user = userService.getCurrentUser();
-            
-            offlineService.saveOfflineMessage({
-                room_id: user.room_id,
-                user_id: user.id,
-                username: user.username,
-                content: content,
-                language: language,
-                reply_to: this.currentReplyTo,
-                is_announcement: content.startsWith('/공지 ') || content.startsWith('/notice ')
-            });
-            
-            // 입력창 초기화
-            this.elements.messageInput.value = '';
-            
-            // 답장 상태 초기화
-            this.cancelReply();
-            
-            // 임시 메시지 표시
-            this.addLocalMessage(content);
-            
-            return;
-        }
-        
-        // 메시지 전송
-        const result = await chatService.sendMessage(content, language, this.currentReplyTo);
-        
-        if (result.success) {
-            // 입력창 초기화
-            this.elements.messageInput.value = '';
-            
-            // 답장 상태 초기화
-            this.cancelReply();
-        }
-    }
-
-    /**
-     * 답장 설정
-     * @param {string} messageId 대상 메시지 ID
-     * @param {string} senderName 발신자 이름
-     * @param {string} content 메시지 내용
-     */
-    setReplyTo(messageId, senderName, content) {
-        this.currentReplyTo = messageId;
-        
-        // 미리보기 설정
-        this.elements.replyPreview.innerHTML = `
-            <strong>${i18nService.translate('replying-to')} ${senderName}</strong>
-            <div>${content.substring(0, 50)}${content.length > 50 ? '...' : ''}</div>
-        `;
-        
-        // 답장 컨테이너 표시
-        this.elements.replyContainer.classList.remove('hidden');
-        
-        // 입력창에 포커스
-        this.elements.messageInput.focus();
-    }
-
-    /**
-     * 답장 취소
-     */
-    cancelReply() {
-        this.currentReplyTo = null;
-        this.elements.replyPreview.innerHTML = '';
-        this.elements.replyContainer.classList.add('hidden');
-    }
-
-    /**
-     * 연결 상태 업데이트
-     * @param {boolean} isConnected 연결 상태
-     */
-    updateConnectionStatus(isConnected) {
-        if (isConnected) {
-            this.elements.connectionStatus.classList.remove('offline');
-            this.elements.connectionStatus.classList.add('online');
-            this.elements.statusText.textContent = i18nService.translate('online');
-            
-            // 오프라인 메시지 동기화
-            if (offlineService.getPendingMessageCount() > 0) {
-                offlineService.syncOfflineMessages();
-            }
-        } else {
-            this.elements.connectionStatus.classList.remove('online');
-            this.elements.connectionStatus.classList.add('offline');
-            this.elements.statusText.textContent = i18nService.translate('offline');
+        // 화면별 추가 작업
+        if (screenId === 'login') {
+            this.loadChatRooms();
+        } else if (screenId === 'chat') {
+            this.focusMessageInput();
+            this.refreshUserList();
         }
     }
 
@@ -355,328 +121,545 @@ class UIManager {
      */
     async loadChatRooms() {
         try {
+            const select = document.getElementById('chat-room-select');
+            
+            // 로딩 표시
+            select.innerHTML = `<option value="" disabled selected>${i18nService.translate('loading-rooms')}</option>`;
+            
+            // 채팅방 목록 가져오기
             const rooms = await dbService.getChatRooms(true);
             
-            // 채팅방 선택 드롭다운 초기화
-            this.elements.chatRoomSelect.innerHTML = '';
+            // 옵션 생성
+            if (rooms.length === 0) {
+                select.innerHTML = `<option value="" disabled selected>No available rooms</option>`;
+                return;
+            }
             
-            // 기본 옵션 추가
-            const defaultOption = document.createElement('option');
-            defaultOption.value = '';
-            defaultOption.textContent = i18nService.translate('select-room');
-            defaultOption.disabled = true;
-            defaultOption.selected = true;
-            this.elements.chatRoomSelect.appendChild(defaultOption);
-            
-            // 채팅방 목록 추가
+            select.innerHTML = '';
             rooms.forEach(room => {
                 const option = document.createElement('option');
                 option.value = room.id;
+                option.dataset.type = room.type;
                 option.textContent = room.name;
-                if (room.type === 'private') {
-                    option.textContent += ` (${i18nService.translate('private')})`;
-                }
-                this.elements.chatRoomSelect.appendChild(option);
+                select.appendChild(option);
             });
             
-            return true;
+            // 첫 번째 채팅방 선택
+            select.selectedIndex = 0;
+            
+            // 선택된 채팅방 유형에 따라 접근 코드 필드 표시/숨김
+            this.handleRoomTypeChange(select.value);
         } catch (error) {
             console.error('Error loading chat rooms:', error);
-            return false;
+            document.getElementById('chat-room-select').innerHTML = `
+                <option value="" disabled selected>Error loading rooms</option>
+            `;
         }
+    }
+
+    /**
+     * 채팅방 유형 변경 처리
+     * @param {string} roomId 채팅방 ID
+     */
+    async handleRoomTypeChange(roomId) {
+        if (!roomId) return;
+        
+        const select = document.getElementById('chat-room-select');
+        const selectedOption = select.querySelector(`option[value="${roomId}"]`);
+        const codeContainer = document.getElementById('private-room-code-container');
+        
+        if (selectedOption && selectedOption.dataset.type === 'private') {
+            codeContainer.classList.remove('hidden');
+        } else {
+            codeContainer.classList.add('hidden');
+        }
+    }
+
+    /**
+     * 로그인 처리
+     */
+    async handleLogin() {
+        const username = document.getElementById('username').value.trim();
+        const roomId = document.getElementById('chat-room-select').value;
+        const roomCode = document.getElementById('room-code').value.trim();
+        
+        if (!username) {
+            alert(i18nService.translate('enter-username'));
+            return;
+        }
+        
+        if (!roomId) {
+            alert(i18nService.translate('select-room'));
+            return;
+        }
+        
+        // 채팅방 입장
+        const result = await appCore.joinChatRoom(roomId, username, roomCode);
+        
+        if (!result.success) {
+            // 오류 처리
+            alert(i18nService.translate(result.message));
+            return;
+        }
+        
+        // 채팅방 정보 가져오기
+        const room = await dbService.getChatRoom(roomId);
+        
+        // 채팅 화면으로 전환
+        document.getElementById('current-room-name').textContent = room.name;
+        this.showScreen('chat');
+        
+        // 메시지 콜백 설정
+        chatService.setMessageCallback(this.handleNewMessage.bind(this));
+        chatService.setUserJoinCallback(this.handleUserJoin.bind(this));
+        chatService.setUserLeaveCallback(this.handleUserLeave.bind(this));
+        
+        // 초기 메시지 로드
+        this.refreshMessages();
+    }
+
+    /**
+     * 관리자 로그인 처리
+     */
+    async handleAdminLogin() {
+        const adminId = document.getElementById('admin-id').value.trim();
+        const password = document.getElementById('admin-password').value;
+        
+        if (!adminId || !password) {
+            alert(i18nService.translate('enter-admin-credentials'));
+            return;
+        }
+        
+        // 관리자 로그인
+        const result = await appCore.adminLogin(adminId, password);
+        
+        if (!result.success) {
+            alert(i18nService.translate('admin-login-failed'));
+            return;
+        }
+        
+        // 관리자 페이지로 이동
+        window.location.href = 'admin/';
+    }
+
+    /**
+     * 채팅방 퇴장 처리
+     */
+    async handleLeaveChat() {
+        if (confirm(i18nService.translate('confirm-leave-chat'))) {
+            await appCore.leaveChatRoom();
+            this.showScreen('start');
+        }
+    }
+
+    /**
+     * 메시지 전송 처리
+     */
+    async handleSendMessage() {
+        const input = document.getElementById('message-input');
+        const content = input.value.trim();
+        
+        if (!content) {
+            return;
+        }
+        
+        // 메시지 전송
+        const replyToId = this.replyTo ? this.replyTo.id : null;
+        const result = await appCore.sendMessage(content, replyToId);
+        
+        // 입력 필드 초기화
+        input.value = '';
+        
+        // 답장 취소
+        if (this.replyTo) {
+            this.cancelReply();
+        }
+        
+        // 입력 필드에 포커스
+        this.focusMessageInput();
+    }
+
+    /**
+     * 새 메시지 수신 처리
+     * @param {Object} message 메시지 객체
+     */
+    handleNewMessage(message) {
+        console.log('New message received:', message);
+        
+        // 메시지 요소 생성
+        const messageElement = this.createMessageElement(message);
+        
+        // 메시지 컨테이너에 추가
+        const container = document.getElementById('messages-container');
+        container.appendChild(messageElement);
+        
+        // 스크롤 아래로 이동
+        this.scrollToBottom();
+    }
+
+    /**
+     * 사용자 입장 처리
+     * @param {Object} user 사용자 객체
+     */
+    handleUserJoin(user) {
+        console.log('User joined:', user);
+        
+        // 시스템 메시지 추가
+        this.addSystemMessage(`${user.username} ${i18nService.translate('user-joined')}`);
+        
+        // 사용자 목록 업데이트
+        this.refreshUserList();
+    }
+
+    /**
+     * 사용자 퇴장 처리
+     * @param {Object} user 사용자 객체
+     */
+    handleUserLeave(user) {
+        console.log('User left:', user);
+        
+        // 시스템 메시지 추가
+        this.addSystemMessage(`${user.username} ${i18nService.translate('user-left')}`);
+        
+        // 사용자 목록 업데이트
+        this.refreshUserList();
+    }
+
+    /**
+     * 시스템 메시지 추가
+     * @param {string} text 메시지 내용
+     */
+    addSystemMessage(text) {
+        const container = document.getElementById('messages-container');
+        
+        const messageElement = document.createElement('div');
+        messageElement.className = 'message system-message';
+        messageElement.innerHTML = `<p>${text}</p>`;
+        
+        container.appendChild(messageElement);
+        this.scrollToBottom();
+    }
+
+    /**
+     * 메시지 요소 생성
+     * @param {Object} message 메시지 객체
+     * @returns {HTMLElement} 메시지 요소
+     */
+    createMessageElement(message) {
+        // 현재 사용자 정보
+        const currentUser = userService.getCurrentUser();
+        const isOwnMessage = currentUser && message.user_id === currentUser.id;
+        
+        // 메시지 요소 생성
+        const messageElement = document.createElement('div');
+        messageElement.className = `message ${isOwnMessage ? 'own-message' : ''}`;
+        messageElement.dataset.id = message.id;
+        
+        // 공지사항 메시지
+        if (message.is_announcement) {
+            messageElement.classList.add('announcement');
+        }
+        
+        // 메시지 헤더 (사용자 이름, 시간)
+        const header = document.createElement('div');
+        header.className = 'message-header';
+        
+        // 사용자 이름
+        const username = document.createElement('span');
+        username.className = 'username';
+        username.textContent = message.username;
+        header.appendChild(username);
+        
+        // 시간
+        const time = document.createElement('span');
+        time.className = 'time';
+        time.textContent = this.formatTime(message.created_at);
+        header.appendChild(time);
+        
+        messageElement.appendChild(header);
+        
+        // 답장인 경우 원본 메시지 표시
+        if (message.reply_to) {
+            const replyContainer = document.createElement('div');
+            replyContainer.className = 'reply-info';
+            
+            // 원본 메시지 표시는 비동기로 처리
+            chatService.getMessage(message.reply_to).then(originalMessage => {
+                if (originalMessage) {
+                    const originalContent = document.createElement('p');
+                    originalContent.className = 'original-message';
+                    originalContent.textContent = `${i18nService.translate('replying-to')} ${originalMessage.username}: ${originalMessage.content.substring(0, 50)}${originalMessage.content.length > 50 ? '...' : ''}`;
+                    replyContainer.appendChild(originalContent);
+                }
+            });
+            
+            messageElement.appendChild(replyContainer);
+        }
+        
+        // 메시지 내용
+        const content = document.createElement('p');
+        content.className = 'message-content';
+        content.textContent = message.content;
+        messageElement.appendChild(content);
+        
+        // 번역된 메시지가 있으면 표시
+        if (message.translated && message.translatedContent) {
+            const translatedContent = document.createElement('p');
+            translatedContent.className = 'translated-content';
+            
+            const translatedLabel = document.createElement('span');
+            translatedLabel.className = 'translated-label';
+            translatedLabel.textContent = `${i18nService.translate('translated-from')} ${i18nService.getLanguageName(message.language)}`;
+            
+            translatedContent.appendChild(translatedLabel);
+            translatedContent.appendChild(document.createTextNode(message.translatedContent));
+            
+            messageElement.appendChild(translatedContent);
+        }
+        
+        // 메시지 작업 (답장, 복사 등)
+        const actions = document.createElement('div');
+        actions.className = 'message-actions';
+        
+        // 답장 버튼
+        const replyButton = document.createElement('button');
+        replyButton.className = 'action-btn reply-btn';
+        replyButton.innerHTML = '<i class="fas fa-reply"></i>';
+        replyButton.title = i18nService.translate('reply');
+        replyButton.addEventListener('click', () => {
+            this.setReplyTo(message);
+        });
+        actions.appendChild(replyButton);
+        
+        // 복사 버튼
+        const copyButton = document.createElement('button');
+        copyButton.className = 'action-btn copy-btn';
+        copyButton.innerHTML = '<i class="fas fa-copy"></i>';
+        copyButton.title = i18nService.translate('copy');
+        copyButton.addEventListener('click', () => {
+            navigator.clipboard.writeText(message.content)
+                .then(() => {
+                    // 복사 성공 알림
+                    copyButton.innerHTML = '<i class="fas fa-check"></i>';
+                    setTimeout(() => {
+                        copyButton.innerHTML = '<i class="fas fa-copy"></i>';
+                    }, 1000);
+                })
+                .catch(err => {
+                    console.error('Error copying text:', err);
+                });
+        });
+        actions.appendChild(copyButton);
+        
+        // 자신의 메시지가 아닌 경우 신고 버튼 추가
+        if (!isOwnMessage) {
+            const reportButton = document.createElement('button');
+            reportButton.className = 'action-btn report-btn';
+            reportButton.innerHTML = '<i class="fas fa-flag"></i>';
+            reportButton.title = i18nService.translate('report');
+            reportButton.addEventListener('click', () => {
+                alert(i18nService.translate('report-message'));
+                // 실제로는 신고 기능 구현 필요
+            });
+            actions.appendChild(reportButton);
+        }
+        
+        messageElement.appendChild(actions);
+        
+        return messageElement;
+    }
+
+    /**
+     * 메시지 새로고침
+     */
+    async refreshMessages() {
+        const container = document.getElementById('messages-container');
+        
+        // 로딩 표시
+        container.innerHTML = '<div class="loading-messages">Loading messages...</div>';
+        
+        // 최근 메시지 가져오기
+        const messages = await chatService.getRecentMessages();
+        
+        container.innerHTML = '';
+        
+        // 메시지가 없으면 안내 메시지 표시
+        if (messages.length === 0) {
+            container.innerHTML = `<div class="no-messages">${i18nService.translate('no-messages')}</div>`;
+            return;
+        }
+        
+        // 메시지 표시
+        messages.forEach(message => {
+            const messageElement = this.createMessageElement(message);
+            container.appendChild(messageElement);
+        });
+        
+        // 스크롤 아래로 이동
+        this.scrollToBottom();
     }
 
     /**
      * 사용자 목록 새로고침
      */
     async refreshUserList() {
-        const currentUser = userService.getCurrentUser();
-        if (!currentUser) {
-            return;
-        }
+        const usersList = document.getElementById('users-list');
         
-        // 사용자 목록 가져오기
-        const users = await userService.refreshUserList(currentUser.room_id);
-        
-        // 사용자 목록 UI 업데이트
-        this.elements.usersList.innerHTML = '';
-        users.forEach(user => {
-            const li = document.createElement('li');
-            li.textContent = user.username;
-            
-            // 현재 사용자 표시
-            if (user.id === currentUser.id) {
-                li.textContent += ` (${i18nService.translate('you')})`;
-                li.classList.add('current-user');
-            }
-            
-            this.elements.usersList.appendChild(li);
-        });
-        
-        // 접속자 수 업데이트
-        this.elements.onlineUsersCount.textContent = `${users.length} ${i18nService.translate('users-online')}`;
-    }
-
-    /**
-     * 새 메시지 추가
-     * @param {Object} message 메시지 정보
-     */
-    async addMessage(message) {
-        const currentUser = userService.getCurrentUser();
-        const isOwnMessage = currentUser && message.user_id === currentUser.id;
-        
-        // 메시지 요소 생성
-        const messageElement = document.createElement('div');
-        messageElement.classList.add('message');
-        messageElement.setAttribute('data-message-id', message.id);
-        
-        // 공지사항이면 특별한 스타일 적용
-        if (message.is_announcement) {
-            messageElement.classList.add('announcement');
-            messageElement.innerHTML = `
-                <div class="message-body">
-                    <div class="message-text">${this.escapeHTML(message.content)}</div>
-                </div>
-            `;
-        } else {
-            // 답장 여부 확인
-            let replyHtml = '';
-            if (message.reply_to) {
-                messageElement.classList.add('reply-message');
-                
-                // 원본 메시지 가져오기
-                const originalMessage = await chatService.getMessage(message.reply_to);
-                
-                if (originalMessage) {
-                    replyHtml = `
-                        <div class="reply-to">${i18nService.translate('replying-to')} ${originalMessage.username}</div>
-                        <div class="original-message">${this.escapeHTML(originalMessage.content).substring(0, 100)}${originalMessage.content.length > 100 ? '...' : ''}</div>
-                    `;
-                }
-            }
-            
-            // 일반 메시지
-            messageElement.innerHTML = `
-                <div class="message-avatar">
-                    ${message.username.charAt(0).toUpperCase()}
-                </div>
-                <div class="message-content">
-                    <div class="message-header">
-                        <span class="message-sender">${message.username}</span>
-                        <span class="message-time">${this.formatTime(message.created_at)}</span>
-                    </div>
-                    <div class="message-body ${isOwnMessage ? 'own-message' : ''}">
-                        ${replyHtml}
-                        <div class="message-text">${this.escapeHTML(message.content)}</div>
-                        <div class="message-translation"></div>
-                        <div class="message-actions">
-                            <button class="message-action-btn reply-btn" title="${i18nService.translate('reply')}">
-                                <i class="fas fa-reply"></i>
-                            </button>
-                            <button class="message-action-btn copy-btn" title="${i18nService.translate('copy')}">
-                                <i class="fas fa-copy"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            // 메시지 번역
-            this.translateMessage(message, messageElement);
-            
-            // 메시지 액션 이벤트 등록
-            const replyBtn = messageElement.querySelector('.reply-btn');
-            const copyBtn = messageElement.querySelector('.copy-btn');
-            
-            if (replyBtn) {
-                replyBtn.addEventListener('click', () => {
-                    this.setReplyTo(message.id, message.username, message.content);
-                });
-            }
-            
-            if (copyBtn) {
-                copyBtn.addEventListener('click', () => {
-                    this.copyTextToClipboard(message.content);
-                });
-            }
-        }
-        
-        // 메시지 목록에 추가
-        this.elements.messagesContainer.appendChild(messageElement);
-        
-        // 자동 스크롤
-        this.scrollToBottom();
-    }
-
-    /**
-     * 임시 로컬 메시지 추가 (오프라인 모드)
-     * @param {string} content 메시지 내용
-     */
-    addLocalMessage(content) {
-        const currentUser = userService.getCurrentUser();
-        
-        // 메시지 요소 생성
-        const messageElement = document.createElement('div');
-        messageElement.classList.add('message', 'local-message');
-        
-        // 공지사항이면 특별한 스타일 적용
-        if (content.startsWith('/공지 ') || content.startsWith('/notice ')) {
-            content = content.replace(/^\/(?:공지|notice) /, '');
-            messageElement.classList.add('announcement');
-            messageElement.innerHTML = `
-                <div class="message-body">
-                    <div class="message-text">${this.escapeHTML(content)}</div>
-                </div>
-                <div class="message-pending">${i18nService.translate('sending')}...</div>
-            `;
-        } else {
-            // 일반 메시지
-            messageElement.innerHTML = `
-                <div class="message-avatar">
-                    ${currentUser.username.charAt(0).toUpperCase()}
-                </div>
-                <div class="message-content">
-                    <div class="message-header">
-                        <span class="message-sender">${currentUser.username}</span>
-                        <span class="message-time">${this.formatTime(new Date().toISOString())}</span>
-                    </div>
-                    <div class="message-body own-message">
-                        <div class="message-text">${this.escapeHTML(content)}</div>
-                    </div>
-                </div>
-                <div class="message-pending">${i18nService.translate('sending')}...</div>
-            `;
-        }
-        
-        // 메시지 목록에 추가
-        this.elements.messagesContainer.appendChild(messageElement);
-        
-        // 자동 스크롤
-        this.scrollToBottom();
-    }
-
-    /**
-     * 메시지 번역
-     * @param {Object} message 메시지 정보
-     * @param {HTMLElement} messageElement 메시지 요소
-     */
-    async translateMessage(message, messageElement) {
-        const currentUser = userService.getCurrentUser();
-        if (!currentUser || message.language === currentUser.preferred_language) {
-            return;
-        }
-        
-        const translationElement = messageElement.querySelector('.message-translation');
-        if (!translationElement) {
-            return;
-        }
+        // 로딩 표시
+        usersList.innerHTML = '<li>Loading users...</li>';
         
         try {
-            const result = await chatService.translateMessage(message.id, currentUser.preferred_language);
+            // 사용자 목록 가져오기
+            const users = await userService.getRoomUsers();
             
-            if (result.success) {
-                const originalLanguage = i18nService.getLanguageName(message.language);
-                translationElement.innerHTML = `
-                    <span class="translation-label">${i18nService.translate('translated-from')} ${originalLanguage}</span>
-                    <div class="translation-text">${this.escapeHTML(result.translation)}</div>
-                `;
+            usersList.innerHTML = '';
+            
+            // 사용자 목록이 없으면 안내 메시지 표시
+            if (users.length === 0) {
+                usersList.innerHTML = '<li>No other users online</li>';
+                
+                // 온라인 사용자 수 업데이트
+                document.getElementById('online-users-count').textContent = '1 online';
+                
+                return;
             }
+            
+            // 사용자 목록 표시
+            users.forEach(user => {
+                const userItem = document.createElement('li');
+                userItem.dataset.id = user.id;
+                
+                const usernameSpan = document.createElement('span');
+                usernameSpan.className = 'user-name';
+                usernameSpan.textContent = user.username;
+                
+                const languageSpan = document.createElement('span');
+                languageSpan.className = 'user-language';
+                languageSpan.textContent = i18nService.getLanguageName(user.preferred_language);
+                
+                userItem.appendChild(usernameSpan);
+                userItem.appendChild(languageSpan);
+                
+                usersList.appendChild(userItem);
+            });
+            
+            // 온라인 사용자 수 업데이트
+            document.getElementById('online-users-count').textContent = `${users.length + 1} online`;
         } catch (error) {
-            console.error('Error translating message:', error);
+            console.error('Error refreshing user list:', error);
+            usersList.innerHTML = '<li>Error loading users</li>';
         }
     }
 
     /**
-     * 메시지 번역 새로고침
+     * 사용자 목록 사이드바 토글
      */
-    refreshMessageTranslations() {
-        const messages = chatService.getMessages();
-        const messageElements = this.elements.messagesContainer.querySelectorAll('.message[data-message-id]');
-        
-        messageElements.forEach(element => {
-            const messageId = element.getAttribute('data-message-id');
-            const message = messages.find(msg => msg.id === messageId);
-            
-            if (message) {
-                this.translateMessage(message, element);
-            }
-        });
+    toggleUsersSidebar() {
+        const sidebar = document.getElementById('users-sidebar');
+        sidebar.classList.toggle('hidden');
     }
 
     /**
-     * 메시지 목록 초기화 및 표시
-     * @param {Array} messages 메시지 목록
+     * 답장 설정
+     * @param {Object} message 답장할 메시지
      */
-    displayMessages(messages) {
-        // 메시지 목록 초기화
-        this.elements.messagesContainer.innerHTML = '';
+    setReplyTo(message) {
+        this.replyTo = message;
         
-        // 메시지 추가
-        messages.forEach(message => {
-            this.addMessage(message);
-        });
+        // 답장 미리보기 표시
+        const replyContainer = document.getElementById('reply-container');
+        const replyPreview = document.getElementById('reply-preview');
         
-        // 자동 스크롤
-        this.scrollToBottom();
+        replyPreview.textContent = `${i18nService.translate('replying-to')} ${message.username}: ${message.content.substring(0, 50)}${message.content.length > 50 ? '...' : ''}`;
+        
+        replyContainer.classList.remove('hidden');
+        
+        // 입력 필드에 포커스
+        this.focusMessageInput();
     }
 
     /**
-     * 스크롤을 메시지 목록 하단으로 이동
+     * 답장 취소
+     */
+    cancelReply() {
+        this.replyTo = null;
+        
+        // 답장 미리보기 숨김
+        const replyContainer = document.getElementById('reply-container');
+        replyContainer.classList.add('hidden');
+        
+        // 입력 필드에 포커스
+        this.focusMessageInput();
+    }
+
+    /**
+     * 메시지 입력 필드에 포커스
+     */
+    focusMessageInput() {
+        document.getElementById('message-input').focus();
+    }
+
+    /**
+     * 메시지 컨테이너를 아래로 스크롤
      */
     scrollToBottom() {
-        this.elements.messagesContainer.scrollTop = this.elements.messagesContainer.scrollHeight;
+        const container = document.getElementById('messages-container');
+        container.scrollTop = container.scrollHeight;
     }
 
     /**
-     * HTML 이스케이프
-     * @param {string} text HTML 이스케이프할 텍스트
-     * @returns {string} 이스케이프된 텍스트
+     * 연결 상태 표시 업데이트
+     * @param {boolean} isConnected 연결 상태
      */
-    escapeHTML(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML
-            .replace(/\n/g, '<br>')
-            .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+    updateConnectionStatus(isConnected) {
+        const statusElement = document.getElementById('connection-status');
+        const statusText = document.getElementById('status-text');
+        
+        if (isConnected) {
+            statusElement.className = 'connection-status online';
+            statusText.textContent = i18nService.translate('online');
+        } else {
+            statusElement.className = 'connection-status offline';
+            statusText.textContent = i18nService.translate('offline');
+        }
     }
 
     /**
-     * 시간 포맷
-     * @param {string} timestamp ISO 형식 시간
-     * @returns {string} 포맷된 시간
+     * 날짜/시간 형식화
+     * @param {string} dateString ISO 날짜 문자열
+     * @returns {string} 형식화된 시간
      */
-    formatTime(timestamp) {
-        const date = new Date(timestamp);
-        return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-    }
-
-    /**
-     * 텍스트를 클립보드에 복사
-     * @param {string} text 복사할 텍스트
-     */
-    copyTextToClipboard(text) {
-        navigator.clipboard.writeText(text)
-            .then(() => {
-                // 임시 알림 표시
-                const notification = document.createElement('div');
-                notification.classList.add('copy-notification');
-                notification.textContent = i18nService.translate('copied');
-                document.body.appendChild(notification);
-                
-                setTimeout(() => {
-                    notification.classList.add('show');
-                }, 10);
-                
-                setTimeout(() => {
-                    notification.classList.remove('show');
-                    setTimeout(() => {
-                        document.body.removeChild(notification);
-                    }, 300);
-                }, 1500);
-            })
-            .catch(err => {
-                console.error('Error copying text: ', err);
-            });
+    formatTime(dateString) {
+        try {
+            const date = new Date(dateString);
+            
+            if (isNaN(date.getTime())) {
+                return '';
+            }
+            
+            // 오늘 날짜인지 확인
+            const today = new Date();
+            const isToday = date.getDate() === today.getDate() &&
+                date.getMonth() === today.getMonth() &&
+                date.getFullYear() === today.getFullYear();
+            
+            if (isToday) {
+                // 시간만 표시
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } else {
+                // 날짜와 시간 표시
+                return date.toLocaleString([], { 
+                    year: '2-digit',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+        } catch (error) {
+            console.error('Error formatting time:', error);
+            return '';
+        }
     }
 }
 
@@ -684,29 +667,6 @@ class UIManager {
 const uiManager = new UIManager();
 
 // 초기화
-document.addEventListener('DOMContentLoaded', async () => {
-    // 채팅방 목록 로드
-    await uiManager.loadChatRooms();
-    
-    // 언어 설정 콜백
-    i18nService.setLanguageChangeCallback(() => {
-        uiManager.refreshMessageTranslations();
-    });
-    
-    // 메시지 콜백 설정
-    chatService.setNewMessageCallback(message => {
-        uiManager.addMessage(message);
-    });
-    
-    chatService.setMessageHistoryCallback(messages => {
-        uiManager.displayMessages(messages);
-    });
-    
-    chatService.setUserJoinCallback(user => {
-        uiManager.refreshUserList();
-    });
-    
-    chatService.setUserLeaveCallback(user => {
-        uiManager.refreshUserList();
-    });
+document.addEventListener('DOMContentLoaded', () => {
+    uiManager.initialize();
 });

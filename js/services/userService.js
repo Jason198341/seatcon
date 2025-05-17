@@ -1,133 +1,114 @@
 /**
  * 사용자 서비스
- * 사용자 정보 관리 및 처리를 담당합니다.
+ * 사용자 정보 관리, 인증, 세션 등을 처리합니다.
  */
 
 class UserService {
     constructor() {
         this.currentUser = null;
-        this.users = []; // 현재 채팅방의 사용자 목록
     }
 
     /**
-     * 현재 사용자 정보 설정
-     * @param {Object} user 사용자 정보
+     * 초기화: 로컬 스토리지에서 사용자 정보 불러오기
      */
-    setCurrentUser(user) {
-        this.currentUser = user;
-        this.saveUserToLocalStorage();
-    }
-
-    /**
-     * 현재 사용자 정보 가져오기
-     * @returns {Object|null} 현재 사용자 정보
-     */
-    getCurrentUser() {
-        if (!this.currentUser) {
-            this.loadUserFromLocalStorage();
-        }
-        return this.currentUser;
-    }
-
-    /**
-     * 사용자 정보를 LocalStorage에 저장
-     */
-    saveUserToLocalStorage() {
+    initialize() {
         try {
-            if (this.currentUser) {
-                localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
-            }
+            this.loadUserFromLocalStorage();
+            return true;
         } catch (error) {
-            console.error('Error saving user to localStorage:', error);
+            console.error('Error initializing user service:', error);
+            return false;
         }
     }
 
     /**
-     * LocalStorage에서 사용자 정보 불러오기
+     * 로컬 스토리지에서 사용자 정보 불러오기
+     * @private
      */
     loadUserFromLocalStorage() {
         try {
             const userData = localStorage.getItem('currentUser');
             if (userData) {
                 this.currentUser = JSON.parse(userData);
+                console.log('User loaded from localStorage:', this.currentUser.username);
             }
         } catch (error) {
-            console.error('Error loading user from localStorage:', error);
+            console.error('Error loading user data from localStorage:', error);
             this.currentUser = null;
         }
     }
 
     /**
-     * LocalStorage에서 사용자 정보 삭제
+     * 로컬 스토리지에 사용자 정보 저장
+     * @private
+     */
+    saveUserToLocalStorage() {
+        try {
+            if (this.currentUser) {
+                localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+            } else {
+                localStorage.removeItem('currentUser');
+            }
+        } catch (error) {
+            console.error('Error saving user data to localStorage:', error);
+        }
+    }
+
+    /**
+     * 로컬 스토리지에서 사용자 정보 삭제
      */
     clearUserFromLocalStorage() {
         try {
             localStorage.removeItem('currentUser');
             this.currentUser = null;
         } catch (error) {
-            console.error('Error clearing user from localStorage:', error);
+            console.error('Error clearing user data from localStorage:', error);
         }
     }
 
     /**
-     * 새 사용자 생성 및 채팅방 입장
+     * 현재 사용자 정보 가져오기
+     * @returns {Object|null} 사용자 정보
+     */
+    getCurrentUser() {
+        return this.currentUser;
+    }
+
+    /**
+     * 새 사용자 생성
      * @param {string} roomId 채팅방 ID
      * @param {string} username 사용자 이름
      * @param {string} preferredLanguage 선호 언어
-     * @returns {Promise<{success: boolean, user: Object|null}>} 생성 결과
+     * @returns {Promise<{success: boolean, userId: string|null}>} 생성 결과
      */
     async createUser(roomId, username, preferredLanguage) {
         try {
+            console.log('Creating new user:', username, 'in room:', roomId);
+            
+            // 사용자 추가
             const result = await dbService.addUserToRoom(roomId, username, preferredLanguage);
             
             if (!result.success) {
-                return { success: false, user: null };
+                console.error('Failed to add user to room');
+                return { success: false, userId: null };
             }
             
-            // 사용자 정보 객체 생성
-            const user = {
+            // 현재 사용자 설정
+            this.currentUser = {
                 id: result.userId,
                 room_id: roomId,
                 username: username,
-                preferred_language: preferredLanguage,
-                created_at: new Date().toISOString(),
-                last_active: new Date().toISOString()
+                preferred_language: preferredLanguage
             };
             
-            // 현재 사용자로 설정
-            this.setCurrentUser(user);
+            // 로컬 스토리지에 저장
+            this.saveUserToLocalStorage();
             
-            return { success: true, user };
+            console.log('User created successfully:', this.currentUser);
+            return { success: true, userId: result.userId };
         } catch (error) {
             console.error('Error creating user:', error);
-            return { success: false, user: null };
-        }
-    }
-
-    /**
-     * 사용자 선호 언어 업데이트
-     * @param {string} language 언어 코드
-     * @returns {Promise<boolean>} 업데이트 성공 여부
-     */
-    async updatePreferredLanguage(language) {
-        if (!this.currentUser) {
-            return false;
-        }
-        
-        try {
-            const result = await dbService.updateUser(this.currentUser.id, {
-                preferred_language: language
-            });
-            
-            if (result) {
-                this.currentUser.preferred_language = language;
-                this.saveUserToLocalStorage();
-            }
-            
-            return result;
-        } catch (error) {
-            console.error('Error updating preferred language:', error);
-            return false;
+            return { success: false, userId: null };
         }
     }
 
@@ -142,15 +123,38 @@ class UserService {
         
         try {
             const result = await dbService.updateUserActivity(this.currentUser.id);
+            return result;
+        } catch (error) {
+            console.error('Error updating user activity:', error);
+            return false;
+        }
+    }
+
+    /**
+     * 사용자 선호 언어 업데이트
+     * @param {string} language 언어 코드
+     * @returns {Promise<boolean>} 업데이트 성공 여부
+     */
+    async updatePreferredLanguage(language) {
+        if (!this.currentUser) {
+            return false;
+        }
+        
+        try {
+            // 데이터베이스 업데이트
+            const result = await dbService.updateUser(this.currentUser.id, {
+                preferred_language: language
+            });
             
             if (result) {
-                this.currentUser.last_active = new Date().toISOString();
+                // 로컬 사용자 정보 업데이트
+                this.currentUser.preferred_language = language;
                 this.saveUserToLocalStorage();
             }
             
             return result;
         } catch (error) {
-            console.error('Error updating user activity:', error);
+            console.error('Error updating preferred language:', error);
             return false;
         }
     }
@@ -165,11 +169,11 @@ class UserService {
         }
         
         try {
+            // 데이터베이스에서 사용자 삭제
             const result = await dbService.removeUser(this.currentUser.id);
             
-            if (result) {
-                this.clearUserFromLocalStorage();
-            }
+            // 로컬 데이터 삭제
+            this.clearUserFromLocalStorage();
             
             return result;
         } catch (error) {
@@ -179,77 +183,69 @@ class UserService {
     }
 
     /**
-     * 채팅방 사용자 목록 가져오기 및 업데이트
-     * @param {string} roomId 채팅방 ID
+     * 사용자 존재 여부 확인
+     * @returns {boolean} 사용자 존재 여부
+     */
+    isLoggedIn() {
+        return this.currentUser !== null;
+    }
+
+    /**
+     * 채팅방의 다른 사용자 목록 가져오기
      * @returns {Promise<Array>} 사용자 목록
      */
-    async refreshUserList(roomId) {
+    async getRoomUsers() {
+        if (!this.currentUser) {
+            return [];
+        }
+        
         try {
-            const users = await dbService.getRoomUsers(roomId);
-            this.users = users;
-            return users;
+            // 채팅방의 모든 사용자 가져오기
+            const users = await dbService.getRoomUsers(this.currentUser.room_id);
+            
+            // 자신을 제외한 사용자 필터링
+            return users.filter(user => user.id !== this.currentUser.id);
         } catch (error) {
-            console.error('Error refreshing user list:', error);
+            console.error('Error getting room users:', error);
             return [];
         }
     }
 
     /**
-     * 현재 채팅방 사용자 목록 가져오기
-     * @returns {Array} 사용자 목록
+     * 주기적으로 사용자 활동 업데이트 (온라인 상태 유지)
+     * @param {number} interval 업데이트 간격 (밀리초)
      */
-    getUserList() {
-        return this.users;
-    }
-
-    /**
-     * 사용자 ID로 사용자 정보 찾기
-     * @param {string} userId 사용자 ID
-     * @returns {Object|null} 사용자 정보
-     */
-    getUserById(userId) {
-        return this.users.find(user => user.id === userId) || null;
-    }
-
-    /**
-     * 사용자 이름으로 사용자 정보 찾기
-     * @param {string} username 사용자 이름
-     * @returns {Object|null} 사용자 정보
-     */
-    getUserByUsername(username) {
-        return this.users.find(user => user.username === username) || null;
-    }
-
-    /**
-     * 현재 채팅방 사용자 수 가져오기
-     * @returns {number} 사용자 수
-     */
-    getUserCount() {
-        return this.users.length;
-    }
-
-    /**
-     * 새 사용자 목록에 추가
-     * @param {Object} user 사용자 정보
-     */
-    addUser(user) {
-        // 이미 존재하는 사용자면 업데이트
-        const index = this.users.findIndex(u => u.id === user.id);
-        if (index >= 0) {
-            this.users[index] = user;
-        } else {
-            this.users.push(user);
+    startActivityUpdates(interval = 30000) {
+        // 이전 타이머가 있으면 정지
+        if (this.activityTimer) {
+            clearInterval(this.activityTimer);
         }
+        
+        // 주기적으로 활동 업데이트
+        this.activityTimer = setInterval(() => {
+            if (this.isLoggedIn()) {
+                this.updateActivity();
+            } else {
+                clearInterval(this.activityTimer);
+            }
+        }, interval);
     }
 
     /**
-     * 사용자 목록에서 사용자 제거
-     * @param {string} userId 사용자 ID
+     * 활동 업데이트 중지
      */
-    removeUser(userId) {
-        this.users = this.users.filter(user => user.id !== userId);
+    stopActivityUpdates() {
+        if (this.activityTimer) {
+            clearInterval(this.activityTimer);
+            this.activityTimer = null;
+        }
     }
 }
 
 // 싱글톤 인스턴스 생성
 const userService = new UserService();
+
+// 초기화
+document.addEventListener('DOMContentLoaded', () => {
+    userService.initialize();
+});
