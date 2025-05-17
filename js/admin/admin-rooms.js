@@ -1,368 +1,356 @@
 /**
  * 관리자 채팅방 관리 모듈
- * 관리자 페이지의 채팅방 관리 기능을 처리합니다.
+ * 채팅방 목록, 추가, 수정, 삭제 등을 담당합니다.
  */
 
 class AdminRooms {
     constructor() {
-        this.roomsTableBody = document.getElementById('rooms-table-body');
-        this.addRoomBtn = document.getElementById('add-room-btn');
-        this.roomModal = document.getElementById('room-modal');
-        this.roomForm = document.getElementById('room-form');
-        this.roomModalTitle = document.getElementById('room-modal-title');
-        this.roomIdInput = document.getElementById('room-id');
-        this.roomNameInput = document.getElementById('room-name');
-        this.roomDescriptionInput = document.getElementById('room-description');
-        this.roomTypeInput = document.getElementById('room-type');
-        this.accessCodeContainer = document.getElementById('access-code-container');
-        this.roomAccessCodeInput = document.getElementById('room-access-code');
-        this.roomMaxUsersInput = document.getElementById('room-max-users');
-        this.roomStatusInput = document.getElementById('room-status');
-        this.saveRoomBtn = document.getElementById('save-room-btn');
-        this.closeModalBtns = document.querySelectorAll('.close-modal-btn, .cancel-modal-btn');
-        
         this.rooms = [];
+        this.editingRoomId = null;
     }
 
     /**
-     * 채팅방 관리 초기화
+     * 초기화
+     * @returns {Promise<boolean>} 초기화 성공 여부
      */
-    initialize() {
-        // 이벤트 리스너 등록
-        this.setupEventListeners();
-        
-        // 채팅방 목록 로드
-        this.loadRooms();
+    async initialize() {
+        try {
+            console.log('Initializing admin rooms...');
+            
+            // 이벤트 리스너 설정
+            this.setupEventListeners();
+            
+            // 채팅방 목록 로드
+            await this.loadRooms();
+            
+            console.log('Admin rooms initialized');
+            return true;
+        } catch (error) {
+            console.error('Error initializing admin rooms:', error);
+            return false;
+        }
     }
 
     /**
-     * 이벤트 리스너 등록
+     * 이벤트 리스너 설정
      * @private
      */
     setupEventListeners() {
-        // 새 채팅방 추가 버튼
-        this.addRoomBtn.addEventListener('click', () => {
-            this.showAddRoomModal();
+        // 채팅방 추가 버튼
+        document.getElementById('add-room-btn').addEventListener('click', () => {
+            this.showRoomModal();
+        });
+        
+        // 채팅방 폼 제출
+        document.getElementById('room-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveRoom();
         });
         
         // 모달 닫기 버튼
-        this.closeModalBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                this.hideModal();
+        document.querySelectorAll('.close-modal-btn, .cancel-modal-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                this.hideRoomModal();
             });
         });
         
-        // 채팅방 유형 변경 이벤트
-        this.roomTypeInput.addEventListener('change', () => {
-            this.toggleAccessCodeContainer();
-        });
-        
-        // 채팅방 폼 제출 이벤트
-        this.roomForm.addEventListener('submit', e => {
-            e.preventDefault();
-            this.handleRoomFormSubmit();
+        // 채팅방 유형 변경 시 접근 코드 필드 표시/숨김
+        document.getElementById('room-type').addEventListener('change', (e) => {
+            this.toggleAccessCodeField(e.target.value);
         });
     }
 
     /**
      * 채팅방 목록 로드
+     * @returns {Promise<boolean>} 로드 성공 여부
      * @private
      */
     async loadRooms() {
         try {
-            // 채팅방 목록 가져오기
-            const rooms = await dbService.getChatRooms();
-            this.rooms = rooms;
+            // 모든 채팅방 가져오기
+            this.rooms = await dbService.getChatRooms(false);
             
-            // 테이블 업데이트
-            this.updateRoomsTable();
+            // 테이블에 표시
+            this.displayRooms();
+            
+            return true;
         } catch (error) {
             console.error('Error loading rooms:', error);
+            adminCore.showMessage('채팅방 목록을 불러오는 중 오류가 발생했습니다.');
+            return false;
         }
     }
 
     /**
-     * 채팅방 테이블 업데이트
+     * 채팅방 테이블에 표시
      * @private
      */
-    updateRoomsTable() {
-        // 테이블 초기화
-        this.roomsTableBody.innerHTML = '';
+    async displayRooms() {
+        const tableBody = document.getElementById('rooms-table-body');
+        tableBody.innerHTML = '';
         
-        // 채팅방 목록 표시
-        this.rooms.forEach(room => {
+        if (this.rooms.length === 0) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center">채팅방이 없습니다.</td>
+                </tr>
+            `;
+            return;
+        }
+        
+        // 채팅방 참가자 수 가져오기
+        const roomStats = await Promise.all(this.rooms.map(async (room) => {
+            const userCount = await this.getRoomUserCount(room.id);
+            return { ...room, userCount };
+        }));
+        
+        // 테이블에 표시
+        roomStats.forEach(room => {
             const row = document.createElement('tr');
+            
+            // 생성일 포맷
+            const createdDate = new Date(room.created_at);
+            const formattedDate = createdDate.toLocaleDateString() + ' ' + 
+                                 createdDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             
             row.innerHTML = `
                 <td>${room.id}</td>
                 <td>${room.name}</td>
                 <td>${room.description || '-'}</td>
-                <td><span class="status-badge ${room.status}">${room.status}</span></td>
-                <td>${room.type}</td>
-                <td>${this.formatDate(room.created_at)}</td>
-                <td id="room-user-count-${room.id}">...</td>
                 <td>
-                    <div class="action-buttons">
-                        <button class="btn edit-room-btn" data-room-id="${room.id}">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn delete-room-btn" data-room-id="${room.id}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
+                    <span class="status-badge ${room.status === 'active' ? 'active' : 'inactive'}">
+                        ${room.status === 'active' ? '활성화' : '비활성화'}
+                    </span>
+                </td>
+                <td>${room.type === 'public' ? '공개' : '비공개'}</td>
+                <td>${formattedDate}</td>
+                <td>${room.userCount} / ${room.max_users}</td>
+                <td class="actions">
+                    <button class="btn action-btn edit-room-btn" data-id="${room.id}">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn action-btn delete-room-btn" data-id="${room.id}">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
                 </td>
             `;
             
-            this.roomsTableBody.appendChild(row);
-            
-            // 참가자 수 로드
-            this.loadRoomUserCount(room.id);
+            tableBody.appendChild(row);
         });
         
-        // 수정 버튼 이벤트 등록
-        const editBtns = document.querySelectorAll('.edit-room-btn');
-        editBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const roomId = btn.getAttribute('data-room-id');
-                this.showEditRoomModal(roomId);
+        // 수정 버튼 이벤트 리스너
+        document.querySelectorAll('.edit-room-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const roomId = e.currentTarget.dataset.id;
+                this.editRoom(roomId);
             });
         });
         
-        // 삭제 버튼 이벤트 등록
-        const deleteBtns = document.querySelectorAll('.delete-room-btn');
-        deleteBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const roomId = btn.getAttribute('data-room-id');
-                this.confirmDeleteRoom(roomId);
+        // 삭제 버튼 이벤트 리스너
+        document.querySelectorAll('.delete-room-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const roomId = e.currentTarget.dataset.id;
+                this.deleteRoom(roomId);
             });
         });
     }
 
     /**
-     * 채팅방 참가자 수 로드
+     * 채팅방의 참가자 수 가져오기
      * @param {string} roomId 채팅방 ID
+     * @returns {Promise<number>} 참가자 수
      * @private
      */
-    async loadRoomUserCount(roomId) {
+    async getRoomUserCount(roomId) {
         try {
-            // 참가자 수 가져오기
             const users = await dbService.getRoomUsers(roomId);
-            
-            // 참가자 수 표시
-            const countElement = document.getElementById(`room-user-count-${roomId}`);
-            if (countElement) {
-                countElement.textContent = users.length;
-            }
+            return users.length;
         } catch (error) {
-            console.error(`Error loading user count for room ${roomId}:`, error);
+            console.error(`Error getting user count for room ${roomId}:`, error);
+            return 0;
         }
     }
 
     /**
-     * 새 채팅방 추가 모달 표시
+     * 채팅방 모달 표시
+     * @param {Object|null} room 편집할 채팅방 (없으면 새 채팅방)
      * @private
      */
-    showAddRoomModal() {
+    showRoomModal(room = null) {
+        const modal = document.getElementById('room-modal');
+        const modalTitle = document.getElementById('room-modal-title');
+        const form = document.getElementById('room-form');
+        
         // 모달 제목 설정
-        this.roomModalTitle.textContent = '새 채팅방 추가';
+        modalTitle.textContent = room ? '채팅방 수정' : '새 채팅방 추가';
         
         // 폼 초기화
-        this.roomForm.reset();
-        this.roomIdInput.value = '';
+        form.reset();
         
-        // 접근 코드 컨테이너 상태 업데이트
-        this.toggleAccessCodeContainer();
+        // 편집 모드인 경우 폼에 데이터 채우기
+        if (room) {
+            this.editingRoomId = room.id;
+            document.getElementById('room-id').value = room.id;
+            document.getElementById('room-name').value = room.name;
+            document.getElementById('room-description').value = room.description || '';
+            document.getElementById('room-type').value = room.type;
+            document.getElementById('room-access-code').value = room.access_code || '';
+            document.getElementById('room-max-users').value = room.max_users;
+            document.getElementById('room-status').value = room.status;
+            
+            // 접근 코드 필드 표시/숨김
+            this.toggleAccessCodeField(room.type);
+        } else {
+            this.editingRoomId = null;
+            document.getElementById('room-id').value = '';
+            
+            // 접근 코드 필드 숨김
+            this.toggleAccessCodeField('public');
+        }
         
         // 모달 표시
-        this.roomModal.classList.add('active');
+        modal.classList.add('active');
     }
 
     /**
-     * 채팅방 수정 모달 표시
+     * 채팅방 모달 숨김
+     * @private
+     */
+    hideRoomModal() {
+        const modal = document.getElementById('room-modal');
+        modal.classList.remove('active');
+        this.editingRoomId = null;
+    }
+
+    /**
+     * 접근 코드 필드 표시/숨김
+     * @param {string} roomType 채팅방 유형 ('public', 'private')
+     * @private
+     */
+    toggleAccessCodeField(roomType) {
+        const accessCodeContainer = document.getElementById('access-code-container');
+        
+        if (roomType === 'private') {
+            accessCodeContainer.classList.remove('hidden');
+        } else {
+            accessCodeContainer.classList.add('hidden');
+        }
+    }
+
+    /**
+     * 채팅방 수정
      * @param {string} roomId 채팅방 ID
      * @private
      */
-    showEditRoomModal(roomId) {
-        // 모달 제목 설정
-        this.roomModalTitle.textContent = '채팅방 수정';
-        
-        // 채팅방 정보 가져오기
+    editRoom(roomId) {
         const room = this.rooms.find(r => r.id === roomId);
         
-        if (!room) {
-            return;
-        }
-        
-        // 폼 값 설정
-        this.roomIdInput.value = room.id;
-        this.roomNameInput.value = room.name;
-        this.roomDescriptionInput.value = room.description || '';
-        this.roomTypeInput.value = room.type;
-        this.roomAccessCodeInput.value = room.access_code || '';
-        this.roomMaxUsersInput.value = room.max_users;
-        this.roomStatusInput.value = room.status;
-        
-        // 접근 코드 컨테이너 상태 업데이트
-        this.toggleAccessCodeContainer();
-        
-        // 모달 표시
-        this.roomModal.classList.add('active');
-    }
-
-    /**
-     * 모달 숨기기
-     * @private
-     */
-    hideModal() {
-        this.roomModal.classList.remove('active');
-    }
-
-    /**
-     * 접근 코드 컨테이너 토글
-     * @private
-     */
-    toggleAccessCodeContainer() {
-        if (this.roomTypeInput.value === 'private') {
-            this.accessCodeContainer.classList.remove('hidden');
+        if (room) {
+            this.showRoomModal(room);
         } else {
-            this.accessCodeContainer.classList.add('hidden');
-        }
-    }
-
-    /**
-     * 채팅방 폼 제출 처리
-     * @private
-     */
-    async handleRoomFormSubmit() {
-        try {
-            const roomId = this.roomIdInput.value;
-            
-            // 채팅방 데이터 준비
-            const roomData = {
-                name: this.roomNameInput.value,
-                description: this.roomDescriptionInput.value,
-                type: this.roomTypeInput.value,
-                access_code: this.roomTypeInput.value === 'private' ? this.roomAccessCodeInput.value : null,
-                max_users: parseInt(this.roomMaxUsersInput.value),
-                status: this.roomStatusInput.value
-            };
-            
-            let result;
-            
-            if (roomId) {
-                // 채팅방 수정
-                result = await this.updateRoom(roomId, roomData);
-            } else {
-                // 새 채팅방 추가
-                result = await this.createRoom(roomData);
-            }
-            
-            if (result) {
-                // 모달 숨기기
-                this.hideModal();
-                
-                // 채팅방 목록 새로고침
-                this.loadRooms();
-            }
-        } catch (error) {
-            console.error('Error submitting room form:', error);
-            alert('채팅방 저장 중 오류가 발생했습니다.');
-        }
-    }
-
-    /**
-     * 새 채팅방 생성
-     * @param {Object} roomData 채팅방 데이터
-     * @returns {Promise<boolean>} 생성 성공 여부
-     * @private
-     */
-    async createRoom(roomData) {
-        try {
-            // 실제 애플리케이션에서는 데이터베이스에 저장
-            // 여기서는 데모를 위한 가상 구현
-            console.log('Creating room:', roomData);
-            
-            // 성공으로 가정
-            return true;
-        } catch (error) {
-            console.error('Error creating room:', error);
-            return false;
-        }
-    }
-
-    /**
-     * 채팅방 정보 업데이트
-     * @param {string} roomId 채팅방 ID
-     * @param {Object} roomData 채팅방 데이터
-     * @returns {Promise<boolean>} 업데이트 성공 여부
-     * @private
-     */
-    async updateRoom(roomId, roomData) {
-        try {
-            // 실제 애플리케이션에서는 데이터베이스에 저장
-            // 여기서는 데모를 위한 가상 구현
-            console.log('Updating room:', roomId, roomData);
-            
-            // 성공으로 가정
-            return true;
-        } catch (error) {
-            console.error(`Error updating room ${roomId}:`, error);
-            return false;
-        }
-    }
-
-    /**
-     * 채팅방 삭제 확인
-     * @param {string} roomId 채팅방 ID
-     * @private
-     */
-    confirmDeleteRoom(roomId) {
-        // 삭제 확인
-        if (confirm('정말 이 채팅방을 삭제하시겠습니까?')) {
-            this.deleteRoom(roomId);
+            adminCore.showMessage('채팅방을 찾을 수 없습니다.');
         }
     }
 
     /**
      * 채팅방 삭제
      * @param {string} roomId 채팅방 ID
-     * @returns {Promise<boolean>} 삭제 성공 여부
      * @private
      */
     async deleteRoom(roomId) {
+        const confirmed = await adminCore.confirm('정말 이 채팅방을 삭제하시겠습니까?');
+        
+        if (!confirmed) {
+            return;
+        }
+        
         try {
-            // 실제 애플리케이션에서는 데이터베이스에서 삭제
-            // 여기서는 데모를 위한 가상 구현
-            console.log('Deleting room:', roomId);
+            const result = await roomManager.deleteRoom(roomId);
             
-            // 성공으로 가정
-            
-            // 채팅방 목록 새로고침
-            this.loadRooms();
-            
-            return true;
+            if (result) {
+                adminCore.showMessage('채팅방이 삭제되었습니다.', 'success');
+                await this.loadRooms();
+            } else {
+                adminCore.showMessage('채팅방 삭제 중 오류가 발생했습니다.');
+            }
         } catch (error) {
-            console.error(`Error deleting room ${roomId}:`, error);
-            return false;
+            console.error('Error deleting room:', error);
+            adminCore.showMessage('채팅방 삭제 중 오류가 발생했습니다.');
         }
     }
 
     /**
-     * 날짜 포맷
-     * @param {string} dateString ISO 형식 날짜
-     * @returns {string} 포맷된 날짜
+     * 채팅방 저장
      * @private
      */
-    formatDate(dateString) {
-        const date = new Date(dateString);
-        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    async saveRoom() {
+        // 폼 데이터 가져오기
+        const roomId = document.getElementById('room-id').value;
+        const name = document.getElementById('room-name').value.trim();
+        const description = document.getElementById('room-description').value.trim();
+        const type = document.getElementById('room-type').value;
+        const accessCode = document.getElementById('room-access-code').value.trim();
+        const maxUsers = parseInt(document.getElementById('room-max-users').value);
+        const status = document.getElementById('room-status').value;
+        
+        // 유효성 검사
+        if (!name) {
+            adminCore.showMessage('채팅방 이름을 입력하세요.');
+            return;
+        }
+        
+        if (type === 'private' && !accessCode) {
+            adminCore.showMessage('비공개 채팅방에는 접근 코드가 필요합니다.');
+            return;
+        }
+        
+        if (isNaN(maxUsers) || maxUsers < 1) {
+            adminCore.showMessage('유효한 최대 사용자 수를 입력하세요.');
+            return;
+        }
+        
+        // 채팅방 데이터
+        const roomData = {
+            name,
+            description,
+            type,
+            access_code: type === 'private' ? accessCode : null,
+            max_users: maxUsers,
+            status
+        };
+        
+        try {
+            let result;
+            
+            if (this.editingRoomId) {
+                // 채팅방 업데이트
+                result = await roomManager.updateRoom(this.editingRoomId, roomData);
+                
+                if (result) {
+                    adminCore.showMessage('채팅방이 업데이트되었습니다.', 'success');
+                    this.hideRoomModal();
+                    await this.loadRooms();
+                } else {
+                    adminCore.showMessage('채팅방 업데이트 중 오류가 발생했습니다.');
+                }
+            } else {
+                // 새 채팅방 생성
+                result = await roomManager.createRoom(roomData);
+                
+                if (result.success) {
+                    adminCore.showMessage('새 채팅방이 생성되었습니다.', 'success');
+                    this.hideRoomModal();
+                    await this.loadRooms();
+                } else {
+                    adminCore.showMessage('채팅방 생성 중 오류가 발생했습니다.');
+                }
+            }
+        } catch (error) {
+            console.error('Error saving room:', error);
+            adminCore.showMessage('채팅방 저장 중 오류가 발생했습니다.');
+        }
     }
 }
 
 // 싱글톤 인스턴스 생성
 const adminRooms = new AdminRooms();
-
-// 초기화
-document.addEventListener('DOMContentLoaded', () => {
-    adminRooms.initialize();
-});

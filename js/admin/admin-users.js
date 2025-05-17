@@ -1,312 +1,378 @@
 /**
  * 관리자 사용자 관리 모듈
- * 관리자 페이지의 사용자 관리 기능을 처리합니다.
+ * 사용자 목록, 권한 관리, 차단 등을 담당합니다.
  */
 
 class AdminUsers {
     constructor() {
-        this.usersTableBody = document.getElementById('users-table-body');
-        this.userSearchInput = document.getElementById('user-search');
-        this.userModal = document.getElementById('user-modal');
-        this.userForm = document.getElementById('user-form');
-        this.userModalTitle = document.getElementById('user-modal-title');
-        this.userIdInput = document.getElementById('user-id');
-        this.userNameInput = document.getElementById('user-name');
-        this.userRoleInput = document.getElementById('user-role');
-        this.saveUserBtn = document.getElementById('save-user-btn');
-        this.closeModalBtns = document.querySelectorAll('.close-modal-btn, .cancel-modal-btn');
-        
         this.users = [];
         this.filteredUsers = [];
+        this.editingUserId = null;
     }
 
     /**
-     * 사용자 관리 초기화
+     * 초기화
+     * @returns {Promise<boolean>} 초기화 성공 여부
      */
-    initialize() {
-        // 이벤트 리스너 등록
-        this.setupEventListeners();
-        
-        // 사용자 목록 로드
-        this.loadUsers();
+    async initialize() {
+        try {
+            console.log('Initializing admin users...');
+            
+            // 이벤트 리스너 설정
+            this.setupEventListeners();
+            
+            // 사용자 목록 로드
+            await this.loadUsers();
+            
+            console.log('Admin users initialized');
+            return true;
+        } catch (error) {
+            console.error('Error initializing admin users:', error);
+            return false;
+        }
     }
 
     /**
-     * 이벤트 리스너 등록
+     * 이벤트 리스너 설정
      * @private
      */
     setupEventListeners() {
-        // 사용자 검색 이벤트
-        this.userSearchInput.addEventListener('input', () => {
-            this.filterUsers();
+        // 사용자 검색
+        document.getElementById('user-search').addEventListener('input', (e) => {
+            this.filterUsers(e.target.value);
+        });
+        
+        // 사용자 폼 제출
+        document.getElementById('user-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveUser();
         });
         
         // 모달 닫기 버튼
-        this.closeModalBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                this.hideModal();
+        document.querySelectorAll('.close-modal-btn, .cancel-modal-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                this.hideUserModal();
             });
-        });
-        
-        // 사용자 폼 제출 이벤트
-        this.userForm.addEventListener('submit', e => {
-            e.preventDefault();
-            this.handleUserFormSubmit();
         });
     }
 
     /**
      * 사용자 목록 로드
+     * @returns {Promise<boolean>} 로드 성공 여부
      * @private
      */
     async loadUsers() {
         try {
-            // 모든 채팅방의 사용자 목록 가져오기
-            const rooms = await dbService.getChatRooms();
-            let allUsers = [];
+            // 모든 채팅방 가져오기
+            const rooms = await dbService.getChatRooms(false);
             
-            for (const room of rooms) {
-                const roomUsers = await dbService.getRoomUsers(room.id);
+            // 모든 채팅방의 사용자 가져오기
+            const usersPromises = rooms.map(room => dbService.getRoomUsers(room.id));
+            const usersLists = await Promise.all(usersPromises);
+            
+            // 사용자 목록 병합
+            this.users = [];
+            
+            usersLists.forEach((usersList, index) => {
+                // 방 정보 추가
+                const roomInfo = rooms[index];
                 
-                // 채팅방 정보 추가
-                roomUsers.forEach(user => {
-                    user.room_name = room.name;
+                usersList.forEach(user => {
+                    user.roomName = roomInfo.name;
+                    this.users.push(user);
                 });
-                
-                allUsers = allUsers.concat(roomUsers);
-            }
+            });
             
-            this.users = allUsers;
-            this.filteredUsers = [...allUsers];
+            // 필터링된 사용자 목록 초기화
+            this.filteredUsers = [...this.users];
             
-            // 테이블 업데이트
-            this.updateUsersTable();
+            // 테이블에 표시
+            this.displayUsers();
+            
+            return true;
         } catch (error) {
             console.error('Error loading users:', error);
+            adminCore.showMessage('사용자 목록을 불러오는 중 오류가 발생했습니다.');
+            return false;
         }
     }
 
     /**
-     * 사용자 필터링
+     * 사용자 테이블에 표시
      * @private
      */
-    filterUsers() {
-        const searchTerm = this.userSearchInput.value.toLowerCase();
+    displayUsers() {
+        const tableBody = document.getElementById('users-table-body');
+        tableBody.innerHTML = '';
         
-        if (!searchTerm) {
-            this.filteredUsers = [...this.users];
-        } else {
-            this.filteredUsers = this.users.filter(user => 
-                user.username.toLowerCase().includes(searchTerm) ||
-                user.id.toLowerCase().includes(searchTerm) ||
-                user.preferred_language.toLowerCase().includes(searchTerm) ||
-                user.room_name.toLowerCase().includes(searchTerm)
-            );
+        if (this.filteredUsers.length === 0) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center">사용자가 없습니다.</td>
+                </tr>
+            `;
+            return;
         }
         
-        this.updateUsersTable();
-    }
-
-    /**
-     * 사용자 테이블 업데이트
-     * @private
-     */
-    updateUsersTable() {
-        // 테이블 초기화
-        this.usersTableBody.innerHTML = '';
-        
-        // 사용자 목록 표시
+        // 테이블에 표시
         this.filteredUsers.forEach(user => {
             const row = document.createElement('tr');
+            
+            // 최근 활동 시간 포맷
+            const lastActive = new Date(user.last_active);
+            const formattedLastActive = lastActive.toLocaleDateString() + ' ' + 
+                                      lastActive.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            // 선호 언어 한글명
+            const languages = {
+                'ko': '한국어',
+                'en': '영어',
+                'ja': '일본어',
+                'zh': '중국어'
+            };
             
             row.innerHTML = `
                 <td>${user.id}</td>
                 <td>${user.username}</td>
-                <td>${user.preferred_language}</td>
-                <td>${this.formatTime(user.last_active)}</td>
-                <td>${user.room_name}</td>
-                <td>${user.role || 'user'}</td>
-                <td>
-                    <div class="action-buttons">
-                        <button class="btn edit-user-btn" data-user-id="${user.id}">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn delete-user-btn" data-user-id="${user.id}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
+                <td>${languages[user.preferred_language] || user.preferred_language}</td>
+                <td>${formattedLastActive}</td>
+                <td>${user.roomName}</td>
+                <td>${user.role || '일반 사용자'}</td>
+                <td class="actions">
+                    <button class="btn action-btn edit-user-btn" data-id="${user.id}">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn action-btn ban-user-btn" data-id="${user.id}">
+                        <i class="fas fa-ban"></i>
+                    </button>
                 </td>
             `;
             
-            this.usersTableBody.appendChild(row);
+            tableBody.appendChild(row);
         });
         
-        // 수정 버튼 이벤트 등록
-        const editBtns = document.querySelectorAll('.edit-user-btn');
-        editBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const userId = btn.getAttribute('data-user-id');
-                this.showEditUserModal(userId);
+        // 수정 버튼 이벤트 리스너
+        document.querySelectorAll('.edit-user-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const userId = e.currentTarget.dataset.id;
+                this.editUser(userId);
             });
         });
         
-        // 삭제 버튼 이벤트 등록
-        const deleteBtns = document.querySelectorAll('.delete-user-btn');
-        deleteBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const userId = btn.getAttribute('data-user-id');
-                this.confirmDeleteUser(userId);
+        // 차단 버튼 이벤트 리스너
+        document.querySelectorAll('.ban-user-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const userId = e.currentTarget.dataset.id;
+                this.banUser(userId);
             });
         });
     }
 
     /**
-     * 사용자 수정 모달 표시
+     * 사용자 필터링
+     * @param {string} searchText 검색어
+     * @private
+     */
+    filterUsers(searchText) {
+        if (!searchText) {
+            this.filteredUsers = [...this.users];
+        } else {
+            const lowerSearchText = searchText.toLowerCase();
+            
+            this.filteredUsers = this.users.filter(user => {
+                return user.username.toLowerCase().includes(lowerSearchText) ||
+                       user.id.toLowerCase().includes(lowerSearchText) ||
+                       user.roomName.toLowerCase().includes(lowerSearchText);
+            });
+        }
+        
+        this.displayUsers();
+    }
+
+    /**
+     * 사용자 모달 표시
+     * @param {Object|null} user 편집할 사용자 (없으면 새 사용자)
+     * @private
+     */
+    showUserModal(user = null) {
+        const modal = document.getElementById('user-modal');
+        const modalTitle = document.getElementById('user-modal-title');
+        const form = document.getElementById('user-form');
+        
+        // 모달 제목 설정
+        modalTitle.textContent = user ? '사용자 정보 수정' : '새 사용자 추가';
+        
+        // 폼 초기화
+        form.reset();
+        
+        // 편집 모드인 경우 폼에 데이터 채우기
+        if (user) {
+            this.editingUserId = user.id;
+            document.getElementById('user-id').value = user.id;
+            document.getElementById('user-name').value = user.username;
+            document.getElementById('user-role').value = user.role || 'user';
+        } else {
+            this.editingUserId = null;
+            document.getElementById('user-id').value = '';
+        }
+        
+        // 모달 표시
+        modal.classList.add('active');
+    }
+
+    /**
+     * 사용자 모달 숨김
+     * @private
+     */
+    hideUserModal() {
+        const modal = document.getElementById('user-modal');
+        modal.classList.remove('active');
+        this.editingUserId = null;
+    }
+
+    /**
+     * 사용자 수정
      * @param {string} userId 사용자 ID
      * @private
      */
-    showEditUserModal(userId) {
-        // 모달 제목 설정
-        this.userModalTitle.textContent = '사용자 정보 수정';
+    editUser(userId) {
+        const user = this.users.find(u => u.id === userId);
         
-        // 사용자 정보 가져오기
+        if (user) {
+            this.showUserModal(user);
+        } else {
+            adminCore.showMessage('사용자를 찾을 수 없습니다.');
+        }
+    }
+
+    /**
+     * 사용자 차단
+     * @param {string} userId 사용자 ID
+     * @private
+     */
+    async banUser(userId) {
         const user = this.users.find(u => u.id === userId);
         
         if (!user) {
+            adminCore.showMessage('사용자를 찾을 수 없습니다.');
             return;
         }
         
-        // 폼 값 설정
-        this.userIdInput.value = user.id;
-        this.userNameInput.value = user.username;
-        this.userRoleInput.value = user.role || 'user';
+        const confirmed = await adminCore.confirm(`"${user.username}" 사용자를 차단하시겠습니까?`);
         
-        // 모달 표시
-        this.userModal.classList.add('active');
-    }
-
-    /**
-     * 모달 숨기기
-     * @private
-     */
-    hideModal() {
-        this.userModal.classList.remove('active');
-    }
-
-    /**
-     * 사용자 폼 제출 처리
-     * @private
-     */
-    async handleUserFormSubmit() {
+        if (!confirmed) {
+            return;
+        }
+        
         try {
-            const userId = this.userIdInput.value;
-            
-            // 사용자 데이터 준비
-            const userData = {
-                username: this.userNameInput.value,
-                role: this.userRoleInput.value
-            };
-            
-            // 사용자 정보 업데이트
-            const result = await this.updateUser(userId, userData);
+            // TODO: 실제 사용자 차단 API 호출
+            // 현재 데모에서는 사용자 삭제
+            const result = await dbService.removeUser(userId);
             
             if (result) {
-                // 모달 숨기기
-                this.hideModal();
-                
-                // 사용자 목록 새로고침
-                this.loadUsers();
+                adminCore.showMessage(`"${user.username}" 사용자가 차단되었습니다.`, 'success');
+                await this.loadUsers();
+            } else {
+                adminCore.showMessage('사용자 차단 중 오류가 발생했습니다.');
             }
         } catch (error) {
-            console.error('Error submitting user form:', error);
-            alert('사용자 정보 저장 중 오류가 발생했습니다.');
+            console.error('Error banning user:', error);
+            adminCore.showMessage('사용자 차단 중 오류가 발생했습니다.');
         }
     }
 
     /**
-     * 사용자 정보 업데이트
-     * @param {string} userId 사용자 ID
-     * @param {Object} userData 사용자 데이터
-     * @returns {Promise<boolean>} 업데이트 성공 여부
+     * 사용자 저장
      * @private
      */
-    async updateUser(userId, userData) {
+    async saveUser() {
+        // 폼 데이터 가져오기
+        const username = document.getElementById('user-name').value.trim();
+        const role = document.getElementById('user-role').value;
+        
+        // 유효성 검사
+        if (!username) {
+            adminCore.showMessage('사용자 이름을 입력하세요.');
+            return;
+        }
+        
+        // 사용자가 존재하는지 확인
+        if (!this.editingUserId) {
+            adminCore.showMessage('새 사용자를 추가할 수 없습니다.');
+            return;
+        }
+        
+        // 현재 사용자 정보 가져오기
+        const user = this.users.find(u => u.id === this.editingUserId);
+        
+        if (!user) {
+            adminCore.showMessage('사용자를 찾을 수 없습니다.');
+            return;
+        }
+        
         try {
-            // 실제 애플리케이션에서는 데이터베이스에 저장
-            // 여기서는 데모를 위한 가상 구현
-            console.log('Updating user:', userId, userData);
+            // 사용자 업데이트
+            const result = await dbService.updateUser(this.editingUserId, {
+                username: username,
+                role: role
+            });
             
-            // 현재 사용자 객체 업데이트
-            const userIndex = this.users.findIndex(u => u.id === userId);
-            if (userIndex >= 0) {
-                this.users[userIndex] = {
-                    ...this.users[userIndex],
-                    ...userData
-                };
+            if (result) {
+                adminCore.showMessage('사용자 정보가 업데이트되었습니다.', 'success');
+                this.hideUserModal();
+                await this.loadUsers();
+            } else {
+                adminCore.showMessage('사용자 정보 업데이트 중 오류가 발생했습니다.');
             }
-            
-            // 성공으로 가정
-            return true;
         } catch (error) {
-            console.error(`Error updating user ${userId}:`, error);
-            return false;
+            console.error('Error saving user:', error);
+            adminCore.showMessage('사용자 정보 저장 중 오류가 발생했습니다.');
         }
     }
 
     /**
-     * 사용자 삭제 확인
-     * @param {string} userId 사용자 ID
-     * @private
+     * 사용자 통계 가져오기
+     * @returns {Promise<Object>} 사용자 통계
      */
-    confirmDeleteUser(userId) {
-        // 삭제 확인
-        if (confirm('정말 이 사용자를 강제 퇴장시키겠습니까?')) {
-            this.deleteUser(userId);
-        }
-    }
-
-    /**
-     * 사용자 삭제 (강제 퇴장)
-     * @param {string} userId 사용자 ID
-     * @returns {Promise<boolean>} 삭제 성공 여부
-     * @private
-     */
-    async deleteUser(userId) {
+    async getUserStats() {
         try {
-            // 실제 애플리케이션에서는 데이터베이스에서 삭제
-            // 여기서는 데모를 위한 가상 구현
-            console.log('Kicking user:', userId);
+            // 언어별 사용자 수
+            const languageStats = {
+                ko: 0,
+                en: 0,
+                ja: 0,
+                zh: 0
+            };
             
-            // 현재 사용자 목록에서 제거
-            this.users = this.users.filter(u => u.id !== userId);
-            this.filteredUsers = this.filteredUsers.filter(u => u.id !== userId);
+            this.users.forEach(user => {
+                if (languageStats.hasOwnProperty(user.preferred_language)) {
+                    languageStats[user.preferred_language]++;
+                }
+            });
             
-            // 테이블 업데이트
-            this.updateUsersTable();
+            // 활성 사용자 수
+            const now = new Date();
+            const activeUsers = this.users.filter(user => {
+                const lastActive = new Date(user.last_active);
+                const diffMinutes = (now - lastActive) / (1000 * 60);
+                return diffMinutes < 15; // 15분 이내 활동
+            }).length;
             
-            return true;
+            return {
+                total: this.users.length,
+                active: activeUsers,
+                languageStats
+            };
         } catch (error) {
-            console.error(`Error kicking user ${userId}:`, error);
-            return false;
+            console.error('Error getting user stats:', error);
+            return {
+                total: 0,
+                active: 0,
+                languageStats: { ko: 0, en: 0, ja: 0, zh: 0 }
+            };
         }
-    }
-
-    /**
-     * 시간 포맷
-     * @param {string} timestamp ISO 형식 시간
-     * @returns {string} 포맷된 시간
-     * @private
-     */
-    formatTime(timestamp) {
-        const date = new Date(timestamp);
-        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
     }
 }
 
 // 싱글톤 인스턴스 생성
 const adminUsers = new AdminUsers();
-
-// 초기화
-document.addEventListener('DOMContentLoaded', () => {
-    adminUsers.initialize();
-});

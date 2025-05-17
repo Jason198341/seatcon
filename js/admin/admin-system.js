@@ -1,151 +1,69 @@
 /**
  * 관리자 시스템 상태 모듈
- * 관리자 페이지의 시스템 상태 모니터링 기능을 처리합니다.
+ * 시스템 상태 모니터링, 오류 로그, 성능 차트 등을 표시합니다.
  */
 
 class AdminSystem {
     constructor() {
-        this.supabaseStatus = document.getElementById('supabase-status');
-        this.translationApiStatus = document.getElementById('translation-api-status');
-        this.realtimeStatus = document.getElementById('realtime-status');
-        this.errorLogs = document.getElementById('error-logs');
         this.performanceChart = null;
-        
-        this.statusUpdateInterval = null;
+        this.updateInterval = null;
+        this.logs = [];
     }
 
     /**
-     * 시스템 모니터링 초기화
+     * 초기화
+     * @returns {Promise<boolean>} 초기화 성공 여부
      */
-    initialize() {
-        // 차트 초기화
-        this.initPerformanceChart();
-        
-        // 시스템 상태 확인
-        this.checkSystemStatus();
-        
-        // 오류 로그 로드
-        this.loadErrorLogs();
-        
-        // 주기적인 상태 업데이트 설정
-        this.statusUpdateInterval = setInterval(() => {
-            this.checkSystemStatus();
-            this.updatePerformanceChart();
-        }, 30000); // 30초마다 업데이트
-    }
-
-    /**
-     * 시스템 모니터링 정리
-     */
-    cleanup() {
-        // 주기적인 업데이트 중단
-        if (this.statusUpdateInterval) {
-            clearInterval(this.statusUpdateInterval);
-            this.statusUpdateInterval = null;
-        }
-        
-        // 차트 정리
-        if (this.performanceChart) {
-            this.performanceChart.destroy();
-            this.performanceChart = null;
-        }
-    }
-
-    /**
-     * 성능 차트 초기화
-     * @private
-     */
-    initPerformanceChart() {
-        const performanceChartCtx = document.getElementById('performance-chart').getContext('2d');
-        
-        this.performanceChart = new Chart(performanceChartCtx, {
-            type: 'line',
-            data: {
-                labels: this.generateTimeLabels(10),
-                datasets: [
-                    {
-                        label: 'CPU 사용량 (%)',
-                        data: this.generateRandomData(10),
-                        borderColor: '#3f51b5',
-                        backgroundColor: 'rgba(63, 81, 181, 0.1)',
-                        borderWidth: 2,
-                        fill: true
-                    },
-                    {
-                        label: '메모리 사용량 (MB)',
-                        data: this.generateRandomData(10, 100, 500),
-                        borderColor: '#ff4081',
-                        backgroundColor: 'rgba(255, 64, 129, 0.1)',
-                        borderWidth: 2,
-                        fill: true
-                    },
-                    {
-                        label: '응답 시간 (ms)',
-                        data: this.generateRandomData(10, 50, 200),
-                        borderColor: '#4caf50',
-                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
-                        borderWidth: 2,
-                        fill: true
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        });
-    }
-
-    /**
-     * 성능 차트 업데이트
-     * @private
-     */
-    updatePerformanceChart() {
-        // 새 데이터 포인트 추가
-        const newTime = new Date().toLocaleTimeString();
-        
-        this.performanceChart.data.labels.shift();
-        this.performanceChart.data.labels.push(newTime);
-        
-        this.performanceChart.data.datasets.forEach(dataset => {
-            dataset.data.shift();
-            
-            if (dataset.label.includes('CPU')) {
-                dataset.data.push(Math.floor(Math.random() * 100));
-            } else if (dataset.label.includes('메모리')) {
-                dataset.data.push(Math.floor(Math.random() * 400) + 100);
-            } else {
-                dataset.data.push(Math.floor(Math.random() * 150) + 50);
-            }
-        });
-        
-        this.performanceChart.update();
-    }
-
-    /**
-     * 시스템 상태 확인
-     * @private
-     */
-    async checkSystemStatus() {
+    async initialize() {
         try {
-            // Supabase 상태 확인
-            const supabaseConnected = await this.checkSupabaseConnection();
-            this.updateStatusIndicator(this.supabaseStatus, supabaseConnected);
+            console.log('Initializing admin system...');
             
-            // Translation API 상태 확인
-            const translationApiConnected = await this.checkTranslationApiConnection();
-            this.updateStatusIndicator(this.translationApiStatus, translationApiConnected);
+            // 시스템 상태 로드
+            await this.loadServiceStatus();
             
-            // Realtime 서비스 상태 확인
-            const realtimeConnected = await this.checkRealtimeConnection();
-            this.updateStatusIndicator(this.realtimeStatus, realtimeConnected);
+            // 성능 차트 초기화
+            this.initPerformanceChart();
+            
+            // 오류 로그 로드
+            await this.loadErrorLogs();
+            
+            // 자동 업데이트 설정
+            this.startAutoUpdate();
+            
+            console.log('Admin system initialized');
+            return true;
         } catch (error) {
-            console.error('Error checking system status:', error);
+            console.error('Error initializing admin system:', error);
+            return false;
+        }
+    }
+
+    /**
+     * 서비스 상태 로드
+     * @returns {Promise<boolean>} 로드 성공 여부
+     * @private
+     */
+    async loadServiceStatus() {
+        try {
+            // Supabase 연결 상태
+            const supabaseStatus = await this.checkSupabaseStatus();
+            document.getElementById('supabase-status').textContent = supabaseStatus ? '온라인' : '오프라인';
+            document.getElementById('supabase-status').className = `status-indicator ${supabaseStatus ? 'online' : 'offline'}`;
+            
+            // Translation API 상태
+            const translationStatus = await this.checkTranslationApiStatus();
+            document.getElementById('translation-api-status').textContent = translationStatus ? '온라인' : '오프라인';
+            document.getElementById('translation-api-status').className = `status-indicator ${translationStatus ? 'online' : 'offline'}`;
+            
+            // Realtime 서비스 상태
+            const realtimeStatus = await this.checkRealtimeStatus();
+            document.getElementById('realtime-status').textContent = realtimeStatus ? '온라인' : '오프라인';
+            document.getElementById('realtime-status').className = `status-indicator ${realtimeStatus ? 'online' : 'offline'}`;
+            
+            return true;
+        } catch (error) {
+            console.error('Error loading service status:', error);
+            return false;
         }
     }
 
@@ -154,199 +72,294 @@ class AdminSystem {
      * @returns {Promise<boolean>} 연결 상태
      * @private
      */
-    async checkSupabaseConnection() {
+    async checkSupabaseStatus() {
         try {
-            // Supabase 연결 테스트
-            await dbService.ensureInitialized();
-            return dbService.initialized;
+            // 간단한 쿼리 실행으로 연결 상태 확인
+            const { data, error } = await dbService.supabase.from('chatrooms').select('count', { count: 'exact', head: true });
+            
+            return !error;
         } catch (error) {
-            console.error('Error checking Supabase connection:', error);
+            console.error('Error checking Supabase status:', error);
             return false;
         }
     }
 
     /**
-     * Translation API 연결 상태 확인
+     * Translation API 상태 확인
      * @returns {Promise<boolean>} 연결 상태
      * @private
      */
-    async checkTranslationApiConnection() {
+    async checkTranslationApiStatus() {
         try {
-            // Translation API 연결 테스트
-            // 간단한 메시지로 테스트
-            const result = await translationService.translateText('Hello', 'ko', 'en');
+            // 간단한 번역 요청으로 API 상태 확인
+            const result = await translationService.translateText('테스트', 'en');
+            
             return result.success;
         } catch (error) {
-            console.error('Error checking Translation API connection:', error);
+            console.error('Error checking Translation API status:', error);
             return false;
         }
     }
 
     /**
-     * Realtime 서비스 연결 상태 확인
+     * Realtime 서비스 상태 확인
      * @returns {Promise<boolean>} 연결 상태
      * @private
      */
-    async checkRealtimeConnection() {
+    async checkRealtimeStatus() {
         try {
-            // Realtime 서비스 연결 테스트
-            // 실제 애플리케이션에서는 연결 상태 확인 방법 구현
-            // 여기서는 데모를 위해 임의로 상태 반환
-            return Math.random() > 0.1; // 90%의 확률로 연결됨
+            // realtimeService 초기화 상태 확인
+            return realtimeService.initialized;
         } catch (error) {
-            console.error('Error checking Realtime connection:', error);
+            console.error('Error checking Realtime status:', error);
             return false;
         }
     }
 
     /**
-     * 상태 표시기 업데이트
-     * @param {HTMLElement} element 상태 표시 요소
-     * @param {boolean} isConnected 연결 상태
+     * 성능 차트 초기화
      * @private
      */
-    updateStatusIndicator(element, isConnected) {
-        element.classList.remove('online', 'offline');
-        element.classList.add(isConnected ? 'online' : 'offline');
-        element.textContent = isConnected ? '온라인' : '오프라인';
+    initPerformanceChart() {
+        const ctx = document.getElementById('performance-chart').getContext('2d');
+        
+        // 차트 데이터
+        const data = {
+            labels: Array(60).fill('').map((_, i) => `-${59 - i}초`),
+            datasets: [
+                {
+                    label: 'CPU 사용량 (%)',
+                    backgroundColor: 'rgba(63, 81, 181, 0.2)',
+                    borderColor: 'rgba(63, 81, 181, 1)',
+                    data: Array(60).fill(null),
+                    tension: 0.3
+                },
+                {
+                    label: '메모리 사용량 (MB)',
+                    backgroundColor: 'rgba(255, 64, 129, 0.2)',
+                    borderColor: 'rgba(255, 64, 129, 1)',
+                    data: Array(60).fill(null),
+                    tension: 0.3,
+                    yAxisID: 'y1'
+                }
+            ]
+        };
+        
+        // 차트 설정
+        const config = {
+            type: 'line',
+            data: data,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'CPU (%)'
+                        }
+                    },
+                    y1: {
+                        beginAtZero: true,
+                        position: 'right',
+                        grid: {
+                            drawOnChartArea: false
+                        },
+                        title: {
+                            display: true,
+                            text: '메모리 (MB)'
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    legend: {
+                        position: 'top'
+                    }
+                },
+                animation: {
+                    duration: 0
+                }
+            }
+        };
+        
+        // 차트 생성
+        this.performanceChart = new Chart(ctx, config);
+        
+        // 초기 데이터 로드
+        this.updatePerformanceChart();
+    }
+
+    /**
+     * 성능 차트 업데이트
+     * @private
+     */
+    async updatePerformanceChart() {
+        try {
+            // 성능 데이터 가져오기
+            const performanceData = await this.getPerformanceData();
+            
+            // CPU 데이터 업데이트
+            this.performanceChart.data.datasets[0].data.push(performanceData.cpu);
+            this.performanceChart.data.datasets[0].data.shift();
+            
+            // 메모리 데이터 업데이트
+            this.performanceChart.data.datasets[1].data.push(performanceData.memory);
+            this.performanceChart.data.datasets[1].data.shift();
+            
+            // 차트 업데이트
+            this.performanceChart.update();
+        } catch (error) {
+            console.error('Error updating performance chart:', error);
+        }
+    }
+
+    /**
+     * 성능 데이터 가져오기
+     * @returns {Promise<Object>} 성능 데이터
+     * @private
+     */
+    async getPerformanceData() {
+        // TODO: 실제 성능 데이터 가져오기
+        // 현재 데모에서는 임의의 값 반환
+        return {
+            cpu: Math.floor(Math.random() * 30) + 10,  // 10-40% CPU 사용량
+            memory: Math.floor(Math.random() * 200) + 300  // 300-500MB 메모리 사용량
+        };
     }
 
     /**
      * 오류 로그 로드
+     * @returns {Promise<boolean>} 로드 성공 여부
      * @private
      */
     async loadErrorLogs() {
         try {
-            // 실제 애플리케이션에서는 서버에서 로그 가져오기
-            // 여기서는 데모를 위한 가상 로그 생성
-            const logs = this.generateSampleErrorLogs();
+            // TODO: 실제 오류 로그 가져오기
+            // 현재 데모에서는 임의의 로그 생성
+            this.logs = this.generateSampleLogs();
             
             // 로그 표시
-            this.displayErrorLogs(logs);
+            this.displayLogs();
+            
+            return true;
         } catch (error) {
             console.error('Error loading error logs:', error);
+            return false;
         }
     }
 
     /**
-     * 샘플 오류 로그 생성
-     * @returns {Array} 샘플 오류 로그
+     * 오류 로그 표시
      * @private
      */
-    generateSampleErrorLogs() {
-        const logs = [];
-        const types = ['error', 'warning', 'info'];
+    displayLogs() {
+        const logsContainer = document.getElementById('error-logs');
+        
+        if (this.logs.length === 0) {
+            logsContainer.textContent = '오류 로그가 없습니다.';
+            return;
+        }
+        
+        // 로그 포맷
+        const formattedLogs = this.logs.map(log => {
+            const timestamp = new Date(log.timestamp).toLocaleString();
+            return `[${timestamp}] [${log.level}] ${log.source}: ${log.message}`;
+        }).join('\n');
+        
+        logsContainer.textContent = formattedLogs;
+    }
+
+    /**
+     * 샘플 로그 생성
+     * @returns {Array} 샘플 로그 배열
+     * @private
+     */
+    generateSampleLogs() {
+        const sources = ['Database', 'Realtime', 'Translation', 'WebSocket', 'Authentication'];
+        const levels = ['INFO', 'WARN', 'ERROR'];
         const messages = [
-            'Database connection failed',
-            'Translation API rate limit exceeded',
-            'Unable to fetch user data',
-            'Message synchronization error',
-            'System configuration warning',
-            'Authentication service restarted',
-            'Cache flush completed',
-            'System maintenance scheduled'
+            '서비스 시작',
+            '연결 시도 중',
+            '연결 완료',
+            '연결 실패: 타임아웃',
+            '인증 오류',
+            '메시지 처리 중 예외 발생',
+            '요청 처리 중 오류 발생',
+            '메모리 부족 경고',
+            '서비스 재시작',
+            '구성 파일 로드 실패'
         ];
         
-        // 현재 시간에서 무작위 시간(최대 1일) 뺀 타임스탬프 생성
+        // 현재 날짜에서 7일 이내의 타임스탬프 생성
         const getRandomTimestamp = () => {
             const now = new Date();
-            const randomMinutes = Math.floor(Math.random() * 1440); // 최대 24시간(1440분)
-            now.setMinutes(now.getMinutes() - randomMinutes);
+            const daysAgo = Math.floor(Math.random() * 7);
+            const hoursAgo = Math.floor(Math.random() * 24);
+            const minutesAgo = Math.floor(Math.random() * 60);
+            
+            now.setDate(now.getDate() - daysAgo);
+            now.setHours(now.getHours() - hoursAgo);
+            now.setMinutes(now.getMinutes() - minutesAgo);
+            
             return now.toISOString();
         };
         
-        // 10개의 샘플 로그 생성
-        for (let i = 0; i < 10; i++) {
+        // 10-20개의 로그 생성
+        const logCount = Math.floor(Math.random() * 11) + 10;
+        const logs = [];
+        
+        for (let i = 0; i < logCount; i++) {
+            const level = levels[Math.floor(Math.random() * levels.length)];
+            
             logs.push({
                 timestamp: getRandomTimestamp(),
-                level: types[Math.floor(Math.random() * types.length)],
+                level: level,
+                source: sources[Math.floor(Math.random() * sources.length)],
                 message: messages[Math.floor(Math.random() * messages.length)]
             });
         }
         
-        // 타임스탬프 기준 내림차순 정렬
+        // 타임스탬프 기준으로 정렬
         logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         
         return logs;
     }
 
     /**
-     * 오류 로그 표시
-     * @param {Array} logs 오류 로그
+     * 자동 업데이트 시작
+     * @param {number} interval 업데이트 간격 (밀리초)
      * @private
      */
-    displayErrorLogs(logs) {
-        // 로그 컨테이너 초기화
-        this.errorLogs.innerHTML = '';
-        
-        // 각 로그 항목 표시
-        logs.forEach(log => {
-            const logEntry = document.createElement('div');
-            logEntry.classList.add('log-entry');
-            
-            logEntry.innerHTML = `
-                <span class="log-time">${this.formatTimestamp(log.timestamp)}</span>
-                <span class="log-level ${log.level}">${log.level.toUpperCase()}</span>
-                <span class="log-message">${log.message}</span>
-            `;
-            
-            this.errorLogs.appendChild(logEntry);
-        });
-    }
-
-    /**
-     * 타임스탬프 포맷
-     * @param {string} timestamp ISO 형식 타임스탬프
-     * @returns {string} 포맷된 시간
-     * @private
-     */
-    formatTimestamp(timestamp) {
-        const date = new Date(timestamp);
-        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
-    }
-
-    /**
-     * 시간 라벨 생성
-     * @param {number} count 라벨 개수
-     * @returns {Array} 시간 라벨 배열
-     * @private
-     */
-    generateTimeLabels(count) {
-        const labels = [];
-        const now = new Date();
-        
-        for (let i = count - 1; i >= 0; i--) {
-            const time = new Date(now);
-            time.setMinutes(time.getMinutes() - i * 5); // 5분 간격
-            labels.push(time.toLocaleTimeString());
+    startAutoUpdate(interval = 5000) {
+        // 이전 타이머가 있으면 정지
+        if (this.updateInterval) {
+            clearInterval(this.updateInterval);
         }
         
-        return labels;
+        // 주기적으로 데이터 업데이트
+        this.updateInterval = setInterval(() => {
+            this.loadServiceStatus();
+            this.updatePerformanceChart();
+        }, interval);
     }
 
     /**
-     * 무작위 데이터 생성
-     * @param {number} count 데이터 포인트 개수
-     * @param {number} min 최소값
-     * @param {number} max 최대값
-     * @returns {Array} 무작위 데이터 배열
+     * 자동 업데이트 정지
      * @private
      */
-    generateRandomData(count, min = 0, max = 100) {
-        const data = [];
-        
-        for (let i = 0; i < count; i++) {
-            data.push(Math.floor(Math.random() * (max - min + 1)) + min);
+    stopAutoUpdate() {
+        if (this.updateInterval) {
+            clearInterval(this.updateInterval);
+            this.updateInterval = null;
         }
-        
-        return data;
     }
 }
 
 // 싱글톤 인스턴스 생성
 const adminSystem = new AdminSystem();
-
-// 초기화
-document.addEventListener('DOMContentLoaded', () => {
-    adminSystem.initialize();
-});

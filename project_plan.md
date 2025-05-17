@@ -82,12 +82,12 @@ conference-chat/
 
 ### 3단계: 관리자 기능 구현
 - [x] 관리자 페이지 HTML 생성
-- [ ] 관리자 페이지 CSS 생성
-- [ ] 관리자 핵심 모듈 구현 (admin-core.js)
-- [ ] 관리자 대시보드 모듈 구현 (admin-dashboard.js)
-- [ ] 채팅방 관리 모듈 구현 (admin-rooms.js)
-- [ ] 사용자 관리 모듈 구현 (admin-users.js)
-- [ ] 시스템 상태 모듈 구현 (admin-system.js)
+- [x] 관리자 페이지 CSS 생성
+- [x] 관리자 핵심 모듈 구현 (admin-core.js)
+- [x] 관리자 대시보드 모듈 구현 (admin-dashboard.js)
+- [x] 채팅방 관리 모듈 구현 (admin-rooms.js)
+- [x] 사용자 관리 모듈 구현 (admin-users.js)
+- [x] 시스템 상태 모듈 구현 (admin-system.js)
 - [x] README.md 작성
 
 ### 4단계: 테스트 및 최적화
@@ -127,6 +127,8 @@ conference-chat/
 - 사용자 관리 모듈 구현 완료 (app-users.js)
 - 채팅 기능 모듈 구현 완료 (app-chat.js)
 - 관리자 페이지 HTML 생성 완료
+- 관리자 페이지 CSS 생성 완료
+- 관리자 모듈 구현 완료 (admin-core.js, admin-dashboard.js, admin-rooms.js, admin-users.js, admin-system.js)
 - 서비스 워커 구현 완료
 - 오프라인 페이지 생성 완료
 - PWA 지원 추가 완료 (manifest.json)
@@ -135,8 +137,7 @@ conference-chat/
 - README.md 작성 완료 (사용자 가이드 포함)
 
 ## 다음 단계
-1. 관리자 페이지 CSS 및 관련 JavaScript 모듈 구현
-2. 테스트 파일 작성
-3. 성능 최적화 작업
-4. GitHub Pages에 배포
-5. 관리자 가이드 작성
+1. 테스트 파일 작성
+2. 성능 최적화 작업
+3. GitHub Pages에 배포
+4. 관리자 가이드 작성
