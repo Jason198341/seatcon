@@ -712,13 +712,17 @@ input:focus, select:focus, textarea:focus {
     height: 100%;
     background-color: rgba(0, 0, 0, 0.5);
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     z-index: 2000;
+    backdrop-filter: blur(4px);
+    transition: all 0.3s ease;
 }
 
 .loading-overlay.hidden {
-    display: none;
+    opacity: 0;
+    visibility: hidden;
 }
 
 .loading-spinner {
@@ -728,6 +732,14 @@ input:focus, select:focus, textarea:focus {
     border-radius: 50%;
     border-top-color: var(--primary-color);
     animation: spin 1s ease-in-out infinite;
+}
+
+.loading-text {
+    color: white;
+    margin-top: 16px;
+    font-size: 16px;
+    font-weight: bold;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 @keyframes spin {
@@ -743,6 +755,66 @@ input:focus, select:focus, textarea:focus {
     background-color: rgba(0, 0, 0, 0.05);
     border-radius: var(--border-radius);
     margin-bottom: 10px;
+}
+
+/* 오류 메시지 글로벌 */
+.error-message-global {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    border-radius: var(--border-radius);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    padding: 20px 30px;
+    z-index: 3000;
+    min-width: 300px;
+    max-width: 80%;
+    text-align: center;
+    animation: fadeInUp 0.3s ease;
+}
+
+.error-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.error-icon {
+    font-size: 36px;
+    margin-bottom: 10px;
+}
+
+.error-text {
+    margin-bottom: 16px;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.error-message-global button {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 8px 16px;
+    border-radius: var(--border-radius);
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.error-message-global button:hover {
+    background-color: var(--primary-dark);
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -40%);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
 }
 
 /* 모바일 최적화 */

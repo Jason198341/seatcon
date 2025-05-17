@@ -1,286 +1,402 @@
-#!/usr/bin/env node
-
 /**
  * test_script.js
- * Global SeatCon 2025 컨퍼런스 채팅 애플리케이션 테스트 스크립트
+ * Global SeatCon 2025 Conference Chat 애플리케이션 테스트 스크립트
+ * 
+ * 이 스크립트는 애플리케이션의 주요 기능을 테스트합니다.
+ * 개발자 도구의 콘솔에서 실행해주세요.
  */
 
-const http = require('http');
-const fs = require('fs').promises;
-const path = require('path');
-const { execSync } = require('child_process');
-
-// 색상 코드
-const colors = {
-    reset: '\x1b[0m',
-    red: '\x1b[31m',
-    green: '\x1b[32m',
-    yellow: '\x1b[33m',
-    blue: '\x1b[34m',
-    magenta: '\x1b[35m',
-    cyan: '\x1b[36m'
+// 테스트 결과 로그 스타일
+const LOG_STYLES = {
+    heading: 'color: #4361ee; font-size: 16px; font-weight: bold;',
+    success: 'color: #4ade80; font-weight: bold;',
+    error: 'color: #f43f5e; font-weight: bold;',
+    info: 'color: #60a5fa;',
+    warning: 'color: #fbbf24; font-weight: bold;'
 };
 
-// 로그 함수
-const log = {
-    info: (msg) => console.log(`${colors.blue}[INFO]${colors.reset} ${msg}`),
-    success: (msg) => console.log(`${colors.green}[SUCCESS]${colors.reset} ${msg}`),
-    warning: (msg) => console.log(`${colors.yellow}[WARNING]${colors.reset} ${msg}`),
-    error: (msg) => console.log(`${colors.red}[ERROR]${colors.reset} ${msg}`),
-    step: (msg) => console.log(`${colors.cyan}[STEP]${colors.reset} ${msg}`),
-    header: (msg) => {
-        console.log('\n' + '='.repeat(80));
-        console.log(`${colors.magenta}${msg}${colors.reset}`);
-        console.log('='.repeat(80));
-    }
+// 테스트 결과를 저장할 객체
+const testResults = {
+    passed: 0,
+    failed: 0,
+    warnings: 0,
+    total: 0,
+    details: []
 };
 
-// 프로젝트 디렉토리
-const projectDir = path.resolve(__dirname);
-
-// 테스트할 파일들
-const requiredFiles = [
-    'index.html',
-    'admin.html',
-    '404.html',
-    'chat/index.html',
-    'js/config.js',
-    'js/main.js',
-    'js/admin.js',
-    'js/services/dbService.js',
-    'js/services/realtimeService.js',
-    'js/services/translationService.js',
-    'js/services/userService.js',
-    'js/services/chatService.js',
-    'js/services/offlineService.js',
-    'css/styles.css',
-    'css/admin.css',
-    'db_schema.sql',
-    'server.js',
-    'package.json',
-    'README.md',
-    'DEPLOY.md',
-    'setup_guide.md'
-];
-
-// 테스트 함수들
-const tests = {
-    // 1. 필수 파일 존재 확인
-    async checkRequiredFiles() {
-        log.header('필수 파일 존재 확인');
-        
-        const missingFiles = [];
-        
-        for (const file of requiredFiles) {
-            try {
-                const filePath = path.join(projectDir, file);
-                await fs.access(filePath);
-                log.success(`파일 확인: ${file}`);
-            } catch (err) {
-                log.error(`파일 없음: ${file}`);
-                missingFiles.push(file);
-            }
-        }
-        
-        if (missingFiles.length === 0) {
-            log.success('모든 필수 파일이 존재합니다.');
-            return true;
-        } else {
-            log.error(`${missingFiles.length}개의 파일이 누락되었습니다.`);
-            return false;
-        }
-    },
+// 테스트 실행 함수
+function runTests() {
+    logMessage('===== Global SeatCon 2025 테스트 시작 =====', LOG_STYLES.heading);
     
-    // 2. 설정 파일 검증
-    async validateConfigFile() {
-        log.header('설정 파일 검증');
-        
-        try {
-            const configPath = path.join(projectDir, 'js', 'config.js');
-            const configContent = await fs.readFile(configPath, 'utf8');
-            
-            // API 키 확인
-            const hasSupabaseUrl = configContent.includes('SUPABASE_URL');
-            const hasSupabaseKey = configContent.includes('SUPABASE_KEY');
-            const hasTranslationApiKey = configContent.includes('TRANSLATION_API_KEY');
-            
-            if (hasSupabaseUrl && hasSupabaseKey && hasTranslationApiKey) {
-                log.success('모든 API 키가 설정되어 있습니다.');
-                
-                // 구체적인 값 확인
-                if (configContent.includes('yourusername')) {
-                    log.warning('기본 자리표시자 값이 있습니다. 실제 API 키로 업데이트하세요.');
-                }
-                
-                return true;
-            } else {
-                if (!hasSupabaseUrl) log.error('SUPABASE_URL이 누락되었습니다.');
-                if (!hasSupabaseKey) log.error('SUPABASE_KEY가 누락되었습니다.');
-                if (!hasTranslationApiKey) log.error('TRANSLATION_API_KEY가 누락되었습니다.');
-                
-                return false;
-            }
-        } catch (err) {
-            log.error(`설정 파일 검증 실패: ${err.message}`);
-            return false;
+    // 테스트 시작 시간
+    const startTime = performance.now();
+    
+    // 기본 객체 초기화 테스트
+    testAppObjectInitialization();
+    
+    // 설정 로드 테스트
+    testConfigLoading();
+    
+    // DOM 요소 참조 테스트
+    testDOMReferences();
+    
+    // 이벤트 리스너 테스트
+    testEventListeners();
+    
+    // 서비스 초기화 테스트
+    testServiceInitialization();
+    
+    // 테스트 종료 시간 및 소요 시간 계산
+    const endTime = performance.now();
+    const duration = ((endTime - startTime) / 1000).toFixed(2);
+    
+    // 테스트 결과 출력
+    logMessage(`\n===== 테스트 결과 =====`, LOG_STYLES.heading);
+    logMessage(`총 테스트: ${testResults.total}`, LOG_STYLES.info);
+    logMessage(`통과: ${testResults.passed}`, LOG_STYLES.success);
+    logMessage(`실패: ${testResults.failed}`, LOG_STYLES.error);
+    logMessage(`경고: ${testResults.warnings}`, LOG_STYLES.warning);
+    logMessage(`소요 시간: ${duration}초`, LOG_STYLES.info);
+    
+    // 상세 결과
+    logMessage('\n===== 상세 결과 =====', LOG_STYLES.heading);
+    testResults.details.forEach((result, index) => {
+        logMessage(`${index + 1}. ${result.name}: ${getResultText(result.status)}`, getStyleByStatus(result.status));
+        if (result.message) {
+            console.log(`   ${result.message}`);
         }
-    },
+    });
     
-    // 3. 패키지 의존성 확인
-    async checkDependencies() {
-        log.header('패키지 의존성 확인');
-        
-        try {
-            const packagePath = path.join(projectDir, 'package.json');
-            const packageContent = await fs.readFile(packagePath, 'utf8');
-            const packageData = JSON.parse(packageContent);
-            
-            // 필수 스크립트 확인
-            const hasStartScript = packageData.scripts && packageData.scripts.start;
-            const hasDevScript = packageData.scripts && packageData.scripts.dev;
-            
-            if (hasStartScript && hasDevScript) {
-                log.success('필수 스크립트가 설정되어 있습니다.');
-            } else {
-                if (!hasStartScript) log.error('시작 스크립트가 누락되었습니다.');
-                if (!hasDevScript) log.error('개발 스크립트가 누락되었습니다.');
-            }
-            
-            // nodemon 의존성 확인
-            const hasNodemon = packageData.devDependencies && packageData.devDependencies.nodemon;
-            
-            if (hasNodemon) {
-                log.success('nodemon 의존성이 설정되어 있습니다.');
-            } else {
-                log.warning('nodemon 의존성이 누락되었습니다. 개발 모드에서 자동 새로고침이 동작하지 않을 수 있습니다.');
-            }
-            
-            return hasStartScript && hasDevScript;
-        } catch (err) {
-            log.error(`패키지 의존성 확인 실패: ${err.message}`);
-            return false;
-        }
-    },
-    
-    // 4. 포트 사용 가능 여부 확인
-    async checkPortAvailability() {
-        log.header('포트 사용 가능 여부 확인');
-        
-        const port = 3000;
-        
-        return new Promise(resolve => {
-            const server = http.createServer();
-            
-            server.once('error', err => {
-                if (err.code === 'EADDRINUSE') {
-                    log.error(`포트 ${port}가 이미 사용 중입니다. 다른 포트를 사용하세요.`);
-                    resolve(false);
-                } else {
-                    log.error(`포트 확인 중 오류 발생: ${err.message}`);
-                    resolve(false);
-                }
-            });
-            
-            server.once('listening', () => {
-                server.close(() => {
-                    log.success(`포트 ${port}가 사용 가능합니다.`);
-                    resolve(true);
-                });
-            });
-            
-            server.listen(port);
-        });
-    },
-    
-    // 5. HTML 유효성 검사
-    async validateHTML() {
-        log.header('HTML 파일 유효성 검사');
-        
-        try {
-            const htmlFiles = [
-                'index.html',
-                'admin.html',
-                '404.html',
-                'chat/index.html'
-            ];
-            
-            let allValid = true;
-            
-            for (const file of htmlFiles) {
-                const filePath = path.join(projectDir, file);
-                const content = await fs.readFile(filePath, 'utf8');
-                
-                // 간단한 유효성 검사
-                const hasDocType = content.includes('<!DOCTYPE html>');
-                const hasHtml = content.includes('<html');
-                const hasHead = content.includes('<head>');
-                const hasBody = content.includes('<body>');
-                const hasClosingTags = content.includes('</html>') && 
-                                      content.includes('</head>') && 
-                                      content.includes('</body>');
-                
-                if (hasDocType && hasHtml && hasHead && hasBody && hasClosingTags) {
-                    log.success(`HTML 유효성 검사 통과: ${file}`);
-                } else {
-                    log.error(`HTML 유효성 검사 실패: ${file}`);
-                    if (!hasDocType) log.warning('DOCTYPE 선언이 누락되었습니다.');
-                    if (!hasHtml) log.warning('html 태그가 누락되었습니다.');
-                    if (!hasHead) log.warning('head 태그가 누락되었습니다.');
-                    if (!hasBody) log.warning('body 태그가 누락되었습니다.');
-                    if (!hasClosingTags) log.warning('닫는 태그가 누락되었습니다.');
-                    
-                    allValid = false;
-                }
-            }
-            
-            return allValid;
-        } catch (err) {
-            log.error(`HTML 유효성 검사 실패: ${err.message}`);
-            return false;
-        }
-    }
-};
-
-// 메인 테스트 함수
-async function runTests() {
-    log.header('Global SeatCon 2025 컨퍼런스 채팅 애플리케이션 테스트 시작');
-    
-    const results = {
-        requiredFiles: await tests.checkRequiredFiles(),
-        configFile: await tests.validateConfigFile(),
-        dependencies: await tests.checkDependencies(),
-        portAvailability: await tests.checkPortAvailability(),
-        htmlValidity: await tests.validateHTML()
+    return {
+        summary: `테스트 결과: 총 ${testResults.total}개 중 ${testResults.passed}개 통과, ${testResults.failed}개 실패, ${testResults.warnings}개 경고`,
+        success: testResults.failed === 0
     };
-    
-    // 결과 요약
-    log.header('테스트 결과 요약');
-    
-    let allPassed = true;
-    for (const [test, result] of Object.entries(results)) {
-        if (result) {
-            log.success(`✓ ${test} 테스트 통과`);
-        } else {
-            log.error(`✗ ${test} 테스트 실패`);
-            allPassed = false;
-        }
-    }
-    
-    // 전체 결과
-    log.header(allPassed ? '모든 테스트 통과!' : '일부 테스트 실패');
-    
-    if (allPassed) {
-        log.success('애플리케이션이 론칭 준비가 되었습니다.');
-        log.info('서버를 시작하려면 다음 명령어를 실행하세요:');
-        log.info('  npm start');
-    } else {
-        log.warning('론칭 전에 실패한 테스트를 확인하고 문제를 해결하세요.');
-    }
-    
-    return allPassed;
 }
 
-// 테스트 실행
-runTests().then(passed => {
-    process.exit(passed ? 0 : 1);
-});
+// APP 객체 초기화 테스트
+function testAppObjectInitialization() {
+    logMessage('\n----- APP 객체 초기화 테스트 -----', LOG_STYLES.heading);
+    
+    // APP 객체 존재 확인
+    assertTest(
+        'APP 객체 존재 확인',
+        typeof window.APP !== 'undefined',
+        `window.APP이 ${typeof window.APP}입니다.`
+    );
+    
+    // APP.state 확인
+    assertTest(
+        'APP.state 확인',
+        window.APP && typeof window.APP.state === 'object',
+        'APP.state가 올바르게 초기화되지 않았습니다.'
+    );
+    
+    // APP.core 확인
+    assertTest(
+        'APP.core 확인',
+        window.APP && typeof window.APP.core === 'object',
+        'APP.core가 올바르게 초기화되지 않았습니다.'
+    );
+    
+    // APP.core.init 함수 확인
+    assertTest(
+        'APP.core.init 함수 확인',
+        window.APP && window.APP.core && typeof window.APP.core.init === 'function',
+        'APP.core.init 함수가 정의되지 않았습니다.'
+    );
+    
+    // APP.elements 확인
+    assertTest(
+        'APP.elements 확인',
+        window.APP && typeof window.APP.elements === 'object',
+        'APP.elements가 올바르게 초기화되지 않았습니다.'
+    );
+}
+
+// 설정 로드 테스트
+function testConfigLoading() {
+    logMessage('\n----- 설정 로드 테스트 -----', LOG_STYLES.heading);
+    
+    // ENV_CONFIG 확인
+    assertTest(
+        'ENV_CONFIG 확인',
+        typeof window.ENV_CONFIG === 'object',
+        `window.ENV_CONFIG이 ${typeof window.ENV_CONFIG}입니다.`
+    );
+    
+    // CONFIG 확인
+    assertTest(
+        'CONFIG 확인',
+        typeof window.CONFIG === 'object',
+        `window.CONFIG가 ${typeof window.CONFIG}입니다.`
+    );
+    
+    // Supabase URL 확인
+    assertTest(
+        'Supabase URL 확인',
+        window.CONFIG && typeof window.CONFIG.SUPABASE_URL === 'string' && window.CONFIG.SUPABASE_URL.includes('supabase.co'),
+        'Supabase URL이 올바르게 로드되지 않았습니다.'
+    );
+    
+    // Supabase 키 확인
+    assertTest(
+        'Supabase 키 확인',
+        window.CONFIG && typeof window.CONFIG.SUPABASE_KEY === 'string' && window.CONFIG.SUPABASE_KEY.length > 20,
+        'Supabase 키가 올바르게 로드되지 않았습니다.'
+    );
+    
+    // Translation API 키 확인
+    assertTest(
+        'Translation API 키 확인',
+        window.CONFIG && typeof window.CONFIG.TRANSLATION_API_KEY === 'string',
+        'Translation API 키가 올바르게 로드되지 않았습니다.'
+    );
+    
+    // 지원 언어 확인
+    assertTest(
+        '지원 언어 확인',
+        window.CONFIG && Array.isArray(window.CONFIG.SUPPORTED_LANGUAGES) && window.CONFIG.SUPPORTED_LANGUAGES.length >= 2,
+        '지원 언어 목록이 올바르게 로드되지 않았습니다.'
+    );
+}
+
+// DOM 요소 참조 테스트
+function testDOMReferences() {
+    logMessage('\n----- DOM 요소 참조 테스트 -----', LOG_STYLES.heading);
+    
+    // 로그인 컨테이너 확인
+    assertTest(
+        '로그인 컨테이너 확인',
+        document.getElementById('login-container') !== null,
+        'login-container가 존재하지 않습니다.'
+    );
+    
+    // 채팅 컨테이너 확인
+    assertTest(
+        '채팅 컨테이너 확인',
+        document.getElementById('chat-container') !== null,
+        'chat-container가 존재하지 않습니다.'
+    );
+    
+    // APP.elements에 DOM 요소 참조 확인
+    if (window.APP && window.APP.elements) {
+        const elementsCount = Object.keys(window.APP.elements).length;
+        if (elementsCount > 0) {
+            addTestResult('DOM 요소 참조 개수', 'success', `${elementsCount}개의 DOM 요소 참조가 설정되었습니다.`);
+        } else {
+            addTestResult('DOM 요소 참조 개수', 'warning', 'APP.elements에 DOM 요소 참조가 없습니다.');
+        }
+    } else {
+        addTestResult('DOM 요소 참조 개수', 'error', 'APP.elements 객체가 없습니다.');
+    }
+}
+
+// 이벤트 리스너 테스트
+function testEventListeners() {
+    logMessage('\n----- 이벤트 리스너 테스트 -----', LOG_STYLES.heading);
+    
+    // 로그인 버튼 이벤트 리스너 확인
+    const loginButton = document.getElementById('login-button');
+    if (loginButton) {
+        const hasClickListener = hasEventListener(loginButton, 'click');
+        addTestResult('로그인 버튼 클릭 리스너 확인', hasClickListener ? 'success' : 'warning',
+            hasClickListener ? '로그인 버튼에 클릭 이벤트 리스너가 있습니다.' : '로그인 버튼에 클릭 이벤트 리스너가 없을 수 있습니다.');
+    } else {
+        addTestResult('로그인 버튼 클릭 리스너 확인', 'warning', '로그인 버튼 요소를 찾을 수 없습니다.');
+    }
+    
+    // 언어 선택 이벤트 리스너 확인
+    const languageSelect = document.getElementById('language-select');
+    if (languageSelect) {
+        const hasChangeListener = hasEventListener(languageSelect, 'change');
+        addTestResult('언어 선택 변경 리스너 확인', hasChangeListener ? 'success' : 'warning',
+            hasChangeListener ? '언어 선택에 변경 이벤트 리스너가 있습니다.' : '언어 선택에 변경 이벤트 리스너가 없을 수 있습니다.');
+    } else {
+        addTestResult('언어 선택 변경 리스너 확인', 'warning', '언어 선택 요소를 찾을 수 없습니다.');
+    }
+    
+    // 채팅방 선택 이벤트 리스너 확인
+    const roomSelect = document.getElementById('room-select');
+    if (roomSelect) {
+        const hasChangeListener = hasEventListener(roomSelect, 'change');
+        addTestResult('채팅방 선택 변경 리스너 확인', hasChangeListener ? 'success' : 'warning',
+            hasChangeListener ? '채팅방 선택에 변경 이벤트 리스너가 있습니다.' : '채팅방 선택에 변경 이벤트 리스너가 없을 수 있습니다.');
+    } else {
+        addTestResult('채팅방 선택 변경 리스너 확인', 'warning', '채팅방 선택 요소를 찾을 수 없습니다.');
+    }
+    
+    // window 이벤트 리스너 확인
+    const hasLoadListener = hasGlobalEventListener('load');
+    const hasDOMContentLoadedListener = hasGlobalEventListener('DOMContentLoaded');
+    
+    addTestResult('window load 이벤트 리스너 확인', hasLoadListener ? 'success' : 'warning',
+        hasLoadListener ? 'window에 load 이벤트 리스너가 있습니다.' : 'window에 load 이벤트 리스너가 없을 수 있습니다.');
+    
+    addTestResult('DOMContentLoaded 이벤트 리스너 확인', hasDOMContentLoadedListener ? 'success' : 'warning',
+        hasDOMContentLoadedListener ? 'document에 DOMContentLoaded 이벤트 리스너가 있습니다.' : 'document에 DOMContentLoaded 이벤트 리스너가 없을 수 있습니다.');
+}
+
+// 서비스 초기화 테스트
+function testServiceInitialization() {
+    logMessage('\n----- 서비스 초기화 테스트 -----', LOG_STYLES.heading);
+    
+    // dbService 확인
+    assertTest(
+        'dbService 확인',
+        typeof window.dbService === 'object',
+        'dbService가 올바르게 초기화되지 않았습니다.'
+    );
+    
+    // translationService 확인
+    assertTest(
+        'translationService 확인',
+        typeof window.translationService === 'object',
+        'translationService가 올바르게 초기화되지 않았습니다.'
+    );
+    
+    // realtimeService 확인
+    assertTest(
+        'realtimeService 확인',
+        typeof window.realtimeService === 'object',
+        'realtimeService가 올바르게 초기화되지 않았습니다.'
+    );
+    
+    // userService 확인
+    assertTest(
+        'userService 확인',
+        typeof window.userService === 'object',
+        'userService가 올바르게 초기화되지 않았습니다.'
+    );
+    
+    // chatService 확인
+    assertTest(
+        'chatService 확인',
+        typeof window.chatService === 'object',
+        'chatService가 올바르게 초기화되지 않았습니다.'
+    );
+    
+    // offlineService 확인
+    assertTest(
+        'offlineService 확인',
+        typeof window.offlineService === 'object',
+        'offlineService가 올바르게 초기화되지 않았습니다.'
+    );
+    
+    // APP.state.servicesReady 확인
+    if (window.APP && window.APP.state) {
+        addTestResult('APP.state.servicesReady 확인', 
+            window.APP.state.servicesReady ? 'success' : 'warning',
+            window.APP.state.servicesReady ? '서비스가 준비 상태입니다.' : '서비스가 아직 준비되지 않았습니다.');
+    } else {
+        addTestResult('APP.state.servicesReady 확인', 'error', 'APP.state 객체가 없습니다.');
+    }
+}
+
+// 테스트 결과 로그 출력 함수
+function logMessage(message, style = '') {
+    if (style) {
+        console.log('%c' + message, style);
+    } else {
+        console.log(message);
+    }
+}
+
+// 테스트 결과 추가 함수
+function addTestResult(name, status, message = '') {
+    testResults.total++;
+    
+    if (status === 'success') {
+        testResults.passed++;
+    } else if (status === 'error') {
+        testResults.failed++;
+    } else if (status === 'warning') {
+        testResults.warnings++;
+    }
+    
+    testResults.details.push({
+        name,
+        status,
+        message
+    });
+}
+
+// 테스트 어설션 함수
+function assertTest(name, condition, errorMessage = '') {
+    const status = condition ? 'success' : 'error';
+    const message = condition ? '' : errorMessage;
+    
+    addTestResult(name, status, message);
+    
+    return condition;
+}
+
+// 결과 텍스트 반환 함수
+function getResultText(status) {
+    switch (status) {
+        case 'success': return '통과';
+        case 'error': return '실패';
+        case 'warning': return '경고';
+        default: return '알 수 없음';
+    }
+}
+
+// 결과 스타일 반환 함수
+function getStyleByStatus(status) {
+    switch (status) {
+        case 'success': return LOG_STYLES.success;
+        case 'error': return LOG_STYLES.error;
+        case 'warning': return LOG_STYLES.warning;
+        default: return '';
+    }
+}
+
+// 이벤트 리스너 확인 함수 (추측 기반, 완벽한 확인은 어려움)
+function hasEventListener(element, eventType) {
+    try {
+        // 이 방법은 완벽하지 않음 (모든 브라우저에서 작동하지 않을 수 있음)
+        const listenerCount = element.eventListenerCount ? element.eventListenerCount(eventType) : -1;
+        
+        if (listenerCount > 0) {
+            return true;
+        }
+        
+        // 클론 노드를 생성하여 이벤트 리스너가 복제되는지 확인
+        const clone = element.cloneNode(true);
+        const hasListener = element !== clone;
+        
+        return hasListener;
+    } catch (error) {
+        console.warn('이벤트 리스너 확인 중 오류:', error);
+        return false;
+    }
+}
+
+// 전역 이벤트 리스너 확인 함수 (추측 기반, 완벽한 확인은 어려움)
+function hasGlobalEventListener(eventType) {
+    try {
+        // window에 이벤트 리스너가 있는지 추측 (완벽하지 않음)
+        const originalAddEventListener = window.addEventListener;
+        let hasListener = false;
+        
+        window.addEventListener = function(type) {
+            if (type === eventType) {
+                hasListener = true;
+            }
+            return originalAddEventListener.apply(this, arguments);
+        };
+        
+        // 변경된 addEventListener 복원
+        window.addEventListener = originalAddEventListener;
+        
+        return hasListener;
+    } catch (error) {
+        console.warn('전역 이벤트 리스너 확인 중 오류:', error);
+        return false;
+    }
+}
+
+// 테스트 실행 함수 내보내기
+window.runAppTests = runTests;
+
+// 콘솔에 사용법 표시
+console.log('%c테스트를 실행하려면 window.runAppTests()를 호출하세요.', 'font-weight: bold; color: #4361ee;');
