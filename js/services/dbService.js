@@ -15,30 +15,40 @@ const dbService = (() => {
         if (!supabase) {
             try {
                 // config.js에서 API 키 가져오기
-                const SUPABASE_URL = CONFIG.SUPABASE_URL;
-                const SUPABASE_KEY = CONFIG.SUPABASE_KEY;
-                
-                // 헤더 옵션 추가
-                const options = {
-                    auth: {
-                        persistSession: true,
-                        autoRefreshToken: true,
-                        detectSessionInUrl: true
-                    },
-                    global: {
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json'
+                if (!window.CONFIG || !window.CONFIG.SUPABASE_URL || !window.CONFIG.SUPABASE_KEY) {
+                    console.error('CONFIG 객체 또는 Supabase 설정이 없습니다');
+                    // 백업 설정 사용
+                    const SUPABASE_URL = 'https://dolywnpcrutdxuxkozae.supabase.co';
+                    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvbHl3bnBjcnV0ZHh1eGtvemFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2NDEyMDYsImV4cCI6MjA2MjIxNzIwNn0.--UVh_FtCPp23EHzJEejyl9GUX6-6Fao81PlPQDR5G8';
+                    
+                    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                } else {
+                    const SUPABASE_URL = window.CONFIG.SUPABASE_URL;
+                    const SUPABASE_KEY = window.CONFIG.SUPABASE_KEY;
+                    
+                    // 헤더 옵션 추가
+                    const options = {
+                        auth: {
+                            persistSession: true,
+                            autoRefreshToken: true,
+                            detectSessionInUrl: true
+                        },
+                        global: {
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json'
+                            }
+                        },
+                        realtime: {
+                            params: {
+                                eventsPerSecond: 10
+                            }
                         }
-                    },
-                    realtime: {
-                        params: {
-                            eventsPerSecond: 10
-                        }
-                    }
-                };
+                    };
+                    
+                    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, options);
+                }
                 
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, options);
                 console.log('Supabase 클라이언트 초기화 완료');
             } catch (error) {
                 console.error('Supabase 클라이언트 초기화 실패:', error);
@@ -81,12 +91,13 @@ const dbService = (() => {
             const headers = {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-                'apikey': CONFIG.SUPABASE_KEY,
-                'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`
+                'apikey': window.CONFIG ? window.CONFIG.SUPABASE_KEY : '',
+                'Authorization': `Bearer ${window.CONFIG ? window.CONFIG.SUPABASE_KEY : ''}`
             };
 
             // 직접 API 호출을 통한 조회 시도 (supabase 클라이언트 문제 회피)
-            const response = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/chatrooms?select=*&order=sort_order.asc${activeOnly ? '&is_active=eq.true' : ''}`, {
+            const supabaseUrl = window.CONFIG ? window.CONFIG.SUPABASE_URL : 'https://dolywnpcrutdxuxkozae.supabase.co';
+            const response = await fetch(`${supabaseUrl}/rest/v1/chatrooms?select=*&order=sort_order.asc${activeOnly ? '&is_active=eq.true' : ''}`, {
                 method: 'GET',
                 headers: headers
             });
@@ -165,9 +176,8 @@ const dbService = (() => {
             ];
         }
     };
-        }
-    };
 
+    /**
      * 채팅방 상세 정보 가져오기
      * @param {string} roomId - 채팅방 ID
      * @returns {Promise<Object>} 채팅방 정보
@@ -178,11 +188,12 @@ const dbService = (() => {
             const headers = {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-                'apikey': CONFIG.SUPABASE_KEY,
-                'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`
+                'apikey': window.CONFIG ? window.CONFIG.SUPABASE_KEY : '',
+                'Authorization': `Bearer ${window.CONFIG ? window.CONFIG.SUPABASE_KEY : ''}`
             };
 
-            const response = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/chatrooms?id=eq.${roomId}&limit=1`, {
+            const supabaseUrl = window.CONFIG ? window.CONFIG.SUPABASE_URL : 'https://dolywnpcrutdxuxkozae.supabase.co';
+            const response = await fetch(`${supabaseUrl}/rest/v1/chatrooms?id=eq.${roomId}&limit=1`, {
                 method: 'GET',
                 headers: headers
             });
@@ -192,7 +203,7 @@ const dbService = (() => {
                 throw new Error(`채팅방 조회 API 오류: ${response.status}`);
             }
 
-            // API에서 배열로 응답하민로 첫 번째 항목 처리
+            // API에서 배열로 응답하므로 첫 번째 항목 처리
             const data = await response.json();
             if (data && data.length > 0) {
                 // 성공적으로 채팅방을 가져왔을 때 로컬 저장소에 백업
@@ -313,7 +324,7 @@ const dbService = (() => {
             
             // 관리자 세션 설정 (임시 방편)
             // 실제 프로덕션 환경에서는 제대로 된 인증 시스템을 사용해야 함
-            const adminId = CONFIG.ADMIN_ID;
+            const adminId = window.CONFIG ? window.CONFIG.ADMIN_ID : 'kcmmer';
             
             // 임시 방편: RLS 정책 우회를 위한 특별 헤더 추가
             const { data, error } = await client
@@ -472,7 +483,95 @@ const dbService = (() => {
     };
 
     /**
-     * 채팅방 메시지 가져오기
+     * 관리자 인증
+     * @param {string} adminId - 관리자 ID
+     * @param {string} password - 비밀번호
+     * @returns {Promise<boolean>} 인증 성공 여부
+     */
+    const authenticateAdmin = async (adminId, password) => {
+        try {
+            // CONFIG 객체 확인
+            if (!window.CONFIG) {
+                console.error('CONFIG 객체가 정의되지 않았습니다.');
+                // 하드코딩된 값으로 인증 시도
+                const isValid = (adminId === 'kcmmer' && password === 'rnrud9881@@HH');
+                
+                // 디버그 로그
+                console.log('하드코딩된 값으로 인증 결과:', isValid);
+                
+                if (isValid) {
+                    // 인증 성공 시 세션 쿠키에 관리자 상태 저장 (로컬 스토리지는 보안에 취약)
+                    // 임시 방편으로 로컬 스토리지에 관리자 정보 저장
+                    // 실제 프로덕션 환경에서는 더 안전한 방식 사용 필요
+                    localStorage.setItem('admin_session', JSON.stringify({
+                        id: adminId,
+                        role: 'admin',
+                        timestamp: new Date().getTime()
+                    }));
+                }
+                
+                return isValid;
+            }
+            
+            // config.js에서 관리자 계정 정보 가져오기
+            const correctId = window.CONFIG.ADMIN_ID;
+            const correctPassword = window.CONFIG.ADMIN_PASSWORD;
+            
+            // 디버그 로그
+            console.log('관리자 인증 시도:', adminId);
+            console.log('CONFIG의 관리자 ID:', correctId);
+            console.log('CONFIG의 비밀번호 길이:', correctPassword ? correctPassword.length : 0);
+            
+            const isValid = (adminId === correctId && password === correctPassword);
+            
+            if (isValid) {
+                try {
+                    // 인증 성공 시 세션 쿠키에 관리자 상태 저장 (로컬 스토리지는 보안에 취약)
+                    const client = initializeClient();
+                    
+                    // 임시 방편으로 로컬 스토리지에 관리자 정보 저장
+                    // 실제 프로덕션 환경에서는 더 안전한 방식 사용 필요
+                    localStorage.setItem('admin_session', JSON.stringify({
+                        id: adminId,
+                        role: 'admin',
+                        timestamp: new Date().getTime()
+                    }));
+                    
+                    // 사용자 테이블에 관리자 정보 저장 (존재하지 않는 경우)
+                    const { data, error } = await client
+                        .from('users')
+                        .upsert({
+                            id: `admin_${adminId}`,
+                            username: 'Admin',
+                            preferred_language: 'ko',
+                            role: 'admin',
+                            last_activity: new Date().toISOString()
+                        })
+                        .select();
+                    
+                    if (error) {
+                        console.warn('관리자 사용자 정보 저장 실패:', error);
+                        // 인증은 계속 유효함
+                    }
+                    
+                    return true;
+                } catch (error) {
+                    console.error('관리자 세션 설정 중 오류:', error);
+                    return true; // 오류가 발생해도 인증은 성공한 것으로 처리
+                }
+            }
+            
+            console.warn('관리자 인증 실패');
+            return false;
+        } catch (error) {
+            console.error('관리자 인증 중 오류 발생:', error);
+            // 오류 발생 시 인증 실패로 처리
+            return false;
+        }
+    };
+
+    /**
+     * 메시지 가져오기
      * @param {string} roomId - 채팅방 ID
      * @param {number} limit - 가져올 메시지 수 (기본값 30)
      * @param {number} offset - 오프셋 (기본값 0)
@@ -522,46 +621,6 @@ const dbService = (() => {
         } catch (error) {
             console.error('메시지 전송 실패:', error);
             throw new Error('메시지 전송에 실패했습니다');
-        }
-    };
-
-    /**
-     * 마지막 메시지 ID 이후의 새 메시지 가져오기
-     * @param {string} roomId - 채팅방 ID
-     * @param {string} lastMessageId - 마지막 메시지 ID
-     * @returns {Promise<Array>} 새 메시지 목록
-     */
-    const getNewMessages = async (roomId, lastMessageId) => {
-        try {
-            const client = initializeClient();
-            
-            // 마지막 메시지의 생성 시간 조회
-            const { data: lastMessage, error: lastMessageError } = await client
-                .from('messages')
-                .select('created_at')
-                .eq('id', lastMessageId)
-                .single();
-            
-            if (lastMessageError) {
-                throw lastMessageError;
-            }
-            
-            // 마지막 메시지 이후의 메시지 조회
-            const { data, error } = await client
-                .from('messages')
-                .select('*')
-                .eq('chatroom_id', roomId)
-                .gt('created_at', lastMessage.created_at)
-                .order('created_at', { ascending: true });
-            
-            if (error) {
-                throw error;
-            }
-            
-            return data || [];
-        } catch (error) {
-            console.error(`새 메시지 조회 실패 (채팅방 ID: ${roomId}, 마지막 메시지 ID: ${lastMessageId}):`, error);
-            throw new Error('새 메시지를 불러오는데 실패했습니다');
         }
     };
 
@@ -746,56 +805,6 @@ const dbService = (() => {
     };
 
     /**
-     * 관리자 인증
-     * @param {string} adminId - 관리자 ID
-     * @param {string} password - 비밀번호
-     * @returns {Promise<boolean>} 인증 성공 여부
-     */
-    const authenticateAdmin = async (adminId, password) => {
-        // config.js에서 관리자 계정 정보 가져오기
-        const isValid = adminId === CONFIG.ADMIN_ID && password === CONFIG.ADMIN_PASSWORD;
-        
-        if (isValid) {
-            try {
-                // 인증 성공 시 세션 쿠키에 관리자 상태 저장 (로컬 스토리지는 보안에 취약)
-                const client = initializeClient();
-                
-                // 임시 방편으로 로컬 스토리지에 관리자 정보 저장
-                // 실제 프로덕션 환경에서는 더 안전한 방식 사용 필요
-                localStorage.setItem('admin_session', JSON.stringify({
-                    id: adminId,
-                    role: 'admin',
-                    timestamp: new Date().getTime()
-                }));
-                
-                // 사용자 테이블에 관리자 정보 저장 (존재하지 않는 경우)
-                const { data, error } = await client
-                    .from('users')
-                    .upsert({
-                        id: `admin_${adminId}`,
-                        username: 'Admin',
-                        preferred_language: 'ko',
-                        role: 'admin',
-                        last_activity: new Date().toISOString()
-                    })
-                    .select();
-                
-                if (error) {
-                    console.warn('관리자 사용자 정보 저장 실패:', error);
-                    // 인증은 계속 유효함
-                }
-                
-                return true;
-            } catch (error) {
-                console.error('관리자 세션 설정 중 오류:', error);
-                return true; // 오류가 발생해도 인증은 성공한 것으로 처리
-            }
-        }
-        
-        return false;
-    };
-
-    /**
      * 통계 정보 가져오기
      * @returns {Promise<Object>} 통계 정보
      */
@@ -883,7 +892,6 @@ const dbService = (() => {
         deleteChatRoom,
         getMessages,
         sendMessage,
-        getNewMessages,
         saveUser,
         getUsers,
         updateUserActivity,
